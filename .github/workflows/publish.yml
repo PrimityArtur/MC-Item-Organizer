@@ -1,0 +1,51 @@
+name: publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v4
+
+      - name: setup jdk 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: setup gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: make gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: build mod
+        run: ./gradlew build
+
+      - name: publish to modrinth and github release
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID || secrets.MODRINTH_PROJECT_ID || 'item-organizer' }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            build/libs/!(*-@(dev|sources|javadoc)).jar
+          name: Item Organizer ${{ github.ref_name }}
+          version: ${{ github.ref_name }}
+          version-type: release
+          loaders: |
+            fabric
+            quilt
+          game-versions: |
+            1.21
+            1.21.1
+            1.21.2
+            1.21.3
+            1.21.4

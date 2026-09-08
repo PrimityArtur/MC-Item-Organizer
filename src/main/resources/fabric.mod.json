@@ -1,0 +1,35 @@
+{
+	"schemaVersion": 1,
+	"id": "item-organizer",
+	"version": "${version}",
+	"name": "Item Organizer",
+	"description": "A visual inventory organizer featuring chromatic color gradient sorting, hotbar palette management, items profile management, and modded item support.",
+	"authors": [
+		"PrimityArtur"
+	],
+	"contact": {
+		"homepage": "https://github.com/PrimityArtur/MC-Item-Organizer",
+		"sources": "https://github.com/PrimityArtur/MC-Item-Organizer",
+		"issues": "https://github.com/PrimityArtur/MC-Item-Organizer/issues"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/item-organizer/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.itemorganizer.ItemOrganizer"
+		],
+		"client": [
+			"com.itemorganizer.client.ItemOrganizerClient"
+		]
+	},
+	"mixins": [
+		"item-organizer.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": ">=1.21",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}
