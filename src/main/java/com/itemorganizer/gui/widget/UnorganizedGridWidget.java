@@ -15,7 +15,7 @@ import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.Selectable;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.input.KeyInput;
-import net.minecraft.client.sound.PositionedSoundInstance;
+import com.itemorganizer.gui.util.SoundHelper;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -208,9 +208,7 @@ public class UnorganizedGridWidget implements Drawable, Element, Selectable {
                         profile.blockItem(itemId);
                         StorageManager.getInstance().getProfileRepository().saveProfile(profile);
                         viewModel.recomputeUnorganizedItems();
-                        MinecraftClient.getInstance().getSoundManager().play(
-                                PositionedSoundInstance.master(SoundEvents.BLOCK_IRON_TRAPDOOR_CLOSE, 1.2F)
-                        );
+                        SoundHelper.playTrapdoorClose();
                     }
                     lastRightClickTime = 0;
                     lastRightClickItemId = null;
@@ -275,7 +273,7 @@ public class UnorganizedGridWidget implements Drawable, Element, Selectable {
                         if (client.getNetworkHandler() != null) {
                             client.getNetworkHandler().sendPacket(new CreativeInventoryActionC2SPacket(36 + i, giveStack));
                         }
-                        client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+                        SoundHelper.playClick();
                         return true;
                     }
                 }

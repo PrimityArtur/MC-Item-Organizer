@@ -1,15 +1,24 @@
 package com.itemorganizer.gui.widget;
 
 import com.itemorganizer.gui.util.RenderHelper;
+import com.itemorganizer.gui.util.SoundHelper;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
+import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.text.Text;
 
 import java.util.function.Supplier;
 
 // navigation tab button with selected and hovered states
-public class TabButtonWidget extends ButtonWidget {
+public class TabButtonWidget extends ClickableWidget {
+    @FunctionalInterface
+    public interface PressAction {
+        void onPress(TabButtonWidget button);
+    }
+
+    private final PressAction onPress;
     private final Supplier<Boolean> isSelectedSupplier;
     private final boolean isToggleButton;
 
@@ -18,7 +27,8 @@ public class TabButtonWidget extends ButtonWidget {
     }
 
     public TabButtonWidget(int x, int y, int width, int height, Text message, PressAction onPress, Supplier<Boolean> isSelectedSupplier, boolean isToggleButton) {
-        super(x, y, width, height, message, onPress, DEFAULT_NARRATION_SUPPLIER);
+        super(x, y, width, height, message);
+        this.onPress = onPress;
         this.isSelectedSupplier = isSelectedSupplier;
         this.isToggleButton = isToggleButton;
     }
@@ -28,6 +38,19 @@ public class TabButtonWidget extends ButtonWidget {
         setY(y);
         setWidth(width);
         setHeight(height);
+    }
+
+    @Override
+    public void onClick(Click click, boolean bl) {
+        SoundHelper.playClick();
+        if (this.onPress != null) {
+            this.onPress.onPress(this);
+        }
+    }
+
+    @Override
+    protected void appendClickableNarrations(NarrationMessageBuilder builder) {
+        appendDefaultNarrations(builder);
     }
 
     @Override
@@ -84,4 +107,3 @@ public class TabButtonWidget extends ButtonWidget {
         com.itemorganizer.gui.util.TextScaleHelper.drawVerticallyCenteredScaledText(context, client.textRenderer, getMessage(), centerX, centerY, textColor, true, textScale);
     }
 }
-

@@ -1,4 +1,4 @@
-﻿# Item Organizer
+# Item Organizer
 
 <p align="center">
   <img src="src/main/resources/assets/item-organizer/icon.png" alt="Item Organizer Logo" width="128" height="128">
@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/PrimityArtur/MC-Item-Organizer/releases"><img src="https://img.shields.io/github/v/release/PrimityArtur/MC-Item-Organizer?color=brightgreen&label=release" alt="Release"></a>
   <a href="https://fabricmc.net/"><img src="https://img.shields.io/badge/Loader-Fabric-blue" alt="Fabric"></a>
-  <a href="https://minecraft.net/"><img src="https://img.shields.io/badge/Minecraft-1.21.10-orange" alt="Minecraft 1.21.10"></a>
+  <a href="https://minecraft.net/"><img src="https://img.shields.io/badge/Minecraft-1.21.11-orange" alt="Minecraft 1.21.11"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="License"></a>
 </p>
 
@@ -65,7 +65,7 @@ Whether you need quick hotbar palettes for building gradients or want a structur
 
 ## Installation
 
-1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for Minecraft 1.21.10.
+1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for Minecraft 1.21.11.
 2. Download the latest version of [Fabric API](https://modrinth.com/mod/fabric-api).
 3. Download **Item Organizer** from [Modrinth](https://modrinth.com/mod/item-organizer)
 4. Place both `.jar` files into your `.minecraft/mods` folder.

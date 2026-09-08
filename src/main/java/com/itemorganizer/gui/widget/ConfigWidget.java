@@ -20,7 +20,7 @@ import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.input.CharInput;
 import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.sound.PositionedSoundInstance;
+import com.itemorganizer.gui.util.SoundHelper;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
@@ -567,9 +567,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
     }
 
     private void playClickSound() {
-        MinecraftClient.getInstance().getSoundManager().play(
-                PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F)
-        );
+        SoundHelper.playClick();
     }
 
     @Override

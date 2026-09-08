@@ -11,7 +11,7 @@ import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.Selectable;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.input.KeyInput;
-import net.minecraft.client.sound.PositionedSoundInstance;
+import com.itemorganizer.gui.util.SoundHelper;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket;
@@ -171,9 +171,7 @@ public class HotbarWidget implements Drawable, Element, Selectable {
                             client.getNetworkHandler().sendPacket(new CreativeInventoryActionC2SPacket(36 + hoveredSlot, stackTarget));
                         }
 
-                        client.getSoundManager().play(
-                                PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F)
-                        );
+                        SoundHelper.playClick();
                         return true;
                     }
                 }

@@ -5,6 +5,7 @@ import com.itemorganizer.gui.navigation.OrdenadoSubTab;
 import com.itemorganizer.gui.navigation.RightTab;
 import com.itemorganizer.gui.viewmodel.OrganizerViewModel;
 import com.itemorganizer.gui.util.RenderHelper;
+import com.itemorganizer.gui.util.SoundHelper;
 import com.itemorganizer.gui.util.TextScaleHelper;
 import com.itemorganizer.gui.widget.HotbarWidget;
 import com.itemorganizer.gui.widget.TabButtonWidget;
@@ -518,7 +519,7 @@ public class OrganizerScreen extends Screen {
                                     client.getNetworkHandler().sendPacket(new net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket(36 + targetSlot, sourceStack));
                                     client.getNetworkHandler().sendPacket(new net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket(36 + sourceSlot, targetStack));
                                 }
-                                client.getSoundManager().play(net.minecraft.client.sound.PositionedSoundInstance.master(net.minecraft.sound.SoundEvents.UI_BUTTON_CLICK, 1.0F));
+                                SoundHelper.playClick();
                             }
                         } else if (client.player.isCreative()) {
                             net.minecraft.item.ItemStack stack = new net.minecraft.item.ItemStack(
@@ -529,7 +530,7 @@ public class OrganizerScreen extends Screen {
                             if (client.getNetworkHandler() != null) {
                                 client.getNetworkHandler().sendPacket(new net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket(36 + hotbarSlot, stack));
                             }
-                            client.getSoundManager().play(net.minecraft.client.sound.PositionedSoundInstance.master(net.minecraft.sound.SoundEvents.UI_BUTTON_CLICK, 1.0F));
+                            SoundHelper.playClick();
                         }
                     }
                     dragManager.consumePayload();
@@ -749,11 +750,7 @@ public class OrganizerScreen extends Screen {
 
         // do not append if blocker is active
         if (viewModel.isBlockerActive()) {
-            if (client != null && client.getSoundManager() != null) {
-                client.getSoundManager().play(
-                        net.minecraft.client.sound.PositionedSoundInstance.master(net.minecraft.sound.SoundEvents.BLOCK_CHEST_LOCKED, 1.0F)
-                );
-            }
+            SoundHelper.playLock();
             return;
         }
 
@@ -785,11 +782,7 @@ public class OrganizerScreen extends Screen {
         com.itemorganizer.storage.StorageManager.getInstance().getProfileRepository().saveProfile(profile);
         viewModel.recomputeUnorganizedItems();
 
-        if (client != null && client.getSoundManager() != null) {
-            client.getSoundManager().play(
-                    net.minecraft.client.sound.PositionedSoundInstance.master(net.minecraft.sound.SoundEvents.ENTITY_ITEM_PICKUP, 1.0F)
-            );
-        }
+        SoundHelper.playPickup();
     }
 
     @Override
@@ -1025,26 +1018,14 @@ public class OrganizerScreen extends Screen {
     }
 
     private void playClickSound() {
-        if (client != null && client.getSoundManager() != null) {
-            client.getSoundManager().play(
-                    net.minecraft.client.sound.PositionedSoundInstance.master(net.minecraft.sound.SoundEvents.UI_BUTTON_CLICK, 1.0F)
-            );
-        }
+        SoundHelper.playClick();
     }
 
     private void playSuccessSound() {
-        if (client != null && client.getSoundManager() != null) {
-            client.getSoundManager().play(
-                    net.minecraft.client.sound.PositionedSoundInstance.master(net.minecraft.sound.SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, 1.0F)
-            );
-        }
+        SoundHelper.playChime();
     }
 
     private void playLockedSound() {
-        if (client != null && client.getSoundManager() != null) {
-            client.getSoundManager().play(
-                    net.minecraft.client.sound.PositionedSoundInstance.master(net.minecraft.sound.SoundEvents.BLOCK_CHEST_LOCKED, 1.0F)
-            );
-        }
+        SoundHelper.playLock();
     }
 }

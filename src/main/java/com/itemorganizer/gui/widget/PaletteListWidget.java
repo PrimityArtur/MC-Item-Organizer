@@ -20,7 +20,7 @@ import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.input.CharInput;
 import net.minecraft.client.input.KeyInput;
-import net.minecraft.client.sound.PositionedSoundInstance;
+import com.itemorganizer.gui.util.SoundHelper;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -943,9 +943,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                 if (click.button() == 1) {
                     row.clearSlot(hoveredSlotIndex);
                     StorageManager.getInstance().getPaletteRepository().save(data);
-                    MinecraftClient.getInstance().getSoundManager().play(
-                            PositionedSoundInstance.master(SoundEvents.ENTITY_ITEM_BREAK, 1.0F)
-                    );
+                    SoundHelper.playBreak();
                     return true;
                 }
 
@@ -1005,7 +1003,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
             }
         }
 
-        client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+        SoundHelper.playClick();
     }
 
     @Override
@@ -1025,9 +1023,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                     row.setSlot(hoveredSlotIndex, payload.getItemId());
 
                     StorageManager.getInstance().getPaletteRepository().save(data);
-                    MinecraftClient.getInstance().getSoundManager().play(
-                            PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F)
-                    );
+                    SoundHelper.playClick();
                     dragManager.consumePayload();
                     return true;
                 }
@@ -1096,7 +1092,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                         if (client.getNetworkHandler() != null) {
                             client.getNetworkHandler().sendPacket(new CreativeInventoryActionC2SPacket(36 + i, giveStack));
                         }
-                        client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+                        SoundHelper.playClick();
                         return true;
                     }
                 }
@@ -1139,9 +1135,6 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     }
 
     private void playClickSound() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client != null && client.getSoundManager() != null) {
-            client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-        }
+        SoundHelper.playClick();
     }
 }
