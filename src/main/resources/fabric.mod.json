@@ -14,7 +14,7 @@
 	},
 	"license": "MIT",
 	"icon": "assets/item-organizer/icon.png",
-	"environment": "*",
+	"environment": "client",
 	"entrypoints": {
 		"main": [
 			"com.itemorganizer.ItemOrganizer"
