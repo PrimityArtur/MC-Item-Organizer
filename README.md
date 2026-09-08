@@ -20,7 +20,7 @@
 
 ## Overview
 
-**Item Organizer** is a client-side Fabric mod designed for builders, creators, and organizers. It analyzes the perceptual color and shape of blocks and items—including modded items—to arrange them in a smooth chromatic color gradient.
+**Item Organizer** is a client-side Fabric mod designed for builders, creators, and organizers. It analyzes the color of blocks and items—including modded items—to arrange them in a  chromatic color gradient.
 
 Whether you need quick hotbar palettes for building gradients or want a structured overview of all blocks in the game, Item Organizer streamlines your workflow.
 
@@ -42,11 +42,9 @@ Whether you need quick hotbar palettes for building gradients or want a structur
 - **Item Locking (Blocker)**:
   - Double right-click any item to lock or unlock it.
   - Keep unwanted items from cluttering your organized workspace.
-- **Deep Visual Customization**:
-  - **Custom Blur**: Adjustable background blur from subtle glassmorphism to ultra-deep blur (up to 500% / 50px).
-  - **Hex Color & Transparency**: Full control over UI background color and opacity.
+- **Visual Customization**:
+  - **Custom Blur**: Adjustable background blur from subtle glassmorphism to ultra-deep blur.
   - **Grid & Item Scaling**: Independent sliders for Grid Zoom, Item Scale, Palette Scale, and Text Scale.
-  - **Centered Grid Slots**: All items and interactive buttons are precisely aligned to their grid slots.
 - **Server Safe (Client-Side)**: 100% client-side. Works on singleplayer, LAN, and multiplayer servers (vanilla, Fabric, Paper, Purpur) without server installation.
 - **Multilingual Support**: Available in English (`en_us`) and Spanish (`es_es`).
 
@@ -69,25 +67,9 @@ Whether you need quick hotbar palettes for building gradients or want a structur
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for Minecraft 1.21.10.
 2. Download the latest version of [Fabric API](https://modrinth.com/mod/fabric-api).
-3. Download **Item Organizer** from [Modrinth](https://modrinth.com/mod/item-organizer) or [GitHub Releases](https://github.com/PrimityArtur/MC-Item-Organizer/releases).
+3. Download **Item Organizer** from [Modrinth](https://modrinth.com/mod/item-organizer)
 4. Place both `.jar` files into your `.minecraft/mods` folder.
 5. Launch Minecraft and press `O` to open the organizer.
-
----
-
-## Building from Source
-
-To compile the mod locally:
-
-```bash
-git clone https://github.com/PrimityArtur/MC-Item-Organizer.git
-cd MC-Item-Organizer
-./gradlew build
-```
-
-The compiled mod JAR will be located in `build/libs/`.
-
----
 
 ## License
 
