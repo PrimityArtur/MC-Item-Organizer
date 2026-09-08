@@ -12,65 +12,70 @@
 <p align="center">
   <a href="https://github.com/PrimityArtur/MC-Item-Organizer/releases"><img src="https://img.shields.io/github/v/release/PrimityArtur/MC-Item-Organizer?color=brightgreen&label=release" alt="Release"></a>
   <a href="https://fabricmc.net/"><img src="https://img.shields.io/badge/Loader-Fabric-blue" alt="Fabric"></a>
-  <a href="https://minecraft.net/"><img src="https://img.shields.io/badge/Minecraft-1.21.11-orange" alt="Minecraft 1.21.11"></a>
+  <a href="https://minecraft.net/"><img src="https://img.shields.io/badge/Minecraft-1.21.10%20%7C%201.21.11-orange" alt="Minecraft 1.21.10 | 1.21.11"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="License"></a>
 </p>
 
 ---
 
-## Overview
+## ✨ What Does Item Organizer Do?
 
-**Item Organizer** is a client-side Fabric mod designed for builders, creators, and organizers. It analyzes the color of blocks and items—including modded items—to arrange them in a  chromatic color gradient.
+**Item Organizer** is a client-side visual inventory management mod for Minecraft that revolutionizes how you organize, discover, and build with blocks:
 
-Whether you need quick hotbar palettes for building gradients or want a structured overview of all blocks in the game, Item Organizer streamlines your workflow.
-
----
-
-## Features
-
-- **Chromatic Color Sorting**: Automatically sorts blocks and items by perceptual hue, saturation, and luminance.
-- **Dynamic Model & Texture Inspection**: Intelligently identifies non-cube items, glass panes, bars, pottery sherds, mob heads, slabs, and stairs without requiring hardcoded lists.
+- **Chromatic Color Gradient Sorting**: Dynamically samples and analyzes the textures of blocks and items (including modded items) to arrange them in a smooth, perceptually accurate chromatic color gradient.
+- **Smart Texture & Model Inspection**: Automatically recognizes non-cube items, glass panes, iron bars, pottery sherds, mob heads, slabs, and stairs, ensuring clean visual grouping without hardcoded lists.
 - **Hotbar Palette Manager**:
-  - Build and store custom palettes.
-  - Search filter to quickly locate specific palettes.
-  - One-click load directly to your player hotbar.
-  - Compact controls to reorder, duplicate, rename, or delete palettes.
-- **Profile System**:
-  - Create multiple organization profiles.
-  - Clone active setups with all locked items preserved.
-  - Easily switch between building palettes and resource layouts.
-- **Item Locking (Blocker)**:
-  - Double right-click any item to lock or unlock it.
-  - Keep unwanted items from cluttering your organized workspace.
-- **Visual Customization**:
-  - **Custom Blur**: Adjustable background blur from subtle glassmorphism to ultra-deep blur.
-  - **Grid & Item Scaling**: Independent sliders for Grid Zoom, Item Scale, Palette Scale, and Text Scale.
-- **Server Safe (Client-Side)**: 100% client-side. Works on singleplayer, LAN, and multiplayer servers (vanilla, Fabric, Paper, Purpur) without server installation.
-- **Multilingual Support**: Available in English (`en_us`) and Spanish (`es_es`).
+  - Create, save, rename, and duplicate custom building palettes.
+  - Search filter to instantly find the palette you need.
+  - One-click load directly into your active player hotbar.
+- **Multi-Profile System**: Save different profiles for building gradients, redstone work, survival resources, or aesthetic projects, with your preferences and locked items preserved.
+- **Item Blocker (Item Locking)**: Double right-click any item to hide/lock it from your organized view, keeping unwanted blocks from cluttering your space.
+- **Visual Customization**: Real-time adjustable sliders for background blur intensity (from clean glassmorphism to deep blur), grid zoom, item scale, palette scale, and text scale.
 
 ---
 
-## Controls & Keybindings
+## 💡 Why Should You Download It?
 
-| Key / Action | Function |
+- **Master Gradients & Color Transitions**: Stop guessing which block blends best into another. See every block laid out in an intuitive color spectrum so you can pick gradient transitions in seconds.
+- **Supercharge Your Building Speed**: No more spending minutes clicking through endless creative tabs or digging through storage chests to find a block. Store your favorite block combinations in custom palettes and load them into your hotbar with one click.
+- **100% Modded Support**: Because color analysis is computed dynamically from item textures and models, Item Organizer works out-of-the-box with any modded blocks you have installed.
+- **Modern, Clean Aesthetic**: Designed with an elegant, responsive glassmorphic interface that looks and feels like a modern creative tool rather than a cluttered legacy menu.
+
+---
+
+## ⚠️ Critical Information Before Downloading
+
+Please review the following requirements before installing:
+
+- **100% Client-Side Only**: Item Organizer runs entirely on your client. It does **not** need to be installed on servers and will cause no issues when joining vanilla, Fabric, Paper, Purpur, or Spigot multiplayer servers.
+- **Requires Fabric Loader & Fabric API**: Make sure you have both [Fabric Loader](https://fabricmc.net/) and [Fabric API](https://modrinth.com/mod/fabric-api) installed for your corresponding Minecraft version (1.21.10 or 1.21.11).
+- **Default Keybind**: Press **`O`** in-game to open the organizer screen. You can rebind this key at any time in the in-game **Config** tab or in the standard Minecraft Controls menu (`Esc > Options > Controls > Key Binds`).
+
+---
+
+## 🎮 Controls & Keybindings
+
+| Action / Key | Function |
 | :--- | :--- |
-| **`O`** *(default)* | Open Item Organizer screen |
-| **`Left Click`** | Select or drag an item / click buttons |
-| **`Double Right Click`** | Lock / unlock item to Blocker list |
+| **`O`** *(default)* | Open / close the Item Organizer interface |
+| **`Left Click`** | Select or drag an item, activate buttons |
+| **`Double Right Click`** | Lock / unlock an item (add to Blocker list) |
 | **`Escape`** | Close the screen |
 
-*All keybindings can be customized in the in-game **Config** tab or in the standard Minecraft Controls menu.*
+*All keybindings and UI scales can be adjusted directly from the in-game **Config** tab.*
 
 ---
 
-## Installation
+## 📦 Installation Guide
 
-1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for Minecraft 1.21.11.
-2. Download the latest version of [Fabric API](https://modrinth.com/mod/fabric-api).
-3. Download **Item Organizer** from [Modrinth](https://modrinth.com/mod/item-organizer)
-4. Place both `.jar` files into your `.minecraft/mods` folder.
-5. Launch Minecraft and press `O` to open the organizer.
+1. Download and install [Fabric Loader](https://fabricmc.net/use/installer/) (for Minecraft 1.21.10 or 1.21.11).
+2. Download the matching version of [Fabric API](https://modrinth.com/mod/fabric-api).
+3. Download **Item Organizer** from [Modrinth](https://modrinth.com/mod/item-organizer) or [CurseForge](https://curseforge.com/).
+4. Drop both `.jar` files into your `.minecraft/mods` folder.
+5. Launch Minecraft, enter any world or server, and press **`O`**!
 
-## License
+---
+
+## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
