@@ -1,4 +1,4 @@
-﻿name: publish
+name: publish
 
 on:
   push:
@@ -42,10 +42,5 @@ jobs:
           version-type: release
           loaders: |
             fabric
-            quilt
           game-versions: |
-            1.21
-            1.21.1
-            1.21.2
-            1.21.3
-            1.21.4
+            1.21.10
