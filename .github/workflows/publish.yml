@@ -34,6 +34,10 @@ jobs:
         with:
           modrinth-id: ${{ vars.MODRINTH_PROJECT_ID || secrets.MODRINTH_PROJECT_ID || 'item-organizer' }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+
+          curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID || secrets.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+
           github-token: ${{ secrets.GITHUB_TOKEN }}
           files: |
             build/libs/!(*-@(dev|sources|javadoc)).jar
