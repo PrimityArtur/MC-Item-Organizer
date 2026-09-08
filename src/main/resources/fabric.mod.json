@@ -12,7 +12,7 @@
 		"sources": "https://github.com/PrimityArtur/MC-Item-Organizer",
 		"issues": "https://github.com/PrimityArtur/MC-Item-Organizer/issues"
 	},
-	"license": "CC0-1.0",
+	"license": "MIT",
 	"icon": "assets/item-organizer/icon.png",
 	"environment": "*",
 	"entrypoints": {

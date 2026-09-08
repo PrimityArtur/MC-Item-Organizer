@@ -1,4 +1,4 @@
-# Item Organizer
+ï»¿# Item Organizer
 
 <p align="center">
   <img src="src/main/resources/assets/item-organizer/icon.png" alt="Item Organizer Logo" width="128" height="128">
@@ -13,14 +13,14 @@
   <a href="https://github.com/PrimityArtur/MC-Item-Organizer/releases"><img src="https://img.shields.io/github/v/release/PrimityArtur/MC-Item-Organizer?color=brightgreen&label=release" alt="Release"></a>
   <a href="https://fabricmc.net/"><img src="https://img.shields.io/badge/Loader-Fabric%20%2F%20Quilt-blue" alt="Fabric / Quilt"></a>
   <a href="https://minecraft.net/"><img src="https://img.shields.io/badge/Minecraft-1.21.x-orange" alt="Minecraft 1.21.x"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-CC0--1.0-lightgrey" alt="License"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="License"></a>
 </p>
 
 ---
 
 ## Overview
 
-**Item Organizer** is a client-side Fabric mod designed for builders, creators, and organizers. It analyzes the perceptual color and shape of blocks and items—including modded items—to arrange them in a smooth chromatic color gradient.
+**Item Organizer** is a client-side Fabric mod designed for builders, creators, and organizers. It analyzes the perceptual color and shape of blocks and itemsâ€”including modded itemsâ€”to arrange them in a smooth chromatic color gradient.
 
 Whether you need quick hotbar palettes for building gradients or want a structured overview of all blocks in the game, Item Organizer streamlines your workflow.
 
@@ -91,4 +91,4 @@ The compiled mod JAR will be located in `build/libs/`.
 
 ## License
 
-This project is licensed under the [Creative Commons Zero v1.0 Universal](LICENSE) (CC0-1.0).
+This project is licensed under the [MIT License](LICENSE).
