@@ -72,6 +72,10 @@
   "palettes.itemorganizer.paste_hotbar.title": "Paste hotbar?",
   "palettes.itemorganizer.paste_hotbar.warning": "Overwrite this palette with the 9 hotbar items?",
   "palettes.itemorganizer.paste_hotbar.confirm": "Paste",
+  "palettes.itemorganizer.duplicate_warning": "It already exists",
+  "palettes.itemorganizer.filter_palette.title": "Search Palette",
+  "palettes.itemorganizer.filter_palette.clear": "Clear search filter",
+  "palettes.itemorganizer.filter_palette.empty_slot": "Drop item to filter",
 
   "config.itemorganizer.shortcut.hotbar": "Hotbar",
   "config.itemorganizer.shortcut.select": "Select Item",

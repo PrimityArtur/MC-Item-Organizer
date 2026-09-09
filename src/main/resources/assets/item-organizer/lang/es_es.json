@@ -72,6 +72,10 @@
   "palettes.itemorganizer.paste_hotbar.title": "¿Pegar hotbar?",
   "palettes.itemorganizer.paste_hotbar.warning": "¿Sobrescribir esta paleta con los 9 ítems de la hotbar?",
   "palettes.itemorganizer.paste_hotbar.confirm": "Pegar",
+  "palettes.itemorganizer.duplicate_warning": "Ya existe",
+  "palettes.itemorganizer.filter_palette.title": "Paleta buscador",
+  "palettes.itemorganizer.filter_palette.clear": "Limpiar filtro de búsqueda",
+  "palettes.itemorganizer.filter_palette.empty_slot": "Arrastra un objeto para filtrar",
 
   "config.itemorganizer.shortcut.hotbar": "Hotbar",
   "config.itemorganizer.shortcut.select": "Seleccionar Ítem",

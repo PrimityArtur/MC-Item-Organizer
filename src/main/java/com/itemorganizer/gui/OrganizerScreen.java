@@ -25,6 +25,7 @@ public class OrganizerScreen extends Screen {
     private com.itemorganizer.gui.widget.ProfileManagerWidget profileManagerWidget;
     private com.itemorganizer.gui.widget.ConfigWidget configWidget;
     private com.itemorganizer.gui.widget.PaletteListWidget paletteListWidget;
+    private com.itemorganizer.gui.widget.PaletteSearchFilterWidget paletteSearchFilterWidget;
     private com.itemorganizer.gui.widget.UnorganizedGridWidget unorganizedGridWidget;
     private com.itemorganizer.gui.widget.VersionCatalogWidget versionCatalogWidget;
 
@@ -213,6 +214,8 @@ public class OrganizerScreen extends Screen {
         paletteListWidget = new com.itemorganizer.gui.widget.PaletteListWidget(
                 viewModel, 0, 0, 10, 10
         );
+        paletteSearchFilterWidget = new com.itemorganizer.gui.widget.PaletteSearchFilterWidget(0, 0);
+        paletteListWidget.setSearchFilterWidget(paletteSearchFilterWidget);
         unorganizedGridWidget = new com.itemorganizer.gui.widget.UnorganizedGridWidget(
                 viewModel, 0, 0, 10, 10
         );
@@ -274,10 +277,25 @@ public class OrganizerScreen extends Screen {
             }
         }
 
-        // position bottom hotbar
+        // position bottom hotbar and palette search filter
         int totalHotbarWidth = HotbarWidget.SLOT_COUNT * hotbarSlotSize;
         int hotbarX = (this.width - totalHotbarWidth) / 2;
         int hotbarY = this.height - hotbarSlotSize - 6;
+
+        boolean isPaletasTab = (viewModel.getActiveRightTab() == RightTab.PALETAS);
+        if (isPaletasTab && paletteSearchFilterWidget != null) {
+            int filterSlotSize = hotbarSlotSize;
+            int clearW = Math.max(12, Math.round(14 * hotbarScale));
+            int totalFilterWidth = (com.itemorganizer.gui.widget.PaletteSearchFilterWidget.SLOT_COUNT * filterSlotSize) + 4 + clearW;
+            int bottomGap = 12;
+            int combinedWidth = totalHotbarWidth + bottomGap + totalFilterWidth;
+            int startX = Math.max(6, (this.width - combinedWidth) / 2);
+
+            hotbarX = startX;
+            int filterX = hotbarX + totalHotbarWidth + bottomGap;
+            paletteSearchFilterWidget.setBounds(filterX, hotbarY, hotbarScale, hotbarItemScale, textScale);
+        }
+
         if (hotbarWidget != null) {
             hotbarWidget.setBounds(hotbarX, hotbarY, hotbarScale, hotbarItemScale, textScale);
         }
@@ -330,6 +348,11 @@ public class OrganizerScreen extends Screen {
         // render content panels
         renderLeftContentArea(context, mouseX, mouseY, delta);
         renderRightContentArea(context, mouseX, mouseY, delta);
+
+        // render search filter palette if palettes tab is active
+        if (viewModel.getActiveRightTab() == RightTab.PALETAS && paletteSearchFilterWidget != null) {
+            paletteSearchFilterWidget.render(context, mouseX, mouseY, delta);
+        }
 
         // render widgets and children
         super.render(context, mouseX, mouseY, delta);
@@ -490,8 +513,13 @@ public class OrganizerScreen extends Screen {
         }
 
         RightTab rightTab = viewModel.getActiveRightTab();
-        if (rightTab == RightTab.PALETAS && paletteListWidget != null && paletteListWidget.mouseClicked(click, bl)) {
-            return true;
+        if (rightTab == RightTab.PALETAS) {
+            if (paletteListWidget != null && paletteListWidget.mouseClicked(click, bl)) {
+                return true;
+            }
+            if (paletteSearchFilterWidget != null && paletteSearchFilterWidget.mouseClicked(click, bl)) {
+                return true;
+            }
         }
         if (rightTab == RightTab.POR_ORGANIZAR && unorganizedGridWidget != null && unorganizedGridWidget.mouseClicked(click, bl)) {
             return true;
@@ -512,6 +540,19 @@ public class OrganizerScreen extends Screen {
         com.itemorganizer.gui.dragdrop.DragAndDropManager dragManager = com.itemorganizer.gui.dragdrop.DragAndDropManager.getInstance();
 
         if (dragManager.isDragging()) {
+            // drop onto bottom search filter palette
+            if (viewModel.getActiveRightTab() == RightTab.PALETAS && paletteSearchFilterWidget != null) {
+                int filterSlot = paletteSearchFilterWidget.getSlotAt(click.x(), click.y());
+                if (filterSlot >= 0) {
+                    com.itemorganizer.gui.dragdrop.DragPayload payload = dragManager.consumePayload();
+                    if (payload != null && payload.getItemId() != null) {
+                        paletteSearchFilterWidget.getFilterPalette().setSlot(filterSlot, payload.getItemId());
+                        SoundHelper.playClick();
+                        return true;
+                    }
+                }
+            }
+
             // drop onto bottom hotbar
             if (hotbarWidget != null) {
                 int hotbarSlot = hotbarWidget.getSlotAt(click.x(), click.y());
@@ -717,15 +758,19 @@ public class OrganizerScreen extends Screen {
         // toggle close if open key is pressed
         KeyBinding openKey = ItemOrganizerClient.getOpenKeyBinding();
         if (openKey != null && openKey.matchesKey(input)) {
-            this.close();
-            return true;
+            if (!isAnyInputFocused()) {
+                this.close();
+                return true;
+            }
         }
 
         InputUtil.Key pressedKey = InputUtil.fromKeyCode(input);
         String openKeyStr = viewModel.getConfig().getKeyOpenClose();
         if (pressedKey != null && openKeyStr != null && pressedKey.getTranslationKey().equalsIgnoreCase(openKeyStr)) {
-            this.close();
-            return true;
+            if (!isAnyInputFocused()) {
+                this.close();
+                return true;
+            }
         }
 
         // undo action (Ctrl + configured key, default Ctrl + Z)
@@ -821,6 +866,19 @@ public class OrganizerScreen extends Screen {
 
     @Override
     public boolean shouldPause() {
+        return false;
+    }
+
+    private boolean isAnyInputFocused() {
+        if (viewModel.getActiveRightTab() == RightTab.PALETAS && paletteListWidget != null) {
+            if (paletteListWidget.isEditingOrSearching()) return true;
+        }
+        if (viewModel.getActiveLeftTab() == LeftTab.PERFILES && profileManagerWidget != null) {
+            if (profileManagerWidget.isEditingOrSearching()) return true;
+        }
+        if (viewModel.getActiveLeftTab() == LeftTab.CONFIG && configWidget != null) {
+            if (configWidget.isEditingOrSearching()) return true;
+        }
         return false;
     }
 

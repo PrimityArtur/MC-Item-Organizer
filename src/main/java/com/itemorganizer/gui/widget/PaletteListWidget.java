@@ -49,6 +49,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     private final VerticalScrollbar scrollbar;
     private TextFieldWidget searchField;
     private TextFieldWidget renameField;
+    private PaletteSearchFilterWidget searchFilterWidget;
 
     // active modal states
     private String deletingPaletteId = null;
@@ -189,6 +190,14 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         String query = searchField.getText().trim().toLowerCase();
         for (int i = 0; i < allRows.size(); i++) {
             PaletteRow row = allRows.get(i);
+
+            // filter by search filter palette if active
+            if (searchFilterWidget != null && searchFilterWidget.isActive()) {
+                if (!searchFilterWidget.matches(row)) {
+                    continue;
+                }
+            }
+
             if (query.isEmpty()) {
                 list.add(new DisplayPalette(i, row));
                 continue;
@@ -290,10 +299,13 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
             if (currentY + cardH >= listStartY && currentY <= listStartY + listHeight) {
                 boolean isCardHover = (deletingPaletteId == null && renamingPaletteId == null && pastingHotbarPaletteId == null && origIdx == hoveredOriginalRowIndex);
+                boolean isDuplicate = isDuplicatePalette(row, allRows);
 
                 // card background
-                context.fill(cardX, currentY, cardX + cardW, currentY + cardH, isCardHover ? 0x22FFFFFF : 0x00000000);
-                RenderHelper.drawBorder(context, cardX, currentY, cardW, cardH, isCardHover ? 0x44FFFFFF : 0x00000000);
+                int cardBg = isDuplicate ? (isCardHover ? 0x4CEF4444 : 0x22EF4444) : (isCardHover ? 0x22FFFFFF : 0x00000000);
+                int cardBorder = isDuplicate ? 0xFFEF4444 : (isCardHover ? 0x44FFFFFF : 0x00000000);
+                context.fill(cardX, currentY, cardX + cardW, currentY + cardH, cardBg);
+                RenderHelper.drawBorder(context, cardX, currentY, cardW, cardH, cardBorder);
 
                 // card header
                 int headerY = currentY + 2;
@@ -314,13 +326,15 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                 int leftmostBtnX = showReorder ? btnUpX : btnDupX;
 
                 String title = "#" + (origIdx + 1);
-                if (row.getName() != null && !row.getName().isEmpty()) {
+                if (isDuplicate) {
+                    title += " " + Text.translatable("palettes.itemorganizer.duplicate_warning").getString();
+                } else if (row.getName() != null && !row.getName().isEmpty()) {
                     title += " " + row.getName();
                 }
                 int maxTitleW = Math.max(20, leftmostBtnX - cardX - 6);
                 String trimmedTitle = tr.trimToWidth(title, (int) (maxTitleW / Math.min(1.0f, textScale)));
                 boolean isNameHover = (isCardHover && hoveredName);
-                int titleColor = isNameHover ? 0xFF38BDF8 : 0xFFCBD5E1;
+                int titleColor = isDuplicate ? 0xFFEF4444 : (isNameHover ? 0xFF38BDF8 : 0xFFCBD5E1);
 
                 int textY = headerY + Math.max(0, (headerH - Math.round(9 * textScale)) / 2);
                 TextScaleHelper.drawScaledText(
@@ -1303,6 +1317,32 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
     @Override
     public void appendNarrations(NarrationMessageBuilder builder) {
+    }
+
+    public boolean isEditingOrSearching() {
+        return (searchField != null && searchField.isFocused()) || renamingPaletteId != null;
+    }
+
+    public static boolean isDuplicatePalette(PaletteRow row, List<PaletteRow> allRows) {
+        if (row == null || !row.hasAnyItem() || allRows == null) {
+            return false;
+        }
+        for (PaletteRow other : allRows) {
+            if (other != null && other != row && !java.util.Objects.equals(other.getId(), row.getId())) {
+                if (row.hasSameSlotsAs(other)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public void setSearchFilterWidget(PaletteSearchFilterWidget searchFilterWidget) {
+        this.searchFilterWidget = searchFilterWidget;
+    }
+
+    public PaletteSearchFilterWidget getSearchFilterWidget() {
+        return searchFilterWidget;
     }
 
     private void playClickSound() {

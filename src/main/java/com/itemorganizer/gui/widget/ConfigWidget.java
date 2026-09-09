@@ -1233,4 +1233,8 @@ public class ConfigWidget implements Drawable, Element, Selectable {
     public SelectionType getType() {
         return SelectionType.NONE;
     }
+
+    public boolean isEditingOrSearching() {
+        return (hexColorField != null && hexColorField.isFocused()) || listeningForKey || listeningForQuickAppendKey || listeningForUndoKey;
+    }
 }

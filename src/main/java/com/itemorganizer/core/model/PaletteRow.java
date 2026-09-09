@@ -86,4 +86,34 @@ public class PaletteRow {
             slots.set(index, null);
         }
     }
+
+    public void clearSlots() {
+        for (int i = 0; i < SLOTS_COUNT; i++) {
+            slots.set(i, null);
+        }
+    }
+
+    public boolean hasAnyItem() {
+        if (slots == null) return false;
+        for (String slot : slots) {
+            if (slot != null && !slot.trim().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean hasSameSlotsAs(PaletteRow other) {
+        if (other == null) return false;
+        for (int i = 0; i < SLOTS_COUNT; i++) {
+            String a = this.getSlot(i);
+            String b = other.getSlot(i);
+            String normA = (a == null || a.trim().isEmpty()) ? null : a.trim();
+            String normB = (b == null || b.trim().isEmpty()) ? null : b.trim();
+            if (!java.util.Objects.equals(normA, normB)) {
+                return false;
+            }
+        }
+        return true;
+    }
 }

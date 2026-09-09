@@ -722,4 +722,8 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
     @Override
     public void appendNarrations(NarrationMessageBuilder builder) {
     }
+
+    public boolean isEditingOrSearching() {
+        return isCreating || renamingProfileName != null;
+    }
 }

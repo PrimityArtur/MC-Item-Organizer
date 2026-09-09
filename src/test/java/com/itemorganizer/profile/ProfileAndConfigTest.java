@@ -809,5 +809,123 @@ public class ProfileAndConfigTest {
         assertFalse(com.itemorganizer.gui.util.HotbarActionHelper.quickMoveToHotbar(null, null));
         assertFalse(com.itemorganizer.gui.util.HotbarActionHelper.dropPayloadToSlot(null, null, 0));
     }
+
+    @Test
+    void testPaletteRowSlotComparisonAndClearing() {
+        com.itemorganizer.core.model.PaletteRow rowA = new com.itemorganizer.core.model.PaletteRow();
+        com.itemorganizer.core.model.PaletteRow rowB = new com.itemorganizer.core.model.PaletteRow();
+
+        // empty palettes
+        assertFalse(rowA.hasAnyItem());
+        assertFalse(rowB.hasAnyItem());
+        assertTrue(rowA.hasSameSlotsAs(rowB));
+
+        // populate row A
+        rowA.setSlot(0, "minecraft:stone");
+        rowA.setSlot(4, "minecraft:oak_planks");
+        assertTrue(rowA.hasAnyItem());
+        assertFalse(rowA.hasSameSlotsAs(rowB));
+
+        // match row B to row A
+        rowB.setSlot(0, "minecraft:stone");
+        rowB.setSlot(4, "minecraft:oak_planks");
+        assertTrue(rowB.hasAnyItem());
+        assertTrue(rowA.hasSameSlotsAs(rowB));
+        assertTrue(rowB.hasSameSlotsAs(rowA));
+
+        // different slot index
+        com.itemorganizer.core.model.PaletteRow rowC = new com.itemorganizer.core.model.PaletteRow();
+        rowC.setSlot(1, "minecraft:stone");
+        rowC.setSlot(4, "minecraft:oak_planks");
+        assertFalse(rowA.hasSameSlotsAs(rowC));
+
+        // clear slots
+        rowA.clearSlots();
+        assertFalse(rowA.hasAnyItem());
+        assertNull(rowA.getSlot(0));
+        assertNull(rowA.getSlot(4));
+    }
+
+    @Test
+    void testDuplicatePaletteDetection() {
+        com.itemorganizer.core.model.PaletteRow empty1 = new com.itemorganizer.core.model.PaletteRow();
+        com.itemorganizer.core.model.PaletteRow empty2 = new com.itemorganizer.core.model.PaletteRow();
+        java.util.List<com.itemorganizer.core.model.PaletteRow> list = new java.util.ArrayList<>();
+        list.add(empty1);
+        list.add(empty2);
+
+        // empty palettes must not be flagged as duplicates
+        assertFalse(com.itemorganizer.gui.widget.PaletteListWidget.isDuplicatePalette(empty1, list));
+        assertFalse(com.itemorganizer.gui.widget.PaletteListWidget.isDuplicatePalette(empty2, list));
+
+        // single non-empty palette is not duplicate
+        com.itemorganizer.core.model.PaletteRow p1 = new com.itemorganizer.core.model.PaletteRow();
+        p1.setSlot(0, "minecraft:diamond_block");
+        p1.setSlot(1, "minecraft:gold_block");
+        list.add(p1);
+        assertFalse(com.itemorganizer.gui.widget.PaletteListWidget.isDuplicatePalette(p1, list));
+
+        // duplicate palette with same slots
+        com.itemorganizer.core.model.PaletteRow p2 = new com.itemorganizer.core.model.PaletteRow();
+        p2.setSlot(0, "minecraft:diamond_block");
+        p2.setSlot(1, "minecraft:gold_block");
+        list.add(p2);
+
+        // both p1 and p2 should now be detected as duplicates
+        assertTrue(com.itemorganizer.gui.widget.PaletteListWidget.isDuplicatePalette(p1, list));
+        assertTrue(com.itemorganizer.gui.widget.PaletteListWidget.isDuplicatePalette(p2, list));
+
+        // modifying one slot breaks the collision
+        p2.setSlot(2, "minecraft:iron_block");
+        assertFalse(com.itemorganizer.gui.widget.PaletteListWidget.isDuplicatePalette(p1, list));
+        assertFalse(com.itemorganizer.gui.widget.PaletteListWidget.isDuplicatePalette(p2, list));
+
+        // reset back to matching
+        p2.clearSlot(2);
+        assertTrue(com.itemorganizer.gui.widget.PaletteListWidget.isDuplicatePalette(p1, list));
+        assertTrue(com.itemorganizer.gui.widget.PaletteListWidget.isDuplicatePalette(p2, list));
+    }
+
+    @Test
+    void testPaletteSearchFilterWidgetMatching() {
+        com.itemorganizer.gui.widget.PaletteSearchFilterWidget filterWidget = new com.itemorganizer.gui.widget.PaletteSearchFilterWidget(0, 0);
+        assertFalse(filterWidget.isActive());
+
+        com.itemorganizer.core.model.PaletteRow row = new com.itemorganizer.core.model.PaletteRow();
+        row.setSlot(0, "minecraft:stone");
+        row.setSlot(1, "minecraft:dirt");
+        row.setSlot(8, "minecraft:glass");
+
+        // inactive filter matches everything
+        assertTrue(filterWidget.matches(row));
+
+        // filter by slot 0
+        filterWidget.getFilterPalette().setSlot(0, "minecraft:stone");
+        assertTrue(filterWidget.isActive());
+        assertTrue(filterWidget.matches(row));
+
+        // mismatch in slot 0
+        filterWidget.getFilterPalette().setSlot(0, "minecraft:cobblestone");
+        assertFalse(filterWidget.matches(row));
+
+        // match slot 0 and slot 8
+        filterWidget.getFilterPalette().setSlot(0, "minecraft:stone");
+        filterWidget.getFilterPalette().setSlot(8, "minecraft:glass");
+        assertTrue(filterWidget.matches(row));
+
+        // empty slots in filter (e.g. slot 1) are ignored
+        assertNull(filterWidget.getFilterPalette().getSlot(1));
+        assertEquals("minecraft:dirt", row.getSlot(1));
+        assertTrue(filterWidget.matches(row));
+
+        // mismatch in slot 8
+        filterWidget.getFilterPalette().setSlot(8, "minecraft:obsidian");
+        assertFalse(filterWidget.matches(row));
+
+        // clear filter resets matching
+        filterWidget.clearFilter();
+        assertFalse(filterWidget.isActive());
+        assertTrue(filterWidget.matches(row));
+    }
 }
 
