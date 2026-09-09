@@ -879,13 +879,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
             int delBtnX = modalX + 10;
             if (click.button() == 0 && click.x() >= delBtnX && click.x() <= delBtnX + btnW && click.y() >= btnY && click.y() <= btnY + btnH) {
-                PaletteData data = viewModel.getPaletteData();
-                if (data != null) {
-                    data.removeRowById(deletingPaletteId);
-                    StorageManager.getInstance().getPaletteRepository().save(data);
-                }
-                deletingPaletteId = null;
-                playClickSound();
+                executeDeletePalette();
                 return true;
             }
 
@@ -910,30 +904,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
             int confirmBtnX = modalX + 10;
             if (click.button() == 0 && click.x() >= confirmBtnX && click.x() <= confirmBtnX + btnW && click.y() >= btnY && click.y() <= btnY + btnH) {
-                PaletteData data = viewModel.getPaletteData();
-                if (data != null) {
-                    PaletteRow row = data.findRowById(pastingHotbarPaletteId);
-                    if (row != null) {
-                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
-                                new com.itemorganizer.gui.undo.PaletteFullUndoAction(row)
-                        );
-                        MinecraftClient client = MinecraftClient.getInstance();
-                        if (client.player != null) {
-                            for (int s = 0; s < 9; s++) {
-                                ItemStack st = client.player.getInventory().getStack(s);
-                                if (st != null && !st.isEmpty()) {
-                                    Identifier id = Registries.ITEM.getId(st.getItem());
-                                    row.setSlot(s, id != null ? id.toString() : null);
-                                } else {
-                                    row.setSlot(s, null);
-                                }
-                            }
-                            StorageManager.getInstance().getPaletteRepository().save(data);
-                        }
-                    }
-                }
-                pastingHotbarPaletteId = null;
-                playClickSound();
+                executePasteHotbar();
                 return true;
             }
 
@@ -1137,10 +1108,49 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         playClickSound();
     }
 
+    private void executeDeletePalette() {
+        if (deletingPaletteId == null) return;
+        PaletteData data = viewModel.getPaletteData();
+        if (data != null) {
+            data.removeRowById(deletingPaletteId);
+            StorageManager.getInstance().getPaletteRepository().save(data);
+        }
+        deletingPaletteId = null;
+        playClickSound();
+    }
+
+    private void executePasteHotbar() {
+        if (pastingHotbarPaletteId == null) return;
+        PaletteData data = viewModel.getPaletteData();
+        if (data != null) {
+            PaletteRow row = data.findRowById(pastingHotbarPaletteId);
+            if (row != null) {
+                com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                        new com.itemorganizer.gui.undo.PaletteFullUndoAction(row)
+                );
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client.player != null) {
+                    for (int s = 0; s < 9; s++) {
+                        ItemStack st = client.player.getInventory().getStack(s);
+                        if (st != null && !st.isEmpty()) {
+                            Identifier id = Registries.ITEM.getId(st.getItem());
+                            row.setSlot(s, id != null ? id.toString() : null);
+                        } else {
+                            row.setSlot(s, null);
+                        }
+                    }
+                    StorageManager.getInstance().getPaletteRepository().save(data);
+                }
+            }
+        }
+        pastingHotbarPaletteId = null;
+        playClickSound();
+    }
+
     // copy the 9 slots to player hotbar
     private void loadRowToHotbar(PaletteRow row) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null || !client.player.isCreative()) return;
+        if (client == null || client.player == null) return;
 
         com.itemorganizer.gui.undo.UndoManager.getInstance().record(
                 com.itemorganizer.gui.undo.HotbarFullUndoAction.capture(client)
@@ -1149,17 +1159,13 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         for (int i = 0; i < 9; i++) {
             String itemId = row.getSlot(i);
             ItemStack stack = ItemStack.EMPTY;
-            if (itemId != null) {
+            if (itemId != null && !itemId.trim().isEmpty()) {
                 stack = getItemStackFromId(itemId);
                 if (!stack.isEmpty()) {
                     stack = new ItemStack(stack.getItem(), 1);
                 }
             }
-
-            client.player.getInventory().setStack(i, stack);
-            if (client.getNetworkHandler() != null) {
-                client.getNetworkHandler().sendPacket(new CreativeInventoryActionC2SPacket(36 + i, stack));
-            }
+            HotbarActionHelper.assignItemToSlot(client, i, stack);
         }
 
         SoundHelper.playClick();
@@ -1240,6 +1246,10 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     @Override
     public boolean keyPressed(KeyInput input) {
         if (pastingHotbarPaletteId != null) {
+            if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
+                executePasteHotbar();
+                return true;
+            }
             if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
                 pastingHotbarPaletteId = null;
                 playClickSound();
@@ -1262,6 +1272,10 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         }
 
         if (deletingPaletteId != null) {
+            if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
+                executeDeletePalette();
+                return true;
+            }
             if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
                 deletingPaletteId = null;
                 playClickSound();
@@ -1320,7 +1334,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     }
 
     public boolean isEditingOrSearching() {
-        return (searchField != null && searchField.isFocused()) || renamingPaletteId != null;
+        return (searchField != null && searchField.isFocused()) || renamingPaletteId != null || deletingPaletteId != null || pastingHotbarPaletteId != null;
     }
 
     public static boolean isDuplicatePalette(PaletteRow row, List<PaletteRow> allRows) {

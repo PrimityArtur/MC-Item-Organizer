@@ -136,7 +136,7 @@ public class PaletteSearchFilterWidget implements Drawable, Element, Selectable 
         Text title = Text.translatable("palettes.itemorganizer.filter_palette.title");
         int labelY = y - Math.max(9, Math.round(9 * textScale)) - 2;
         TextScaleHelper.drawScaledText(
-                context, client.textRenderer, title, x + 1, labelY, 0xFF38BDF8, false, Math.min(0.72f, textScale * 0.80f)
+                context, client.textRenderer, title, x + 1, labelY, 0xFF38BDF8, false, textScale
         );
 
         // slots
@@ -160,7 +160,7 @@ public class PaletteSearchFilterWidget implements Drawable, Element, Selectable 
             String slotNum = String.valueOf(i + 1);
             int numColor = isHovered ? 0xFF38BDF8 : 0x8894A3B8;
             TextScaleHelper.drawScaledText(
-                    context, client.textRenderer, slotNum, slotX + 2, slotY + 2, numColor, false, Math.min(0.65f, textScale * 0.70f)
+                    context, client.textRenderer, slotNum, slotX + 2, slotY + 2, numColor, false, textScale
             );
 
             if (hasItem) {

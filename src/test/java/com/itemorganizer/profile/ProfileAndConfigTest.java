@@ -927,5 +927,55 @@ public class ProfileAndConfigTest {
         assertFalse(filterWidget.isActive());
         assertTrue(filterWidget.matches(row));
     }
+
+    @Test
+    void testPaletteDataRemoveAndPasteOperations() {
+        com.itemorganizer.core.model.PaletteData data = new com.itemorganizer.core.model.PaletteData();
+        com.itemorganizer.core.model.PaletteRow row = new com.itemorganizer.core.model.PaletteRow();
+        row.setSlot(0, "minecraft:iron_sword");
+        data.addRow(row);
+
+        assertEquals(1, data.getRows().size());
+        assertEquals("minecraft:iron_sword", data.findRowById(row.getId()).getSlot(0));
+
+        // simulate paste hotbar items
+        for (int s = 0; s < 9; s++) {
+            row.setSlot(s, "minecraft:stone");
+        }
+        for (int s = 0; s < 9; s++) {
+            assertEquals("minecraft:stone", row.getSlot(s));
+        }
+
+        // simulate delete row
+        data.removeRowById(row.getId());
+        assertEquals(0, data.getRows().size());
+        assertNull(data.findRowById(row.getId()));
+    }
+
+    @Test
+    void testSearchFilterFarRightPlacementMath() {
+        int screenWidth = 600;
+        int margin = 10;
+        int hotbarWidth = 9 * 22; // 198
+        int filterWidth = 9 * 22 + 4 + 14; // 216
+
+        int hotbarX = (screenWidth - hotbarWidth) / 2; // 201
+        int filterX = screenWidth - margin - filterWidth; // 600 - 10 - 216 = 374
+
+        // hotbar right edge: 201 + 198 = 399 > 374 -> would collide on narrow screen
+        if (hotbarX + hotbarWidth + 8 > filterX) {
+            hotbarX = Math.max(6, filterX - hotbarWidth - 8);
+        }
+        assertEquals(374 - 198 - 8, hotbarX);
+        assertTrue(hotbarX + hotbarWidth <= filterX - 8);
+
+        // on wider screen (800)
+        screenWidth = 800;
+        hotbarX = (screenWidth - hotbarWidth) / 2; // 301
+        filterX = screenWidth - margin - filterWidth; // 800 - 10 - 216 = 574
+        // 301 + 198 = 499 < 574 -> stays centered!
+        assertTrue(hotbarX + hotbarWidth + 8 <= filterX);
+        assertEquals(301, hotbarX);
+    }
 }
 

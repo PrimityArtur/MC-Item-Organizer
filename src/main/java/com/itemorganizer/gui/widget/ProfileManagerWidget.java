@@ -724,6 +724,6 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
     }
 
     public boolean isEditingOrSearching() {
-        return isCreating || renamingProfileName != null;
+        return isCreating || renamingProfileName != null || deletingProfileName != null;
     }
 }

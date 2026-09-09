@@ -287,12 +287,10 @@ public class OrganizerScreen extends Screen {
             int filterSlotSize = hotbarSlotSize;
             int clearW = Math.max(12, Math.round(14 * hotbarScale));
             int totalFilterWidth = (com.itemorganizer.gui.widget.PaletteSearchFilterWidget.SLOT_COUNT * filterSlotSize) + 4 + clearW;
-            int bottomGap = 12;
-            int combinedWidth = totalHotbarWidth + bottomGap + totalFilterWidth;
-            int startX = Math.max(6, (this.width - combinedWidth) / 2);
-
-            hotbarX = startX;
-            int filterX = hotbarX + totalHotbarWidth + bottomGap;
+            int filterX = this.width - margin - totalFilterWidth;
+            if (hotbarX + totalHotbarWidth + 8 > filterX) {
+                hotbarX = Math.max(6, filterX - totalHotbarWidth - 8);
+            }
             paletteSearchFilterWidget.setBounds(filterX, hotbarY, hotbarScale, hotbarItemScale, textScale);
         }
 
