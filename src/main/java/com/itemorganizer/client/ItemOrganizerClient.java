@@ -32,7 +32,7 @@ public class ItemOrganizerClient implements ClientModInitializer {
         // key press listener to open screen
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openKeyBinding.wasPressed()) {
-                if (client.player != null && client.player.isCreative() && client.currentScreen == null) {
+                if (client.player != null && client.currentScreen == null) {
                     if (sharedViewModel == null) {
                         sharedViewModel = new OrganizerViewModel();
                     } else {

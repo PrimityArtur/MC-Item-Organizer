@@ -1,9 +1,11 @@
 package com.itemorganizer.gui;
 
 import com.itemorganizer.client.ItemOrganizerClient;
+import com.itemorganizer.gui.component.ModalDialogComponent;
 import com.itemorganizer.gui.navigation.LeftTab;
 import com.itemorganizer.gui.navigation.OrdenadoSubTab;
 import com.itemorganizer.gui.navigation.RightTab;
+import com.itemorganizer.gui.theme.UITheme;
 import com.itemorganizer.gui.viewmodel.OrganizerViewModel;
 import com.itemorganizer.gui.util.RenderHelper;
 import com.itemorganizer.gui.util.SoundHelper;
@@ -34,13 +36,7 @@ public class OrganizerScreen extends Screen {
     private int rightPanelX, rightPanelY, rightPanelWidth, rightPanelHeight;
     private int leftContentY, leftContentHeight, rightContentY, rightContentHeight;
 
-    public enum ConfirmAction {
-        NONE,
-        SORT_COLOR,
-        COMPACT
-    }
-
-    private ConfirmAction activeConfirmAction = ConfirmAction.NONE;
+    private ModalDialogComponent activeModal = null;
     private String activeToolbarTooltip = null;
     private int originalVanillaBlur = -1;
 
@@ -120,11 +116,6 @@ public class OrganizerScreen extends Screen {
     @Override
     protected void init() {
         super.init();
-
-        if (client != null && client.player != null && !client.player.isCreative()) {
-            this.close();
-            return;
-        }
 
         if (originalVanillaBlur == -1 && client != null && client.options != null) {
             originalVanillaBlur = client.options.getMenuBackgroundBlurrinessValue();
@@ -333,11 +324,6 @@ public class OrganizerScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        if (client == null || client.player == null || !client.player.isCreative()) {
-            this.close();
-            return;
-        }
-
         activeToolbarTooltip = null;
 
         // update layout and blur
@@ -369,8 +355,9 @@ public class OrganizerScreen extends Screen {
         com.itemorganizer.gui.dragdrop.DragAndDropManager.getInstance().renderFloatingItem(context, mouseX, mouseY, viewModel.getConfig().getItemScale());
 
         // confirmation modal or tooltips
-        if (activeConfirmAction != ConfirmAction.NONE && client != null && client.textRenderer != null) {
-            renderConfirmModal(context, client.textRenderer, mouseX, mouseY);
+        if (activeModal != null && client != null && client.textRenderer != null) {
+            activeModal.updateParentBounds(0, 0, this.width, this.height);
+            activeModal.render(context, client.textRenderer, mouseX, mouseY, delta, viewModel.getConfig().getTextScale());
         } else if (activeToolbarTooltip != null && client != null && client.textRenderer != null) {
             context.drawTooltip(client.textRenderer, Text.literal(activeToolbarTooltip), mouseX, mouseY);
         }
@@ -411,41 +398,8 @@ public class OrganizerScreen extends Screen {
     @Override
     public boolean mouseClicked(net.minecraft.client.gui.Click click, boolean bl) {
         // modal handles click first
-        if (activeConfirmAction != ConfirmAction.NONE) {
-            int modalW = Math.min(270, this.width - 24);
-            int modalH = 88;
-            int modalX = (this.width - modalW) / 2;
-            int modalY = (this.height - modalH) / 2;
-            int btnW = (modalW - 28) / 2;
-            int btnH = 18;
-            int btnY = modalY + modalH - 24;
-
-            int confirmBtnX = modalX + 10;
-            if (click.button() == 0 && click.x() >= confirmBtnX && click.x() <= confirmBtnX + btnW && click.y() >= btnY && click.y() <= btnY + btnH) {
-                if (activeConfirmAction == ConfirmAction.SORT_COLOR) {
-                    executeSortByColor();
-                } else if (activeConfirmAction == ConfirmAction.COMPACT) {
-                    executeCompactItems();
-                }
-                activeConfirmAction = ConfirmAction.NONE;
-                return true;
-            }
-
-            int cancelBtnX = confirmBtnX + btnW + 8;
-            if (click.button() == 0 && click.x() >= cancelBtnX && click.x() <= cancelBtnX + btnW && click.y() >= btnY && click.y() <= btnY + btnH) {
-                activeConfirmAction = ConfirmAction.NONE;
-                playClickSound();
-                return true;
-            }
-
-            // click outside modal cancels it
-            if (click.button() == 0 && (click.x() < modalX || click.x() > modalX + modalW || click.y() < modalY || click.y() > modalY + modalH)) {
-                activeConfirmAction = ConfirmAction.NONE;
-                playClickSound();
-                return true;
-            }
-
-            return true;
+        if (activeModal != null) {
+            return activeModal.mouseClicked(click);
         }
 
         // right click cancels active drag
@@ -489,12 +443,38 @@ public class OrganizerScreen extends Screen {
                     int btn2X = btn1X + btnW + gap;
 
                     if (click.x() >= btn1X && click.x() <= btn1X + btnW) {
-                        activeConfirmAction = ConfirmAction.SORT_COLOR;
+                        activeModal = ModalDialogComponent.builder()
+                                .parentBounds(0, 0, this.width, this.height)
+                                .size(Math.min(270, this.width - 24), 88)
+                                .type(ModalDialogComponent.ModalType.INFO)
+                                .title(Text.translatable("modal.itemorganizer.sort_color.title"))
+                                .message(Text.translatable("modal.itemorganizer.sort_color.desc"))
+                                .warning(Text.translatable("modal.itemorganizer.warning"))
+                                .confirmButton(Text.translatable("button.itemorganizer.confirm"), () -> {
+                                    executeSortByColor();
+                                    activeModal = null;
+                                })
+                                .cancelButton(Text.translatable("button.itemorganizer.cancel"), () -> activeModal = null)
+                                .closeOnBackdropClick(true)
+                                .build();
                         playClickSound();
                         return true;
                     }
                     if (click.x() >= btn2X && click.x() <= btn2X + btnW) {
-                        activeConfirmAction = ConfirmAction.COMPACT;
+                        activeModal = ModalDialogComponent.builder()
+                                .parentBounds(0, 0, this.width, this.height)
+                                .size(Math.min(270, this.width - 24), 88)
+                                .type(ModalDialogComponent.ModalType.SUCCESS)
+                                .title(Text.translatable("modal.itemorganizer.compact.title"))
+                                .message(Text.translatable("modal.itemorganizer.compact.desc"))
+                                .warning(Text.translatable("modal.itemorganizer.warning"))
+                                .confirmButton(Text.translatable("button.itemorganizer.confirm"), () -> {
+                                    executeCompactItems();
+                                    activeModal = null;
+                                })
+                                .cancelButton(Text.translatable("button.itemorganizer.cancel"), () -> activeModal = null)
+                                .closeOnBackdropClick(true)
+                                .build();
                         playClickSound();
                         return true;
                     }
@@ -712,22 +692,8 @@ public class OrganizerScreen extends Screen {
     @Override
     public boolean keyPressed(net.minecraft.client.input.KeyInput input) {
         // confirmation modal key handling
-        if (activeConfirmAction != ConfirmAction.NONE) {
-            if (input.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE) {
-                activeConfirmAction = ConfirmAction.NONE;
-                playClickSound();
-                return true;
-            }
-            if (input.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER || input.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_KP_ENTER) {
-                if (activeConfirmAction == ConfirmAction.SORT_COLOR) {
-                    executeSortByColor();
-                } else if (activeConfirmAction == ConfirmAction.COMPACT) {
-                    executeCompactItems();
-                }
-                activeConfirmAction = ConfirmAction.NONE;
-                return true;
-            }
-            return true;
+        if (activeModal != null) {
+            return activeModal.keyPressed(input);
         }
 
         // cancel drag with ESC
@@ -856,6 +822,10 @@ public class OrganizerScreen extends Screen {
 
     @Override
     public boolean charTyped(net.minecraft.client.input.CharInput input) {
+        if (activeModal != null) {
+            return activeModal.charTyped(input);
+        }
+
         LeftTab leftTab = viewModel.getActiveLeftTab();
         if (leftTab == LeftTab.PERFILES && profileManagerWidget != null && profileManagerWidget.charTyped(input)) {
             return true;
@@ -878,6 +848,7 @@ public class OrganizerScreen extends Screen {
     }
 
     private boolean isAnyInputFocused() {
+        if (activeModal != null) return true;
         if (viewModel.getActiveRightTab() == RightTab.PALETAS && paletteListWidget != null) {
             if (paletteListWidget.isEditingOrSearching()) return true;
         }
@@ -907,17 +878,14 @@ public class OrganizerScreen extends Screen {
         // subtab 1: organized
         int sub1X = leftPanelX;
         boolean isSub1Active = (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.ORGANIZADO);
-        boolean hoverSub1 = (activeConfirmAction == ConfirmAction.NONE && mouseX >= sub1X && mouseX <= sub1X + sub1W && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
-        int bgSub1 = isSub1Active ? 0x3338BDF8 : (hoverSub1 ? 0x22FFFFFF : 0x14FFFFFF);
-        int borderSub1 = isSub1Active ? 0xFF38BDF8 : (hoverSub1 ? 0x4DFFFFFF : 0x25FFFFFF);
-        int textSub1 = isSub1Active ? 0xFF38BDF8 : (hoverSub1 ? 0xFFFFFFFF : 0xFFCBD5E1);
+        boolean hoverSub1 = (activeModal == null && mouseX >= sub1X && mouseX <= sub1X + sub1W && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
+        int bgSub1 = isSub1Active ? UITheme.PRIMARY_BG : (hoverSub1 ? UITheme.BG_HOVER : UITheme.BG_SURFACE_HOVER);
+        int borderSub1 = isSub1Active ? UITheme.PRIMARY : (hoverSub1 ? UITheme.BORDER_HOVER : UITheme.BORDER_SUBTLE);
+        int textSub1 = isSub1Active ? UITheme.PRIMARY : (hoverSub1 ? UITheme.TEXT_WHITE : UITheme.TEXT_SECONDARY);
 
-        context.fill(sub1X, toolbarY, sub1X + sub1W, toolbarY + toolbarH, bgSub1);
-        RenderHelper.drawBorder(context, sub1X, toolbarY, sub1W, toolbarH, borderSub1);
         Text sub1Text = Text.literal("▦ ").append(OrdenadoSubTab.ORGANIZADO.getText());
-        TextScaleHelper.drawVerticallyCenteredScaledText(
-                context, tr, sub1Text, sub1X + sub1W / 2, toolbarY + toolbarH / 2, textSub1, true, Math.min(0.70f, textScale * 0.80f)
-        );
+        RenderHelper.drawButton(context, tr, sub1X, toolbarY, sub1W, toolbarH, sub1Text, hoverSub1,
+                bgSub1, bgSub1, borderSub1, borderSub1, textSub1, textSub1, Math.min(0.70f, textScale * 0.80f));
 
         // subtab 2: blocked
         int blockedCount = (viewModel.getActiveProfile() != null) ? viewModel.getActiveProfile().getBlockedItems().size() : 0;
@@ -926,16 +894,13 @@ public class OrganizerScreen extends Screen {
                 : Text.literal("🔒 ").append(OrdenadoSubTab.BLOQUEADO.getText());
         int sub2X = sub1X + sub1W + gap;
         boolean isSub2Active = (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.BLOQUEADO);
-        boolean hoverSub2 = (activeConfirmAction == ConfirmAction.NONE && mouseX >= sub2X && mouseX <= sub2X + sub2W && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
-        int bgSub2 = isSub2Active ? 0x3338BDF8 : (hoverSub2 ? 0x22FFFFFF : 0x14FFFFFF);
-        int borderSub2 = isSub2Active ? 0xFF38BDF8 : (hoverSub2 ? 0x4DFFFFFF : 0x25FFFFFF);
-        int textSub2 = isSub2Active ? 0xFF38BDF8 : (hoverSub2 ? 0xFFFFFFFF : 0xFFCBD5E1);
+        boolean hoverSub2 = (activeModal == null && mouseX >= sub2X && mouseX <= sub2X + sub2W && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
+        int bgSub2 = isSub2Active ? UITheme.PRIMARY_BG : (hoverSub2 ? UITheme.BG_HOVER : UITheme.BG_SURFACE_HOVER);
+        int borderSub2 = isSub2Active ? UITheme.PRIMARY : (hoverSub2 ? UITheme.BORDER_HOVER : UITheme.BORDER_SUBTLE);
+        int textSub2 = isSub2Active ? UITheme.PRIMARY : (hoverSub2 ? UITheme.TEXT_WHITE : UITheme.TEXT_SECONDARY);
 
-        context.fill(sub2X, toolbarY, sub2X + sub2W, toolbarY + toolbarH, bgSub2);
-        RenderHelper.drawBorder(context, sub2X, toolbarY, sub2W, toolbarH, borderSub2);
-        TextScaleHelper.drawVerticallyCenteredScaledText(
-                context, tr, sub2Text, sub2X + sub2W / 2, toolbarY + toolbarH / 2, textSub2, true, Math.min(0.68f, textScale * 0.78f)
-        );
+        RenderHelper.drawButton(context, tr, sub2X, toolbarY, sub2W, toolbarH, sub2Text, hoverSub2,
+                bgSub2, bgSub2, borderSub2, borderSub2, textSub2, textSub2, Math.min(0.68f, textScale * 0.78f));
 
         if (isSub1Active) {
             // action buttons
@@ -944,34 +909,22 @@ public class OrganizerScreen extends Screen {
             int btn1X = sub2X + sub2W + gap * 2;
 
             // gradient sort button
-            boolean hover1 = (activeConfirmAction == ConfirmAction.NONE && mouseX >= btn1X && mouseX <= btn1X + btnW && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
-            int bg1 = hover1 ? 0x4D2A4A6A : 0x22FFFFFF;
-            int border1 = hover1 ? 0xFF38BDF8 : 0x33FFFFFF;
-            int text1 = hover1 ? 0xFFFFFFFF : 0xFFCBD5E1;
-
-            context.fill(btn1X, toolbarY, btn1X + btnW, toolbarY + toolbarH, bg1);
-            RenderHelper.drawBorder(context, btn1X, toolbarY, btnW, toolbarH, border1);
+            boolean hover1 = (activeModal == null && mouseX >= btn1X && mouseX <= btn1X + btnW && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
             Text gradientBtnText = Text.literal("🎨 ").append(Text.translatable("button.itemorganizer.gradient"));
-            TextScaleHelper.drawVerticallyCenteredScaledText(
-                    context, tr, gradientBtnText, btn1X + btnW / 2, toolbarY + toolbarH / 2, text1, true, Math.min(0.70f, textScale * 0.80f)
-            );
+            RenderHelper.drawButton(context, tr, btn1X, toolbarY, btnW, toolbarH, gradientBtnText, hover1,
+                    UITheme.BG_SURFACE_HOVER, UITheme.PRIMARY_BG, UITheme.BORDER_SUBTLE, UITheme.PRIMARY,
+                    UITheme.TEXT_SECONDARY, UITheme.TEXT_WHITE, Math.min(0.70f, textScale * 0.80f));
             if (hover1) {
                 activeToolbarTooltip = Text.translatable("tooltip.itemorganizer.gradient").getString();
             }
 
             // compact button
             int btn2X = btn1X + btnW + gap;
-            boolean hover2 = (activeConfirmAction == ConfirmAction.NONE && mouseX >= btn2X && mouseX <= btn2X + btnW && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
-            int bg2 = hover2 ? 0x4D2E5538 : 0x22FFFFFF;
-            int border2 = hover2 ? 0xFF34D399 : 0x33FFFFFF;
-            int text2 = hover2 ? 0xFFFFFFFF : 0xFFCBD5E1;
-
-            context.fill(btn2X, toolbarY, btn2X + btnW, toolbarY + toolbarH, bg2);
-            RenderHelper.drawBorder(context, btn2X, toolbarY, btnW, toolbarH, border2);
+            boolean hover2 = (activeModal == null && mouseX >= btn2X && mouseX <= btn2X + btnW && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
             Text compactBtnText = Text.literal("🧹 ").append(Text.translatable("button.itemorganizer.compact"));
-            TextScaleHelper.drawVerticallyCenteredScaledText(
-                    context, tr, compactBtnText, btn2X + btnW / 2, toolbarY + toolbarH / 2, text2, true, Math.min(0.70f, textScale * 0.80f)
-            );
+            RenderHelper.drawButton(context, tr, btn2X, toolbarY, btnW, toolbarH, compactBtnText, hover2,
+                    UITheme.BG_SURFACE_HOVER, UITheme.SUCCESS_BG, UITheme.BORDER_SUBTLE, UITheme.SUCCESS,
+                    UITheme.TEXT_SECONDARY, UITheme.TEXT_WHITE, Math.min(0.70f, textScale * 0.80f));
             if (hover2) {
                 activeToolbarTooltip = Text.translatable("tooltip.itemorganizer.compact").getString();
             }
@@ -979,74 +932,9 @@ public class OrganizerScreen extends Screen {
             // hint for unlocking
             int tipX = sub2X + sub2W * 2 + gap;
             TextScaleHelper.drawVerticallyCenteredScaledText(
-                    context, tr, Text.translatable("tip.itemorganizer.unlock_hint"), tipX, toolbarY + toolbarH / 2, 0xFF94A3B8, false, Math.min(0.70f, textScale * 0.78f)
+                    context, tr, Text.translatable("tip.itemorganizer.unlock_hint"), tipX, toolbarY + toolbarH / 2, UITheme.TEXT_MUTED, false, Math.min(0.70f, textScale * 0.78f)
             );
         }
-    }
-
-    private void renderConfirmModal(DrawContext context, net.minecraft.client.font.TextRenderer tr, int mouseX, int mouseY) {
-        float textScale = viewModel.getConfig().getTextScale();
-
-        // dark backdrop
-        context.fill(0, 0, this.width, this.height, 0x99000000);
-
-        // modal dialog box
-        int modalW = Math.min(270, this.width - 24);
-        int modalH = 88;
-        int modalX = (this.width - modalW) / 2;
-        int modalY = (this.height - modalH) / 2;
-
-        context.fill(modalX, modalY, modalX + modalW, modalY + modalH, 0xFF141820);
-
-        int borderColor = (activeConfirmAction == ConfirmAction.SORT_COLOR) ? 0xFF38BDF8 : 0xFF34D399;
-        RenderHelper.drawBorder(context, modalX, modalY, modalW, modalH, borderColor);
-
-        // title
-        Text title = (activeConfirmAction == ConfirmAction.SORT_COLOR)
-                ? Text.translatable("modal.itemorganizer.sort_color.title")
-                : Text.translatable("modal.itemorganizer.compact.title");
-        int titleColor = (activeConfirmAction == ConfirmAction.SORT_COLOR) ? 0xFF38BDF8 : 0xFF34D399;
-        TextScaleHelper.drawCenteredScaledText(
-                context, tr, title, modalX + modalW / 2, modalY + 8, titleColor, textScale
-        );
-
-        // description
-        Text desc = (activeConfirmAction == ConfirmAction.SORT_COLOR)
-                ? Text.translatable("modal.itemorganizer.sort_color.desc")
-                : Text.translatable("modal.itemorganizer.compact.desc");
-        TextScaleHelper.drawCenteredScaledText(
-                context, tr, desc, modalX + modalW / 2, modalY + 24, 0xFFD1D5DB, textScale * 0.9f
-        );
-
-        Text warning = Text.translatable("modal.itemorganizer.warning");
-        TextScaleHelper.drawCenteredScaledText(
-                context, tr, warning, modalX + modalW / 2, modalY + 38, 0xFF94A3B8, textScale * 0.85f
-        );
-
-        // confirm and cancel buttons
-        int btnW = (modalW - 28) / 2;
-        int btnH = 18;
-        int btnY = modalY + modalH - 24;
-
-        int confirmBtnX = modalX + 10;
-        boolean hoverConfirm = (mouseX >= confirmBtnX && mouseX <= confirmBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH);
-        int confirmBg = hoverConfirm ? ((activeConfirmAction == ConfirmAction.SORT_COLOR) ? 0xDD1E40AF : 0xDD065F46) : 0xAA1E293B;
-        int confirmBorder = hoverConfirm ? ((activeConfirmAction == ConfirmAction.SORT_COLOR) ? 0xFF60A5FA : 0xFF34D399) : 0xFF475569;
-        context.fill(confirmBtnX, btnY, confirmBtnX + btnW, btnY + btnH, confirmBg);
-        RenderHelper.drawBorder(context, confirmBtnX, btnY, btnW, btnH, confirmBorder);
-        TextScaleHelper.drawCenteredScaledText(
-                context, tr, Text.translatable("button.itemorganizer.confirm"), confirmBtnX + btnW / 2, btnY + 5, 0xFFFFFFFF, textScale
-        );
-
-        int cancelBtnX = confirmBtnX + btnW + 8;
-        boolean hoverCancel = (mouseX >= cancelBtnX && mouseX <= cancelBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH);
-        int cancelBg = hoverCancel ? 0xDD7F1D1D : 0xAA2A2A2A;
-        int cancelBorder = hoverCancel ? 0xFFEF4444 : 0xFF555555;
-        context.fill(cancelBtnX, btnY, cancelBtnX + btnW, btnY + btnH, cancelBg);
-        RenderHelper.drawBorder(context, cancelBtnX, btnY, btnW, btnH, cancelBorder);
-        TextScaleHelper.drawCenteredScaledText(
-                context, tr, Text.translatable("button.itemorganizer.cancel"), cancelBtnX + btnW / 2, btnY + 5, 0xFFFFFFFF, textScale
-        );
     }
 
     private void executeSortByColor() {

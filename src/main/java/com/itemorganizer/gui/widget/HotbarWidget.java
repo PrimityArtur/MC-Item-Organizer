@@ -3,6 +3,7 @@ package com.itemorganizer.gui.widget;
 import com.itemorganizer.gui.dragdrop.DragAndDropManager;
 import com.itemorganizer.gui.dragdrop.DragPayload;
 import com.itemorganizer.gui.dragdrop.DragSource;
+import com.itemorganizer.gui.theme.UITheme;
 import com.itemorganizer.gui.util.HotbarActionHelper;
 import com.itemorganizer.gui.util.RenderHelper;
 import net.minecraft.client.MinecraftClient;
@@ -17,9 +18,7 @@ import com.itemorganizer.gui.util.SoundHelper;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
-import net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket;
 import net.minecraft.registry.Registries;
-import net.minecraft.sound.SoundEvents;
 import org.lwjgl.glfw.GLFW;
 
 // bottom widget rendering the player hotbar slots
@@ -102,41 +101,19 @@ public class HotbarWidget implements Drawable, Element, Selectable {
             int slotX = x + i * slotSize;
             int slotY = y;
 
-            // slot background
             boolean isHovered = (i == hoveredSlot);
             int bgColor = isHovered ? 0x8E1E293B : 0x24BDB7B7;
-            int borderColor = isHovered ? 0xFF38BDF8 : 0x4DFFFFFF;
+            int borderColor = isHovered ? UITheme.PRIMARY : 0x4DFFFFFF;
+            int badgeColor = isHovered ? UITheme.PRIMARY : 0xFDF2F4F8;
 
-            context.fill(slotX, slotY, slotX + slotSize, slotY + slotSize, bgColor);
-            RenderHelper.drawBorder(context, slotX, slotY, slotSize, slotSize, borderColor);
+            ItemStack stack = (inventory != null) ? inventory.getStack(i) : ItemStack.EMPTY;
 
-            // slot number (1-9) in top-left
-            String slotNum = String.valueOf(i + 1);
-            int numColor = isHovered ? 0xFF38BDF8 : 0xFDF2F4F8;
-            com.itemorganizer.gui.util.TextScaleHelper.drawScaledText(context, client.textRenderer, slotNum, slotX + 2, slotY + 2, numColor, false, textScale);
+            RenderHelper.renderSlotWithBadge(context, client.textRenderer, stack, String.valueOf(i + 1),
+                    slotX, slotY, slotSize, this.itemScale, textScale, isHovered,
+                    bgColor, bgColor, borderColor, borderColor, badgeColor, badgeColor);
 
-            // current hotbar item
-            if (inventory != null) {
-                ItemStack stack = inventory.getStack(i);
-                if (!stack.isEmpty()) {
-                    float renderScale = ((float) slotSize / (float) BASE_SLOT_SIZE) * this.itemScale;
-                    float cx = slotX + (slotSize - 1) / 2.0f;
-                    float cy = slotY + (slotSize - 1) / 2.0f;
-
-                    context.getMatrices().pushMatrix();
-                    context.getMatrices().translate(cx, cy);
-                    context.getMatrices().scale(renderScale, renderScale);
-
-                    context.drawItem(stack, -8, -8);
-                    context.drawStackOverlay(client.textRenderer, stack, -8, -8);
-
-                    context.getMatrices().popMatrix();
-
-                    // render tooltip on hover
-                    if (isHovered) {
-                        context.drawItemTooltip(client.textRenderer, stack, mouseX, mouseY);
-                    }
-                }
+            if (isHovered && !stack.isEmpty()) {
+                context.drawItemTooltip(client.textRenderer, stack, mouseX, mouseY);
             }
         }
     }

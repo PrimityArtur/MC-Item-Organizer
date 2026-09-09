@@ -5,7 +5,12 @@ import java.util.List;
 
 import com.itemorganizer.client.ItemOrganizerClient;
 import com.itemorganizer.core.model.ModConfig;
+import com.itemorganizer.gui.component.ModalDialogComponent;
+import com.itemorganizer.gui.component.ScrollbarComponent;
+import com.itemorganizer.gui.component.SliderComponent;
+import com.itemorganizer.gui.theme.UITheme;
 import com.itemorganizer.gui.util.RenderHelper;
+import com.itemorganizer.gui.util.SoundHelper;
 import com.itemorganizer.gui.util.TextScaleHelper;
 import com.itemorganizer.gui.viewmodel.OrganizerViewModel;
 import net.minecraft.client.MinecraftClient;
@@ -20,9 +25,7 @@ import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.input.CharInput;
 import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.option.KeyBinding;
-import com.itemorganizer.gui.util.SoundHelper;
 import net.minecraft.client.util.InputUtil;
-import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
 import org.lwjgl.glfw.GLFW;
@@ -37,28 +40,28 @@ public class ConfigWidget implements Drawable, Element, Selectable {
     private int width;
     private int height;
 
-    private final VerticalScrollbar scrollbar;
+    private final ScrollbarComponent scrollbar;
+    private ModalDialogComponent activeModal = null;
 
     // hex color input field
     private TextFieldWidget hexColorField;
     private String hexErrorMessage = "";
 
-    // rgb sliders
-    private boolean draggingRed = false;
-    private boolean draggingGreen = false;
-    private boolean draggingBlue = false;
-
-    // setting sliders
-    private boolean draggingTransparency = false;
-    private boolean draggingBlur = false;
-    private boolean draggingScale = false;
-    private boolean draggingItemScale = false;
-    private boolean draggingTextScale = false;
-    private boolean draggingSplitRatio = false;
-    private boolean draggingHotbarScale = false;
-    private boolean draggingHotbarItemScale = false;
-    private boolean draggingPaletteScale = false;
-    private boolean draggingPaletteItemScale = false;
+    // sliders
+    private final List<SliderComponent> allSliders = new ArrayList<>();
+    private SliderComponent redSlider;
+    private SliderComponent greenSlider;
+    private SliderComponent blueSlider;
+    private SliderComponent transparencySlider;
+    private SliderComponent blurSlider;
+    private SliderComponent scaleSlider;
+    private SliderComponent itemScaleSlider;
+    private SliderComponent textScaleSlider;
+    private SliderComponent splitRatioSlider;
+    private SliderComponent hotbarScaleSlider;
+    private SliderComponent hotbarItemScaleSlider;
+    private SliderComponent paletteScaleSlider;
+    private SliderComponent paletteItemScaleSlider;
 
     // key listening state
     private boolean listeningForKey = false;
@@ -87,7 +90,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
 
         int listStartY = y + 8;
         int listHeight = height - 16;
-        this.scrollbar = new VerticalScrollbar(x + width - SCROLLBAR_WIDTH - 4, listStartY, SCROLLBAR_WIDTH, listHeight);
+        this.scrollbar = new ScrollbarComponent(x + width - SCROLLBAR_WIDTH - 4, listStartY, SCROLLBAR_WIDTH, listHeight);
 
         initInputs();
     }
@@ -119,6 +122,118 @@ public class ConfigWidget implements Drawable, Element, Selectable {
                 hexErrorMessage = "";
             }
         });
+
+        initSliders();
+    }
+
+    private void initSliders() {
+        redSlider = new SliderComponent(Text.literal("R"), 0.0, 255.0,
+                () -> (double) ((viewModel.getConfig().getBackgroundColor() >> 16) & 0xFF),
+                v -> {
+                    int current = viewModel.getConfig().getBackgroundColor();
+                    int newColor = (v.intValue() << 16) | (current & 0x00FFFF);
+                    viewModel.updateConfig(c -> c.setBackgroundColor(newColor));
+                    if (!hexColorField.isFocused()) hexColorField.setText(String.format("#%06X", newColor));
+                },
+                v -> String.valueOf(v.intValue()));
+        redSlider.setColors(0x40000000, 0x66EF4444, 0x25FFFFFF, 0xFFEF4444);
+
+        greenSlider = new SliderComponent(Text.literal("G"), 0.0, 255.0,
+                () -> (double) ((viewModel.getConfig().getBackgroundColor() >> 8) & 0xFF),
+                v -> {
+                    int current = viewModel.getConfig().getBackgroundColor();
+                    int newColor = (current & 0xFF00FF) | (v.intValue() << 8);
+                    viewModel.updateConfig(c -> c.setBackgroundColor(newColor));
+                    if (!hexColorField.isFocused()) hexColorField.setText(String.format("#%06X", newColor));
+                },
+                v -> String.valueOf(v.intValue()));
+        greenSlider.setColors(0x40000000, 0x6610B981, 0x25FFFFFF, 0xFF34D399);
+
+        blueSlider = new SliderComponent(Text.literal("B"), 0.0, 255.0,
+                () -> (double) (viewModel.getConfig().getBackgroundColor() & 0xFF),
+                v -> {
+                    int current = viewModel.getConfig().getBackgroundColor();
+                    int newColor = (current & 0xFFFF00) | v.intValue();
+                    viewModel.updateConfig(c -> c.setBackgroundColor(newColor));
+                    if (!hexColorField.isFocused()) hexColorField.setText(String.format("#%06X", newColor));
+                },
+                v -> String.valueOf(v.intValue()));
+        blueSlider.setColors(0x40000000, 0x663B82F6, 0x25FFFFFF, 0xFF38BDF8);
+
+        transparencySlider = new SliderComponent(null, 0.10, 1.0,
+                () -> (double) viewModel.getConfig().getTransparency(),
+                v -> viewModel.updateConfig(c -> c.setTransparency(v.floatValue())),
+                v -> Math.round(v * 100.0) + "%");
+        transparencySlider.setColors(0x40000000, 0x4D38BDF8, 0x25FFFFFF, 0xFF38BDF8);
+
+        blurSlider = new SliderComponent(null, 0.0, 5.0,
+                () -> (double) viewModel.getConfig().getBlur(),
+                v -> viewModel.updateConfig(c -> c.setBlur(Math.round(v.floatValue() * 100.0f) / 100.0f)),
+                v -> Math.round((v / 5.0) * 100.0) + "%");
+        blurSlider.setColors(0x40000000, 0x4D38BDF8, 0x25FFFFFF, 0xFF38BDF8);
+
+        scaleSlider = new SliderComponent(null, 0.10, 5.00,
+                () -> (double) viewModel.getConfig().getScale(),
+                v -> viewModel.updateConfig(c -> c.setScale(Math.round(v.floatValue() * 100.0f) / 100.0f)),
+                v -> Math.round(v * 100.0) + "% (" + String.format("%.2f", v) + "x)");
+        scaleSlider.setColors(0x40000000, 0x4D38BDF8, 0x25FFFFFF, 0xFF38BDF8);
+
+        itemScaleSlider = new SliderComponent(null, 0.50, 1.50,
+                () -> (double) viewModel.getConfig().getItemScale(),
+                v -> viewModel.updateConfig(c -> c.setItemScale(Math.round(v.floatValue() * 100.0f) / 100.0f)),
+                v -> Math.round(v * 100.0) + "% (" + String.format("%.2f", v) + "x)");
+        itemScaleSlider.setColors(0x40000000, 0x4D38BDF8, 0x25FFFFFF, 0xFF38BDF8);
+
+        textScaleSlider = new SliderComponent(null, 0.50, 1.50,
+                () -> (double) viewModel.getConfig().getTextScale(),
+                v -> viewModel.updateConfig(c -> c.setTextScale(Math.round(v.floatValue() * 100.0f) / 100.0f)),
+                v -> Math.round(v * 100.0) + "% (" + String.format("%.2f", v) + "x)");
+        textScaleSlider.setColors(0x40000000, 0x4D38BDF8, 0x25FFFFFF, 0xFF38BDF8);
+
+        splitRatioSlider = new SliderComponent(null, 0.20, 0.80,
+                () -> (double) viewModel.getConfig().getSplitRatio(),
+                v -> viewModel.updateConfig(c -> c.setSplitRatio(Math.round(v.floatValue() * 100.0f) / 100.0f)),
+                v -> Math.round(v * 100.0) + "% / " + (100 - Math.round(v * 100.0)) + "%");
+        splitRatioSlider.setColors(0x40000000, 0x4D38BDF8, 0x25FFFFFF, 0xFF38BDF8);
+
+        hotbarScaleSlider = new SliderComponent(null, 0.50, 2.00,
+                () -> (double) viewModel.getConfig().getHotbarScale(),
+                v -> viewModel.updateConfig(c -> c.setHotbarScale(Math.round(v.floatValue() * 100.0f) / 100.0f)),
+                v -> Math.round(v * 100.0) + "% (" + String.format("%.2f", v) + "x)");
+        hotbarScaleSlider.setColors(0x40000000, 0x4D38BDF8, 0x25FFFFFF, 0xFF38BDF8);
+
+        hotbarItemScaleSlider = new SliderComponent(null, 0.50, 1.50,
+                () -> (double) viewModel.getConfig().getHotbarItemScale(),
+                v -> viewModel.updateConfig(c -> c.setHotbarItemScale(Math.round(v.floatValue() * 100.0f) / 100.0f)),
+                v -> Math.round(v * 100.0) + "% (" + String.format("%.2f", v) + "x)");
+        hotbarItemScaleSlider.setColors(0x40000000, 0x4D38BDF8, 0x25FFFFFF, 0xFF38BDF8);
+
+        paletteScaleSlider = new SliderComponent(null, 0.50, 2.00,
+                () -> (double) viewModel.getConfig().getPaletteScale(),
+                v -> viewModel.updateConfig(c -> c.setPaletteScale(Math.round(v.floatValue() * 100.0f) / 100.0f)),
+                v -> Math.round(v * 100.0) + "% (" + String.format("%.2f", v) + "x)");
+        paletteScaleSlider.setColors(0x40000000, 0x4D38BDF8, 0x25FFFFFF, 0xFF38BDF8);
+
+        paletteItemScaleSlider = new SliderComponent(null, 0.50, 1.50,
+                () -> (double) viewModel.getConfig().getPaletteItemScale(),
+                v -> viewModel.updateConfig(c -> c.setPaletteItemScale(Math.round(v.floatValue() * 100.0f) / 100.0f)),
+                v -> Math.round(v * 100.0) + "% (" + String.format("%.2f", v) + "x)");
+        paletteItemScaleSlider.setColors(0x40000000, 0x4D38BDF8, 0x25FFFFFF, 0xFF38BDF8);
+
+        allSliders.clear();
+        allSliders.add(redSlider);
+        allSliders.add(greenSlider);
+        allSliders.add(blueSlider);
+        allSliders.add(transparencySlider);
+        allSliders.add(blurSlider);
+        allSliders.add(scaleSlider);
+        allSliders.add(itemScaleSlider);
+        allSliders.add(textScaleSlider);
+        allSliders.add(splitRatioSlider);
+        allSliders.add(hotbarScaleSlider);
+        allSliders.add(hotbarItemScaleSlider);
+        allSliders.add(paletteScaleSlider);
+        allSliders.add(paletteItemScaleSlider);
     }
 
     public void setBounds(int x, int y, int width, int height) {
@@ -343,25 +458,24 @@ public class ConfigWidget implements Drawable, Element, Selectable {
 
         int sliderRedY = rgbStartY;
         if (sliderRedY + rgbSliderH >= listStartY && sliderRedY <= listStartY + listHeight) {
-            float normR = currentR / 255.0f;
-            renderSlider(context, tr, contentX, sliderRedY, sliderW, rgbSliderH, normR, "R: " + currentR, mouseX, mouseY, textScale, 0x66EF4444, 0xFFEF4444);
+            redSlider.setBounds(contentX, sliderRedY, sliderW, rgbSliderH);
+            redSlider.render(context, tr, mouseX, mouseY, textScale);
         }
 
         int sliderGreenY = sliderRedY + rgbSliderH + 3;
         if (sliderGreenY + rgbSliderH >= listStartY && sliderGreenY <= listStartY + listHeight) {
-            float normG = currentG / 255.0f;
-            renderSlider(context, tr, contentX, sliderGreenY, sliderW, rgbSliderH, normG, "G: " + currentG, mouseX, mouseY, textScale, 0x6610B981, 0xFF34D399);
+            greenSlider.setBounds(contentX, sliderGreenY, sliderW, rgbSliderH);
+            greenSlider.render(context, tr, mouseX, mouseY, textScale);
         }
 
         int sliderBlueY = sliderGreenY + rgbSliderH + 3;
         if (sliderBlueY + rgbSliderH >= listStartY && sliderBlueY <= listStartY + listHeight) {
-            float normB = currentB / 255.0f;
-            renderSlider(context, tr, contentX, sliderBlueY, sliderW, rgbSliderH, normB, "B: " + currentB, mouseX, mouseY, textScale, 0x663B82F6, 0xFF38BDF8);
+            blueSlider.setBounds(contentX, sliderBlueY, sliderW, rgbSliderH);
+            blueSlider.render(context, tr, mouseX, mouseY, textScale);
         }
 
         // transparency slider
         int sec2Y = sliderBlueY + rgbSliderH + secGap;
-        int alphaPercent = Math.round(cfg.getTransparency() * 100.0f);
         if (sec2Y + 12 >= listStartY && sec2Y <= listStartY + listHeight) {
             TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.transparency"), contentX, sec2Y, 0xFF38BDF8, true, textScale);
         }
@@ -369,12 +483,12 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int slider1X = contentX;
         int slider1Y = sec2Y + labelGap;
         if (slider1Y + sliderH >= listStartY && slider1Y <= listStartY + listHeight) {
-            renderSlider(context, tr, slider1X, slider1Y, sliderW, sliderH, cfg.getTransparency(), alphaPercent + "%", mouseX, mouseY, textScale, 0x4D38BDF8, 0xFF38BDF8);
+            transparencySlider.setBounds(slider1X, slider1Y, sliderW, sliderH);
+            transparencySlider.render(context, tr, mouseX, mouseY, textScale);
         }
 
         // blur slider
         int secBlurY = slider1Y + sliderH + secGap;
-        int blurPercent = Math.round(cfg.getBlur() * 100.0f);
         if (secBlurY + 12 >= listStartY && secBlurY <= listStartY + listHeight) {
             TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.blur"), contentX, secBlurY, 0xFF38BDF8, true, textScale);
         }
@@ -382,13 +496,12 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int sliderBlurX = contentX;
         int sliderBlurY = secBlurY + labelGap;
         if (sliderBlurY + sliderH >= listStartY && sliderBlurY <= listStartY + listHeight) {
-            float blurNorm = MathHelper.clamp(cfg.getBlur() / 5.0f, 0.0f, 1.0f);
-            renderSlider(context, tr, sliderBlurX, sliderBlurY, sliderW, sliderH, blurNorm, blurPercent + "%", mouseX, mouseY, textScale, 0x4D38BDF8, 0xFF38BDF8);
+            blurSlider.setBounds(sliderBlurX, sliderBlurY, sliderW, sliderH);
+            blurSlider.render(context, tr, mouseX, mouseY, textScale);
         }
 
         // grid zoom slider
         int sec3Y = sliderBlurY + sliderH + secGap;
-        int scalePercent = Math.round(cfg.getScale() * 100.0f);
         if (sec3Y + 12 >= listStartY && sec3Y <= listStartY + listHeight) {
             TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.grid_zoom"), contentX, sec3Y, 0xFF38BDF8, true, textScale);
         }
@@ -396,13 +509,12 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int slider2X = contentX;
         int slider2Y = sec3Y + labelGap;
         if (slider2Y + sliderH >= listStartY && slider2Y <= listStartY + listHeight) {
-            float normScale = (cfg.getScale() - 0.10f) / 4.90f;
-            renderSlider(context, tr, slider2X, slider2Y, sliderW, sliderH, normScale, scalePercent + "% (" + String.format("%.2f", cfg.getScale()) + "x)", mouseX, mouseY, textScale, 0x4D38BDF8, 0xFF38BDF8);
+            scaleSlider.setBounds(slider2X, slider2Y, sliderW, sliderH);
+            scaleSlider.render(context, tr, mouseX, mouseY, textScale);
         }
 
         // item scale slider
         int sec4Y = slider2Y + sliderH + secGap;
-        int itemScalePercent = Math.round(cfg.getItemScale() * 100.0f);
         if (sec4Y + 12 >= listStartY && sec4Y <= listStartY + listHeight) {
             TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.item_scale"), contentX, sec4Y, 0xFF38BDF8, true, textScale);
         }
@@ -410,13 +522,12 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int slider3X = contentX;
         int slider3Y = sec4Y + labelGap;
         if (slider3Y + sliderH >= listStartY && slider3Y <= listStartY + listHeight) {
-            float normItemScale = (cfg.getItemScale() - 0.5f) / 1.0f;
-            renderSlider(context, tr, slider3X, slider3Y, sliderW, sliderH, normItemScale, itemScalePercent + "% (" + String.format("%.2f", cfg.getItemScale()) + "x)", mouseX, mouseY, textScale, 0x4D38BDF8, 0xFF38BDF8);
+            itemScaleSlider.setBounds(slider3X, slider3Y, sliderW, sliderH);
+            itemScaleSlider.render(context, tr, mouseX, mouseY, textScale);
         }
 
         // text scale slider
         int sec5Y = slider3Y + sliderH + secGap;
-        int textScalePercent = Math.round(cfg.getTextScale() * 100.0f);
         if (sec5Y + 12 >= listStartY && sec5Y <= listStartY + listHeight) {
             TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.text_scale"), contentX, sec5Y, 0xFF38BDF8, true, textScale);
         }
@@ -424,13 +535,12 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int slider4X = contentX;
         int slider4Y = sec5Y + labelGap;
         if (slider4Y + sliderH >= listStartY && slider4Y <= listStartY + listHeight) {
-            float normTextScale = (cfg.getTextScale() - 0.5f) / 1.0f;
-            renderSlider(context, tr, slider4X, slider4Y, sliderW, sliderH, normTextScale, textScalePercent + "% (" + String.format("%.2f", cfg.getTextScale()) + "x)", mouseX, mouseY, textScale, 0x4D38BDF8, 0xFF38BDF8);
+            textScaleSlider.setBounds(slider4X, slider4Y, sliderW, sliderH);
+            textScaleSlider.render(context, tr, mouseX, mouseY, textScale);
         }
 
         // panel split ratio slider
         int sec6Y = slider4Y + sliderH + secGap;
-        int leftPercent = Math.round(cfg.getSplitRatio() * 100.0f);
         if (sec6Y + 12 >= listStartY && sec6Y <= listStartY + listHeight) {
             TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.panel_split"), contentX, sec6Y, 0xFF38BDF8, true, textScale);
         }
@@ -438,13 +548,12 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int slider5X = contentX;
         int slider5Y = sec6Y + labelGap;
         if (slider5Y + sliderH >= listStartY && slider5Y <= listStartY + listHeight) {
-            float normSplit = (cfg.getSplitRatio() - 0.20f) / 0.60f;
-            renderSlider(context, tr, slider5X, slider5Y, sliderW, sliderH, normSplit, leftPercent + "% / " + (100 - leftPercent) + "%", mouseX, mouseY, textScale, 0x4D38BDF8, 0xFF38BDF8);
+            splitRatioSlider.setBounds(slider5X, slider5Y, sliderW, sliderH);
+            splitRatioSlider.render(context, tr, mouseX, mouseY, textScale);
         }
 
         // hotbar scale slider
         int sec7Y = slider5Y + sliderH + secGap;
-        int hotbarPercent = Math.round(cfg.getHotbarScale() * 100.0f);
         if (sec7Y + 12 >= listStartY && sec7Y <= listStartY + listHeight) {
             TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.hotbar_scale"), contentX, sec7Y, 0xFF38BDF8, true, textScale);
         }
@@ -452,13 +561,12 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int slider6X = contentX;
         int slider6Y = sec7Y + labelGap;
         if (slider6Y + sliderH >= listStartY && slider6Y <= listStartY + listHeight) {
-            float normHotbar = (cfg.getHotbarScale() - 0.50f) / 1.50f;
-            renderSlider(context, tr, slider6X, slider6Y, sliderW, sliderH, normHotbar, hotbarPercent + "% (" + String.format("%.2f", cfg.getHotbarScale()) + "x)", mouseX, mouseY, textScale, 0x4D38BDF8, 0xFF38BDF8);
+            hotbarScaleSlider.setBounds(slider6X, slider6Y, sliderW, sliderH);
+            hotbarScaleSlider.render(context, tr, mouseX, mouseY, textScale);
         }
 
         // hotbar item scale slider
         int sec7bY = slider6Y + sliderH + secGap;
-        int hotbarItemPercent = Math.round(cfg.getHotbarItemScale() * 100.0f);
         if (sec7bY + 12 >= listStartY && sec7bY <= listStartY + listHeight) {
             TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.hotbar_item_scale"), contentX, sec7bY, 0xFF38BDF8, true, textScale);
         }
@@ -466,13 +574,12 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int slider6bX = contentX;
         int slider6bY = sec7bY + labelGap;
         if (slider6bY + sliderH >= listStartY && slider6bY <= listStartY + listHeight) {
-            float normHotbarItem = (cfg.getHotbarItemScale() - 0.50f) / 1.00f;
-            renderSlider(context, tr, slider6bX, slider6bY, sliderW, sliderH, normHotbarItem, hotbarItemPercent + "% (" + String.format("%.2f", cfg.getHotbarItemScale()) + "x)", mouseX, mouseY, textScale, 0x4D38BDF8, 0xFF38BDF8);
+            hotbarItemScaleSlider.setBounds(slider6bX, slider6bY, sliderW, sliderH);
+            hotbarItemScaleSlider.render(context, tr, mouseX, mouseY, textScale);
         }
 
         // palette scale slider
         int sec8Y = slider6bY + sliderH + secGap;
-        int palettePercent = Math.round(cfg.getPaletteScale() * 100.0f);
         if (sec8Y + 12 >= listStartY && sec8Y <= listStartY + listHeight) {
             TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.palette_scale"), contentX, sec8Y, 0xFF38BDF8, true, textScale);
         }
@@ -480,13 +587,12 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int slider7X = contentX;
         int slider7Y = sec8Y + labelGap;
         if (slider7Y + sliderH >= listStartY && slider7Y <= listStartY + listHeight) {
-            float normPalette = (cfg.getPaletteScale() - 0.50f) / 1.50f;
-            renderSlider(context, tr, slider7X, slider7Y, sliderW, sliderH, normPalette, palettePercent + "% (" + String.format("%.2f", cfg.getPaletteScale()) + "x)", mouseX, mouseY, textScale, 0x4D38BDF8, 0xFF38BDF8);
+            paletteScaleSlider.setBounds(slider7X, slider7Y, sliderW, sliderH);
+            paletteScaleSlider.render(context, tr, mouseX, mouseY, textScale);
         }
 
         // palette item scale slider
         int sec8bY = slider7Y + sliderH + secGap;
-        int paletteItemPercent = Math.round(cfg.getPaletteItemScale() * 100.0f);
         if (sec8bY + 12 >= listStartY && sec8bY <= listStartY + listHeight) {
             TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.palette_item_scale"), contentX, sec8bY, 0xFF38BDF8, true, textScale);
         }
@@ -494,8 +600,8 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int slider7bX = contentX;
         int slider7bY = sec8bY + labelGap;
         if (slider7bY + sliderH >= listStartY && slider7bY <= listStartY + listHeight) {
-            float normPaletteItem = (cfg.getPaletteItemScale() - 0.50f) / 1.00f;
-            renderSlider(context, tr, slider7bX, slider7bY, sliderW, sliderH, normPaletteItem, paletteItemPercent + "% (" + String.format("%.2f", cfg.getPaletteItemScale()) + "x)", mouseX, mouseY, textScale, 0x4D38BDF8, 0xFF38BDF8);
+            paletteItemScaleSlider.setBounds(slider7bX, slider7bY, sliderW, sliderH);
+            paletteItemScaleSlider.render(context, tr, mouseX, mouseY, textScale);
         }
 
         // open key binding
@@ -510,35 +616,38 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int keyBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
 
         if (keyBtnY + keyBtnH >= listStartY && keyBtnY <= listStartY + listHeight) {
-            boolean hoverKeyBtn = mouseX >= keyBtnX && mouseX <= keyBtnX + keyBtnW && mouseY >= keyBtnY && mouseY <= keyBtnY + keyBtnH;
-            String keyLabel;
-            int keyBg;
-            int keyBorder;
-            int keyTextColor;
+            boolean hoverKeyBtn = (activeModal == null && mouseX >= keyBtnX && mouseX <= keyBtnX + keyBtnW && mouseY >= keyBtnY && mouseY <= keyBtnY + keyBtnH);
+            Text keyLabel;
+            int keyBg, keyHoverBg, keyBorder, keyHoverBorder, keyTextColor, keyHoverTextColor;
 
             if (listeningForKey) {
-                keyLabel = Text.translatable("config.itemorganizer.press_key").getString();
-                keyBg = 0x4DF59E0B;
-                keyBorder = 0xFFF59E0B;
-                keyTextColor = 0xFFF59E0B;
+                keyLabel = Text.translatable("config.itemorganizer.press_key");
+                keyBg = UITheme.WARNING_BG;
+                keyHoverBg = UITheme.WARNING_HOVER_BG;
+                keyBorder = UITheme.WARNING_BORDER;
+                keyHoverBorder = UITheme.WARNING_BORDER;
+                keyTextColor = UITheme.WARNING;
+                keyHoverTextColor = UITheme.TEXT_WHITE;
             } else {
                 KeyBinding binding = ItemOrganizerClient.getOpenKeyBinding();
                 Text keyText = (binding != null) ? binding.getBoundKeyLocalizedText() : Text.literal("O");
-                keyLabel = Text.translatable("config.itemorganizer.key_label", keyText.getString()).getString();
-                keyBg = hoverKeyBtn ? 0x801E3A5F : 0x14FFFFFF;
-                keyBorder = hoverKeyBtn ? 0xFF38BDF8 : 0x25FFFFFF;
-                keyTextColor = hoverKeyBtn ? 0xFFFFFFFF : 0xFFCBD5E1;
+                keyLabel = Text.translatable("config.itemorganizer.key_label", keyText.getString());
+                keyBg = UITheme.BG_SURFACE_HOVER;
+                keyHoverBg = UITheme.PRIMARY_BG;
+                keyBorder = UITheme.BORDER_MUTED;
+                keyHoverBorder = UITheme.PRIMARY;
+                keyTextColor = UITheme.TEXT_SECONDARY;
+                keyHoverTextColor = UITheme.TEXT_WHITE;
             }
 
-            context.fill(keyBtnX, keyBtnY, keyBtnX + keyBtnW, keyBtnY + keyBtnH, keyBg);
-            RenderHelper.drawBorder(context, keyBtnX, keyBtnY, keyBtnW, keyBtnH, keyBorder);
-            TextScaleHelper.drawVerticallyCenteredScaledText(context, tr, keyLabel, keyBtnX + keyBtnW / 2, keyBtnY + keyBtnH / 2, keyTextColor, textScale);
+            RenderHelper.drawButton(context, tr, keyBtnX, keyBtnY, keyBtnW, keyBtnH, keyLabel, hoverKeyBtn,
+                    keyBg, keyHoverBg, keyBorder, keyHoverBorder, keyTextColor, keyHoverTextColor, textScale);
         }
 
         // quick append key binding
         int sec10Y = keyBtnY + keyBtnH + secGap;
         if (sec10Y + 12 >= listStartY && sec10Y <= listStartY + listHeight) {
-            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.quick_append_key"), contentX, sec10Y, 0xFF38BDF8, true, textScale);
+            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.quick_append_key"), contentX, sec10Y, UITheme.PRIMARY, true, textScale);
         }
 
         int quickKeyBtnX = contentX;
@@ -547,36 +656,39 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int quickKeyBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
 
         if (quickKeyBtnY + quickKeyBtnH >= listStartY && quickKeyBtnY <= listStartY + listHeight) {
-            boolean hoverQuickKey = mouseX >= quickKeyBtnX && mouseX <= quickKeyBtnX + quickKeyBtnW && mouseY >= quickKeyBtnY && mouseY <= quickKeyBtnY + quickKeyBtnH;
-            String qkLabel;
-            int qkBg;
-            int qkBorder;
-            int qkTextColor;
+            boolean hoverQuickKey = (activeModal == null && mouseX >= quickKeyBtnX && mouseX <= quickKeyBtnX + quickKeyBtnW && mouseY >= quickKeyBtnY && mouseY <= quickKeyBtnY + quickKeyBtnH);
+            Text qkLabel;
+            int qkBg, qkHoverBg, qkBorder, qkHoverBorder, qkTextColor, qkHoverTextColor;
 
             if (listeningForQuickAppendKey) {
-                qkLabel = Text.translatable("config.itemorganizer.press_key").getString();
-                qkBg = 0x4DF59E0B;
-                qkBorder = 0xFFF59E0B;
-                qkTextColor = 0xFFF59E0B;
+                qkLabel = Text.translatable("config.itemorganizer.press_key");
+                qkBg = UITheme.WARNING_BG;
+                qkHoverBg = UITheme.WARNING_HOVER_BG;
+                qkBorder = UITheme.WARNING_BORDER;
+                qkHoverBorder = UITheme.WARNING_BORDER;
+                qkTextColor = UITheme.WARNING;
+                qkHoverTextColor = UITheme.TEXT_WHITE;
             } else {
                 String boundKey = cfg.getKeyQuickAppend();
                 InputUtil.Key k = InputUtil.fromTranslationKey(boundKey);
                 String keyName = (k != null) ? k.getLocalizedText().getString() : "A";
-                qkLabel = Text.translatable("config.itemorganizer.key_label", keyName).getString();
-                qkBg = hoverQuickKey ? 0x801E3A5F : 0x14FFFFFF;
-                qkBorder = hoverQuickKey ? 0xFF38BDF8 : 0x25FFFFFF;
-                qkTextColor = hoverQuickKey ? 0xFFFFFFFF : 0xFFCBD5E1;
+                qkLabel = Text.translatable("config.itemorganizer.key_label", keyName);
+                qkBg = UITheme.BG_SURFACE_HOVER;
+                qkHoverBg = UITheme.PRIMARY_BG;
+                qkBorder = UITheme.BORDER_MUTED;
+                qkHoverBorder = UITheme.PRIMARY;
+                qkTextColor = UITheme.TEXT_SECONDARY;
+                qkHoverTextColor = UITheme.TEXT_WHITE;
             }
 
-            context.fill(quickKeyBtnX, quickKeyBtnY, quickKeyBtnX + quickKeyBtnW, quickKeyBtnY + quickKeyBtnH, qkBg);
-            RenderHelper.drawBorder(context, quickKeyBtnX, quickKeyBtnY, quickKeyBtnW, quickKeyBtnH, qkBorder);
-            TextScaleHelper.drawVerticallyCenteredScaledText(context, tr, qkLabel, quickKeyBtnX + quickKeyBtnW / 2, quickKeyBtnY + quickKeyBtnH / 2, qkTextColor, textScale);
+            RenderHelper.drawButton(context, tr, quickKeyBtnX, quickKeyBtnY, quickKeyBtnW, quickKeyBtnH, qkLabel, hoverQuickKey,
+                    qkBg, qkHoverBg, qkBorder, qkHoverBorder, qkTextColor, qkHoverTextColor, textScale);
         }
 
         // undo key binding
         int sec11Y = quickKeyBtnY + quickKeyBtnH + secGap;
         if (sec11Y + 12 >= listStartY && sec11Y <= listStartY + listHeight) {
-            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.undo_key"), contentX, sec11Y, 0xFF38BDF8, true, textScale);
+            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.undo_key"), contentX, sec11Y, UITheme.PRIMARY, true, textScale);
         }
 
         int undoKeyBtnX = contentX;
@@ -585,30 +697,33 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int undoKeyBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
 
         if (undoKeyBtnY + undoKeyBtnH >= listStartY && undoKeyBtnY <= listStartY + listHeight) {
-            boolean hoverUndoKey = mouseX >= undoKeyBtnX && mouseX <= undoKeyBtnX + undoKeyBtnW && mouseY >= undoKeyBtnY && mouseY <= undoKeyBtnY + undoKeyBtnH;
-            String undoLabel;
-            int undoBg;
-            int undoBorder;
-            int undoTextColor;
+            boolean hoverUndoKey = (activeModal == null && mouseX >= undoKeyBtnX && mouseX <= undoKeyBtnX + undoKeyBtnW && mouseY >= undoKeyBtnY && mouseY <= undoKeyBtnY + undoKeyBtnH);
+            Text undoLabel;
+            int undoBg, undoHoverBg, undoBorder, undoHoverBorder, undoTextColor, undoHoverTextColor;
 
             if (listeningForUndoKey) {
-                undoLabel = Text.translatable("config.itemorganizer.press_key").getString();
-                undoBg = 0x4DF59E0B;
-                undoBorder = 0xFFF59E0B;
-                undoTextColor = 0xFFF59E0B;
+                undoLabel = Text.translatable("config.itemorganizer.press_key");
+                undoBg = UITheme.WARNING_BG;
+                undoHoverBg = UITheme.WARNING_HOVER_BG;
+                undoBorder = UITheme.WARNING_BORDER;
+                undoHoverBorder = UITheme.WARNING_BORDER;
+                undoTextColor = UITheme.WARNING;
+                undoHoverTextColor = UITheme.TEXT_WHITE;
             } else {
                 String boundKey = cfg.getKeyUndo();
                 InputUtil.Key k = InputUtil.fromTranslationKey(boundKey);
                 String keyName = (k != null) ? k.getLocalizedText().getString().toUpperCase() : "Z";
-                undoLabel = Text.translatable("config.itemorganizer.key_label_ctrl", keyName).getString();
-                undoBg = hoverUndoKey ? 0x801E3A5F : 0x14FFFFFF;
-                undoBorder = hoverUndoKey ? 0xFF38BDF8 : 0x25FFFFFF;
-                undoTextColor = hoverUndoKey ? 0xFFFFFFFF : 0xFFCBD5E1;
+                undoLabel = Text.translatable("config.itemorganizer.key_label_ctrl", keyName);
+                undoBg = UITheme.BG_SURFACE_HOVER;
+                undoHoverBg = UITheme.PRIMARY_BG;
+                undoBorder = UITheme.BORDER_MUTED;
+                undoHoverBorder = UITheme.PRIMARY;
+                undoTextColor = UITheme.TEXT_SECONDARY;
+                undoHoverTextColor = UITheme.TEXT_WHITE;
             }
 
-            context.fill(undoKeyBtnX, undoKeyBtnY, undoKeyBtnX + undoKeyBtnW, undoKeyBtnY + undoKeyBtnH, undoBg);
-            RenderHelper.drawBorder(context, undoKeyBtnX, undoKeyBtnY, undoKeyBtnW, undoKeyBtnH, undoBorder);
-            TextScaleHelper.drawVerticallyCenteredScaledText(context, tr, undoLabel, undoKeyBtnX + undoKeyBtnW / 2, undoKeyBtnY + undoKeyBtnH / 2, undoTextColor, textScale);
+            RenderHelper.drawButton(context, tr, undoKeyBtnX, undoKeyBtnY, undoKeyBtnW, undoKeyBtnH, undoLabel, hoverUndoKey,
+                    undoBg, undoHoverBg, undoBorder, undoHoverBorder, undoTextColor, undoHoverTextColor, textScale);
         }
 
         // reset defaults button
@@ -617,33 +732,21 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int resetBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
 
         if (resetBtnY + resetBtnH >= listStartY && resetBtnY <= listStartY + listHeight) {
-            boolean hoverReset = mouseX >= keyBtnX && mouseX <= keyBtnX + resetBtnW && mouseY >= resetBtnY && mouseY <= resetBtnY + resetBtnH;
-            context.fill(keyBtnX, resetBtnY, keyBtnX + resetBtnW, resetBtnY + resetBtnH, hoverReset ? 0x807F1D1D : 0x337F1D1D);
-            RenderHelper.drawBorder(context, keyBtnX, resetBtnY, resetBtnW, resetBtnH, hoverReset ? 0xFFEF4444 : 0x80EF4444);
-            TextScaleHelper.drawVerticallyCenteredScaledText(context, tr, Text.translatable("config.itemorganizer.reset_defaults"), keyBtnX + resetBtnW / 2, resetBtnY + resetBtnH / 2, hoverReset ? 0xFFFFFFFF : 0xFFFCA5A5, textScale);
+            boolean hoverReset = (activeModal == null && mouseX >= keyBtnX && mouseX <= keyBtnX + resetBtnW && mouseY >= resetBtnY && mouseY <= resetBtnY + resetBtnH);
+            RenderHelper.drawButton(context, tr, keyBtnX, resetBtnY, resetBtnW, resetBtnH,
+                    Text.translatable("config.itemorganizer.reset_defaults"), hoverReset,
+                    UITheme.DANGER_BG, UITheme.DANGER_HOVER_BG, UITheme.DANGER_BORDER_MUTED, UITheme.DANGER,
+                    0xFFFCA5A5, UITheme.TEXT_WHITE, textScale);
         }
 
         context.disableScissor();
         scrollbar.render(context, mouseX, mouseY);
-    }
 
-    private void renderSlider(DrawContext context, TextRenderer tr, int sx, int sy, int sw, int sh, float normalizedVal, String label, int mouseX, int mouseY, float textScale, int trackColor, int thumbColor) {
-        normalizedVal = MathHelper.clamp(normalizedVal, 0.0f, 1.0f);
-
-        context.fill(sx, sy, sx + sw, sy + sh, 0x40000000);
-        int fillW = (int) (sw * normalizedVal);
-        if (fillW > 0) {
-            context.fill(sx, sy, sx + fillW, sy + sh, trackColor);
+        // confirmation modal rendering
+        if (activeModal != null) {
+            activeModal.updateParentBounds(x, y, width, height);
+            activeModal.render(context, tr, mouseX, mouseY, delta, textScale);
         }
-        RenderHelper.drawBorder(context, sx, sy, sw, sh, 0x25FFFFFF);
-
-        int thumbW = 7;
-        int thumbX = sx + (int) (normalizedVal * (sw - thumbW));
-        boolean hoverThumb = mouseX >= thumbX && mouseX <= thumbX + thumbW && mouseY >= sy && mouseY <= sy + sh;
-        context.fill(thumbX, sy, thumbX + thumbW, sy + sh, hoverThumb ? 0xFFFFFFFF : thumbColor);
-        RenderHelper.drawBorder(context, thumbX, sy, thumbW, sh, hoverThumb ? 0xFF38BDF8 : 0xCCFFFFFF);
-
-        TextScaleHelper.drawVerticallyCenteredScaledText(context, tr, label, sx + sw / 2, sy + sh / 2, 0xFFFFFFFF, textScale);
     }
 
     private void playClickSound() {
@@ -652,6 +755,10 @@ public class ConfigWidget implements Drawable, Element, Selectable {
 
     @Override
     public boolean mouseClicked(Click click, boolean bl) {
+        if (activeModal != null) {
+            return activeModal.mouseClicked(click);
+        }
+
         int mouseX = (int) click.x();
         int mouseY = (int) click.y();
 
@@ -716,133 +823,15 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             }
         }
 
-        // rgb sliders
-        int rgbStartY = presetsInline ? swatchY + swatchSize + 4 : swatchY + swatchSize + 4 + chipH + 4;
-        int rgbSliderH = 11;
-
-        int sliderRedY = rgbStartY;
-        if (mouseX >= contentX && mouseX <= contentX + sliderW && mouseY >= sliderRedY && mouseY <= sliderRedY + rgbSliderH) {
-            draggingRed = true;
-            updateRedFromMouse(mouseX, contentX, sliderW);
-            return true;
-        }
-
-        int sliderGreenY = sliderRedY + rgbSliderH + 3;
-        if (mouseX >= contentX && mouseX <= contentX + sliderW && mouseY >= sliderGreenY && mouseY <= sliderGreenY + rgbSliderH) {
-            draggingGreen = true;
-            updateGreenFromMouse(mouseX, contentX, sliderW);
-            return true;
-        }
-
-        int sliderBlueY = sliderGreenY + rgbSliderH + 3;
-        if (mouseX >= contentX && mouseX <= contentX + sliderW && mouseY >= sliderBlueY && mouseY <= sliderBlueY + rgbSliderH) {
-            draggingBlue = true;
-            updateBlueFromMouse(mouseX, contentX, sliderW);
-            return true;
-        }
-
-        // transparency slider
-        int sec2Y = sliderBlueY + rgbSliderH + secGap;
-        int slider1X = contentX;
-        int slider1Y = sec2Y + labelGap;
-        if (mouseX >= slider1X && mouseX <= slider1X + sliderW && mouseY >= slider1Y && mouseY <= slider1Y + sliderH) {
-            draggingTransparency = true;
-            updateTransparencyFromMouse(mouseX, slider1X, sliderW);
-            return true;
-        }
-
-        // blur slider
-        int secBlurY = slider1Y + sliderH + secGap;
-        int sliderBlurX = contentX;
-        int sliderBlurY = secBlurY + labelGap;
-        if (mouseX >= sliderBlurX && mouseX <= sliderBlurX + sliderW && mouseY >= sliderBlurY && mouseY <= sliderBlurY + sliderH) {
-            draggingBlur = true;
-            updateBlurFromMouse(mouseX, sliderBlurX, sliderW);
-            return true;
-        }
-
-        // grid zoom slider
-        int sec3Y = sliderBlurY + sliderH + secGap;
-        int slider2X = contentX;
-        int slider2Y = sec3Y + labelGap;
-        if (mouseX >= slider2X && mouseX <= slider2X + sliderW && mouseY >= slider2Y && mouseY <= slider2Y + sliderH) {
-            draggingScale = true;
-            updateScaleFromMouse(mouseX, slider2X, sliderW);
-            return true;
-        }
-
-        // item scale slider
-        int sec4Y = slider2Y + sliderH + secGap;
-        int slider3X = contentX;
-        int slider3Y = sec4Y + labelGap;
-        if (mouseX >= slider3X && mouseX <= slider3X + sliderW && mouseY >= slider3Y && mouseY <= slider3Y + sliderH) {
-            draggingItemScale = true;
-            updateItemScaleFromMouse(mouseX, slider3X, sliderW);
-            return true;
-        }
-
-        // text scale slider
-        int sec5Y = slider3Y + sliderH + secGap;
-        int slider4X = contentX;
-        int slider4Y = sec5Y + labelGap;
-        if (mouseX >= slider4X && mouseX <= slider4X + sliderW && mouseY >= slider4Y && mouseY <= slider4Y + sliderH) {
-            draggingTextScale = true;
-            updateTextScaleFromMouse(mouseX, slider4X, sliderW);
-            return true;
-        }
-
-        // panel split slider
-        int sec6Y = slider4Y + sliderH + secGap;
-        int slider5X = contentX;
-        int slider5Y = sec6Y + labelGap;
-        if (mouseX >= slider5X && mouseX <= slider5X + sliderW && mouseY >= slider5Y && mouseY <= slider5Y + sliderH) {
-            draggingSplitRatio = true;
-            updateSplitRatioFromMouse(mouseX, slider5X, sliderW);
-            return true;
-        }
-
-        // hotbar scale slider
-        int sec7Y = slider5Y + sliderH + secGap;
-        int slider6X = contentX;
-        int slider6Y = sec7Y + labelGap;
-        if (mouseX >= slider6X && mouseX <= slider6X + sliderW && mouseY >= slider6Y && mouseY <= slider6Y + sliderH) {
-            draggingHotbarScale = true;
-            updateHotbarScaleFromMouse(mouseX, slider6X, sliderW);
-            return true;
-        }
-
-        // hotbar item scale slider
-        int sec7bY = slider6Y + sliderH + secGap;
-        int slider6bX = contentX;
-        int slider6bY = sec7bY + labelGap;
-        if (mouseX >= slider6bX && mouseX <= slider6bX + sliderW && mouseY >= slider6bY && mouseY <= slider6bY + sliderH) {
-            draggingHotbarItemScale = true;
-            updateHotbarItemScaleFromMouse(mouseX, slider6bX, sliderW);
-            return true;
-        }
-
-        // palette scale slider
-        int sec8Y = slider6bY + sliderH + secGap;
-        int slider7X = contentX;
-        int slider7Y = sec8Y + labelGap;
-        if (mouseX >= slider7X && mouseX <= slider7X + sliderW && mouseY >= slider7Y && mouseY <= slider7Y + sliderH) {
-            draggingPaletteScale = true;
-            updatePaletteScaleFromMouse(mouseX, slider7X, sliderW);
-            return true;
-        }
-
-        // palette item scale slider
-        int sec8bY = slider7Y + sliderH + secGap;
-        int slider7bX = contentX;
-        int slider7bY = sec8bY + labelGap;
-        if (mouseX >= slider7bX && mouseX <= slider7bX + sliderW && mouseY >= slider7bY && mouseY <= slider7bY + sliderH) {
-            draggingPaletteItemScale = true;
-            updatePaletteItemScaleFromMouse(mouseX, slider7bX, sliderW);
-            return true;
+        // sliders
+        for (SliderComponent s : allSliders) {
+            if (s.mouseClicked(click)) {
+                return true;
+            }
         }
 
         // open/close key
-        int sec9Y = slider7bY + sliderH + secGap;
+        int sec9Y = paletteItemScaleSlider.getY() + paletteItemScaleSlider.getHeight() + secGap;
         int keyBtnX = contentX;
         int keyBtnY = sec9Y + labelGap;
         int keyBtnW = Math.min(180, maxContentW);
@@ -888,7 +877,20 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int resetBtnW = Math.min(180, maxContentW);
         int resetBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
         if (mouseX >= keyBtnX && mouseX <= keyBtnX + resetBtnW && mouseY >= resetBtnY && mouseY <= resetBtnY + resetBtnH) {
-            resetToDefaults();
+            activeModal = ModalDialogComponent.builder()
+                    .parentBounds(x, y, width, height)
+                    .size(Math.min(240, width - 20), 96)
+                    .type(ModalDialogComponent.ModalType.DANGER)
+                    .title(Text.translatable("config.itemorganizer.reset_defaults.confirm_title"))
+                    .message(Text.translatable("config.itemorganizer.reset_defaults.confirm_desc"))
+                    .warning(Text.translatable("config.itemorganizer.reset_defaults.warning"))
+                    .confirmButton(Text.translatable("button.itemorganizer.confirm"), () -> {
+                        resetToDefaults();
+                        activeModal = null;
+                    })
+                    .cancelButton(Text.translatable("button.itemorganizer.cancel"), () -> activeModal = null)
+                    .closeOnBackdropClick(true)
+                    .build();
             playClickSound();
             return true;
         }
@@ -906,118 +908,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         return false;
     }
 
-    private void updateRedFromMouse(int mouseX, int sx, int sw) {
-        float norm = MathHelper.clamp((float) (mouseX - sx) / (float) sw, 0.0f, 1.0f);
-        int r = Math.round(norm * 255.0f);
-        ModConfig cfg = viewModel.getConfig();
-        int current = cfg.getBackgroundColor();
-        int newColor = (r << 16) | (current & 0x00FFFF);
-        viewModel.updateConfig(c -> c.setBackgroundColor(newColor));
-        if (!hexColorField.isFocused()) {
-            hexColorField.setText(String.format("#%06X", newColor));
-        }
-    }
 
-    private void updateGreenFromMouse(int mouseX, int sx, int sw) {
-        float norm = MathHelper.clamp((float) (mouseX - sx) / (float) sw, 0.0f, 1.0f);
-        int g = Math.round(norm * 255.0f);
-        ModConfig cfg = viewModel.getConfig();
-        int current = cfg.getBackgroundColor();
-        int newColor = (current & 0xFF00FF) | (g << 8);
-        viewModel.updateConfig(c -> c.setBackgroundColor(newColor));
-        if (!hexColorField.isFocused()) {
-            hexColorField.setText(String.format("#%06X", newColor));
-        }
-    }
-
-    private void updateBlueFromMouse(int mouseX, int sx, int sw) {
-        float norm = MathHelper.clamp((float) (mouseX - sx) / (float) sw, 0.0f, 1.0f);
-        int b = Math.round(norm * 255.0f);
-        ModConfig cfg = viewModel.getConfig();
-        int current = cfg.getBackgroundColor();
-        int newColor = (current & 0xFFFF00) | b;
-        viewModel.updateConfig(c -> c.setBackgroundColor(newColor));
-        if (!hexColorField.isFocused()) {
-            hexColorField.setText(String.format("#%06X", newColor));
-        }
-    }
-
-    private void updateTransparencyFromMouse(int mouseX, int sx, int sw) {
-        float norm = MathHelper.clamp((float) (mouseX - sx) / (float) sw, 0.0f, 1.0f);
-        viewModel.updateConfig(c -> c.setTransparency(norm));
-    }
-
-    private void updateBlurFromMouse(int mouseX, int sx, int sw) {
-        float norm = MathHelper.clamp((float) (mouseX - sx) / (float) sw, 0.0f, 1.0f);
-        float blur = norm * 5.0f;
-        blur = Math.round(blur * 100.0f) / 100.0f;
-        final float finalBlur = blur;
-        viewModel.updateConfig(c -> c.setBlur(finalBlur));
-    }
-
-    private void updateScaleFromMouse(int mouseX, int sx, int sw) {
-        float norm = MathHelper.clamp((float) (mouseX - sx) / (float) sw, 0.0f, 1.0f);
-        float scale = 0.10f + (norm * 4.90f);
-        scale = Math.round(scale * 100.0f) / 100.0f;
-        final float finalScale = scale;
-        viewModel.updateConfig(c -> c.setScale(finalScale));
-    }
-
-    private void updateItemScaleFromMouse(int mouseX, int sx, int sw) {
-        float norm = MathHelper.clamp((float) (mouseX - sx) / (float) sw, 0.0f, 1.0f);
-        float scale = 0.5f + (norm * 1.0f);
-        scale = Math.round(scale * 100.0f) / 100.0f;
-        final float finalScale = scale;
-        viewModel.updateConfig(c -> c.setItemScale(finalScale));
-    }
-
-    private void updateTextScaleFromMouse(int mouseX, int sx, int sw) {
-        float norm = MathHelper.clamp((float) (mouseX - sx) / (float) sw, 0.0f, 1.0f);
-        float scale = 0.5f + (norm * 1.0f);
-        scale = Math.round(scale * 100.0f) / 100.0f;
-        final float finalScale = scale;
-        viewModel.updateConfig(c -> c.setTextScale(finalScale));
-    }
-
-    private void updateSplitRatioFromMouse(int mouseX, int sx, int sw) {
-        float norm = MathHelper.clamp((float) (mouseX - sx) / (float) sw, 0.0f, 1.0f);
-        float ratio = 0.20f + (norm * 0.60f);
-        ratio = Math.round(ratio * 100.0f) / 100.0f;
-        final float finalRatio = ratio;
-        viewModel.updateConfig(c -> c.setSplitRatio(finalRatio));
-    }
-
-    private void updateHotbarScaleFromMouse(int mouseX, int sx, int sw) {
-        float norm = MathHelper.clamp((float) (mouseX - sx) / (float) sw, 0.0f, 1.0f);
-        float scale = 0.50f + (norm * 1.50f);
-        scale = Math.round(scale * 100.0f) / 100.0f;
-        final float finalScale = scale;
-        viewModel.updateConfig(c -> c.setHotbarScale(finalScale));
-    }
-
-    private void updateHotbarItemScaleFromMouse(int mouseX, int sx, int sw) {
-        float norm = MathHelper.clamp((float) (mouseX - sx) / (float) sw, 0.0f, 1.0f);
-        float scale = 0.50f + (norm * 1.00f);
-        scale = Math.round(scale * 100.0f) / 100.0f;
-        final float finalScale = scale;
-        viewModel.updateConfig(c -> c.setHotbarItemScale(finalScale));
-    }
-
-    private void updatePaletteScaleFromMouse(int mouseX, int sx, int sw) {
-        float norm = MathHelper.clamp((float) (mouseX - sx) / (float) sw, 0.0f, 1.0f);
-        float scale = 0.50f + (norm * 1.50f);
-        scale = Math.round(scale * 100.0f) / 100.0f;
-        final float finalScale = scale;
-        viewModel.updateConfig(c -> c.setPaletteScale(finalScale));
-    }
-
-    private void updatePaletteItemScaleFromMouse(int mouseX, int sx, int sw) {
-        float norm = MathHelper.clamp((float) (mouseX - sx) / (float) sw, 0.0f, 1.0f);
-        float scale = 0.50f + (norm * 1.00f);
-        scale = Math.round(scale * 100.0f) / 100.0f;
-        final float finalScale = scale;
-        viewModel.updateConfig(c -> c.setPaletteItemScale(finalScale));
-    }
 
     private void resetToDefaults() {
         viewModel.updateConfig(c -> {
@@ -1049,19 +940,9 @@ public class ConfigWidget implements Drawable, Element, Selectable {
 
     @Override
     public boolean mouseReleased(Click click) {
-        draggingRed = false;
-        draggingGreen = false;
-        draggingBlue = false;
-        draggingTransparency = false;
-        draggingBlur = false;
-        draggingScale = false;
-        draggingItemScale = false;
-        draggingTextScale = false;
-        draggingSplitRatio = false;
-        draggingHotbarScale = false;
-        draggingHotbarItemScale = false;
-        draggingPaletteScale = false;
-        draggingPaletteItemScale = false;
+        for (SliderComponent s : allSliders) {
+            s.stopDragging();
+        }
         scrollbar.mouseReleased(click);
         return false;
     }
@@ -1072,62 +953,10 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             return true;
         }
 
-        int mouseX = (int) click.x();
-        int contentX = x + 10;
-        int maxContentW = width - SCROLLBAR_WIDTH - 24;
-        int sliderW = Math.min(180, maxContentW);
-
-        if (draggingRed) {
-            updateRedFromMouse(mouseX, contentX, sliderW);
-            return true;
-        }
-        if (draggingGreen) {
-            updateGreenFromMouse(mouseX, contentX, sliderW);
-            return true;
-        }
-        if (draggingBlue) {
-            updateBlueFromMouse(mouseX, contentX, sliderW);
-            return true;
-        }
-        if (draggingTransparency) {
-            updateTransparencyFromMouse(mouseX, contentX, sliderW);
-            return true;
-        }
-        if (draggingBlur) {
-            updateBlurFromMouse(mouseX, contentX, sliderW);
-            return true;
-        }
-        if (draggingScale) {
-            updateScaleFromMouse(mouseX, contentX, sliderW);
-            return true;
-        }
-        if (draggingItemScale) {
-            updateItemScaleFromMouse(mouseX, contentX, sliderW);
-            return true;
-        }
-        if (draggingTextScale) {
-            updateTextScaleFromMouse(mouseX, contentX, sliderW);
-            return true;
-        }
-        if (draggingSplitRatio) {
-            updateSplitRatioFromMouse(mouseX, contentX, sliderW);
-            return true;
-        }
-        if (draggingHotbarScale) {
-            updateHotbarScaleFromMouse(mouseX, contentX, sliderW);
-            return true;
-        }
-        if (draggingHotbarItemScale) {
-            updateHotbarItemScaleFromMouse(mouseX, contentX, sliderW);
-            return true;
-        }
-        if (draggingPaletteScale) {
-            updatePaletteScaleFromMouse(mouseX, contentX, sliderW);
-            return true;
-        }
-        if (draggingPaletteItemScale) {
-            updatePaletteItemScaleFromMouse(mouseX, contentX, sliderW);
-            return true;
+        for (SliderComponent s : allSliders) {
+            if (s.mouseDragged(click, deltaX, deltaY)) {
+                return true;
+            }
         }
 
         return false;
@@ -1143,6 +972,10 @@ public class ConfigWidget implements Drawable, Element, Selectable {
 
     @Override
     public boolean keyPressed(KeyInput input) {
+        if (activeModal != null) {
+            return activeModal.keyPressed(input);
+        }
+
         if (listeningForKey) {
             if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
                 listeningForKey = false;
@@ -1210,6 +1043,10 @@ public class ConfigWidget implements Drawable, Element, Selectable {
     }
 
     public boolean charTyped(CharInput input) {
+        if (activeModal != null) {
+            return activeModal.charTyped(input);
+        }
+
         if (hexColorField.isFocused()) {
             return hexColorField.charTyped(input);
         }
@@ -1235,6 +1072,6 @@ public class ConfigWidget implements Drawable, Element, Selectable {
     }
 
     public boolean isEditingOrSearching() {
-        return (hexColorField != null && hexColorField.isFocused()) || listeningForKey || listeningForQuickAppendKey || listeningForUndoKey;
+        return activeModal != null || (hexColorField != null && hexColorField.isFocused()) || listeningForKey || listeningForQuickAppendKey || listeningForUndoKey;
     }
 }

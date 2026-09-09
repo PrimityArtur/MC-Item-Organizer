@@ -55,7 +55,7 @@
   "profiles.itemorganizer.error.rename": "Error al renombrar",
 
   "palettes.itemorganizer.search_placeholder": "Buscar...",
-  "palettes.itemorganizer.new": "+ Nueva",
+  "palettes.itemorganizer.new": "+",
   "palettes.itemorganizer.tooltip.new": "Añadir nueva paleta",
   "palettes.itemorganizer.empty": "Sin paletas creadas",
   "palettes.itemorganizer.no_results": "Sin resultados",
@@ -102,6 +102,9 @@
   "config.itemorganizer.quick_append_key": "Inserción Rápida",
   "config.itemorganizer.undo_key": "Acceso Deshacer",
   "config.itemorganizer.reset_defaults": "Restablecer Valores",
+  "config.itemorganizer.reset_defaults.confirm_title": "¿Restablecer valores?",
+  "config.itemorganizer.reset_defaults.confirm_desc": "¿Restaurar ajustes visuales, escalas y atajos?",
+  "config.itemorganizer.reset_defaults.warning": "Tus configuraciones personalizadas volverán a sus valores por defecto.",
   "config.itemorganizer.press_key": "> Presiona una tecla... <",
   "config.itemorganizer.key_label": "Tecla: [ %s ]",
   "config.itemorganizer.key_label_ctrl": "Ctrl + [ %s ]",

@@ -2,11 +2,15 @@ package com.itemorganizer.gui.widget;
 
 import com.itemorganizer.core.model.PaletteData;
 import com.itemorganizer.core.model.PaletteRow;
+import com.itemorganizer.gui.component.ModalDialogComponent;
+import com.itemorganizer.gui.component.ScrollbarComponent;
 import com.itemorganizer.gui.dragdrop.DragAndDropManager;
 import com.itemorganizer.gui.dragdrop.DragPayload;
 import com.itemorganizer.gui.dragdrop.DragSource;
+import com.itemorganizer.gui.theme.UITheme;
 import com.itemorganizer.gui.util.HotbarActionHelper;
 import com.itemorganizer.gui.util.RenderHelper;
+import com.itemorganizer.gui.util.SoundHelper;
 import com.itemorganizer.gui.util.TextScaleHelper;
 import com.itemorganizer.gui.viewmodel.OrganizerViewModel;
 import com.itemorganizer.storage.StorageManager;
@@ -21,7 +25,6 @@ import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.input.CharInput;
 import net.minecraft.client.input.KeyInput;
-import com.itemorganizer.gui.util.SoundHelper;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -33,12 +36,17 @@ import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
-// palette list widget with 9-slot rows, search, duplicate and delete options
+// palette list widget managing custom 9-slot item groups
 public class PaletteListWidget implements Drawable, Element, Selectable {
     public static final int SCROLLBAR_WIDTH = 3;
-    public static final int BASE_TOP_BAR_HEIGHT = 18;
+    public static final int BASE_SLOT_SIZE = 18;
+    public static final int BASE_ROW_HEIGHT = 38;
+    public static final int BASE_TOP_BAR_HEIGHT = 16;
+    public static final int BASE_ROW_BTN_SIZE = 12;
 
     private final OrganizerViewModel viewModel;
     private int x;
@@ -46,12 +54,13 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     private int width;
     private int height;
 
-    private final VerticalScrollbar scrollbar;
+    private final ScrollbarComponent scrollbar;
     private TextFieldWidget searchField;
     private TextFieldWidget renameField;
     private PaletteSearchFilterWidget searchFilterWidget;
 
     // active modal states
+    private ModalDialogComponent activeModal = null;
     private String deletingPaletteId = null;
     private String renamingPaletteId = null;
     private String pastingHotbarPaletteId = null;
@@ -85,7 +94,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
         int listStartY = y + getTopBarHeight() + 2;
         int listHeight = height - getTopBarHeight() - 4;
-        this.scrollbar = new VerticalScrollbar(x + width - SCROLLBAR_WIDTH - 2, listStartY, SCROLLBAR_WIDTH, listHeight);
+        this.scrollbar = new ScrollbarComponent(x + width - SCROLLBAR_WIDTH - 2, listStartY, SCROLLBAR_WIDTH, listHeight);
 
         initInputs();
     }
@@ -298,7 +307,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
             int origIdx = dp.originalIndex();
 
             if (currentY + cardH >= listStartY && currentY <= listStartY + listHeight) {
-                boolean isCardHover = (deletingPaletteId == null && renamingPaletteId == null && pastingHotbarPaletteId == null && origIdx == hoveredOriginalRowIndex);
+                boolean isCardHover = (activeModal == null && origIdx == hoveredOriginalRowIndex);
                 boolean isDuplicate = isDuplicatePalette(row, allRows);
 
                 // card background
@@ -342,48 +351,49 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                 );
 
                 float iconScale = Math.max(0.6f, Math.min(1.6f, ((float) btnW / 8.0f) * textScale));
-
                 float btnCenterY = btnY + (btnH - 1) / 2.0f;
 
-                // reorder buttons
+                boolean hoverLoad = (isCardHover && hoveredLoadBtn);
+                boolean hoverPasteHotbar = (isCardHover && hoveredPasteHotbarBtn);
+                boolean hoverDel = (isCardHover && hoveredDeleteBtn);
+                boolean hoverDup = (isCardHover && hoveredDupBtn);
+                boolean hoverUp = (isCardHover && hoveredUpBtn);
+                boolean hoverDown = (isCardHover && hoveredDownBtn);
+
                 if (showReorder) {
+                    // up button
                     if (origIdx > 0) {
-                        boolean hoverUp = (isCardHover && hoveredUpBtn);
-                        context.fill(btnUpX, btnY, btnUpX + btnW, btnY + btnH, hoverUp ? 0x801E293B : 0x401E293B);
-                        RenderHelper.drawBorder(context, btnUpX, btnY, btnW, btnH, hoverUp ? 0xFF38BDF8 : 0x4038BDF8);
-                        drawArrowUpIcon(context, btnUpX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverUp ? 0xFFFFFFFF : 0xFF94A3B8);
+                        context.fill(btnUpX, btnY, btnUpX + btnW, btnY + btnH, hoverUp ? 0x801E293B  : 0x401E293B);
+                        RenderHelper.drawBorder(context, btnUpX, btnY, btnW, btnH, hoverUp ? 0xFF38BDF8  : 0x4038BDF8);
+                        RenderHelper.drawArrowUpIcon(context, btnUpX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverUp ? 0xFFFFFFFF  : 0xFF94A3B8);
                     }
+                    // down button
                     if (origIdx < allRows.size() - 1) {
-                        boolean hoverDown = (isCardHover && hoveredDownBtn);
-                        context.fill(btnDownX, btnY, btnDownX + btnW, btnY + btnH, hoverDown ? 0x801E293B : 0x401E293B);
+                        context.fill(btnDownX, btnY, btnDownX + btnW, btnY + btnH, hoverDown ? 0x801E293B  : 0x401E293B);
                         RenderHelper.drawBorder(context, btnDownX, btnY, btnW, btnH, hoverDown ? 0xFF38BDF8 : 0x4038BDF8);
-                        drawArrowDownIcon(context, btnDownX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverDown ? 0xFFFFFFFF : 0xFF94A3B8);
+                        RenderHelper.drawArrowDownIcon(context, btnDownX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverDown ? 0xFFFFFFFF : 0xFF94A3B8);
                     }
                 }
 
-                // duplicate button (blue, copy sheets icon)
-                boolean hoverDup = (isCardHover && hoveredDupBtn);
+                // duplicate button
                 context.fill(btnDupX, btnY, btnDupX + btnW, btnY + btnH, hoverDup ? 0x801E3A5F : 0x401E3A5F);
                 RenderHelper.drawBorder(context, btnDupX, btnY, btnW, btnH, hoverDup ? 0xFF38BDF8 : 0x8038BDF8);
-                drawDuplicateIcon(context, btnDupX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverDup ? 0xFFFFFFFF : 0xFFBAE6FD);
+                RenderHelper.drawDuplicateIcon(context, btnDupX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverDup ?  0xFFFFFFFF : 0xFFBAE6FD);
 
-                // paste hotbar button (amber, arrow up into palette icon)
-                boolean hoverPaste = (isCardHover && hoveredPasteHotbarBtn);
-                context.fill(btnPasteHotbarX, btnY, btnPasteHotbarX + btnW, btnY + btnH, hoverPaste ? 0x8078350F : 0x4078350F);
-                RenderHelper.drawBorder(context, btnPasteHotbarX, btnY, btnW, btnH, hoverPaste ? 0xFFF59E0B : 0x80F59E0B);
-                drawPasteHotbarIcon(context, btnPasteHotbarX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverPaste ? 0xFFFFFFFF : 0xFFFDE68A);
+                // paste hotbar button
+                context.fill(btnPasteHotbarX, btnY, btnPasteHotbarX + btnW, btnY + btnH, hoverPasteHotbar ? 0x8078350F : 0x4078350F);
+                RenderHelper.drawBorder(context, btnPasteHotbarX, btnY, btnW, btnH, hoverPasteHotbar ? 0xFFF59E0B : 0x80F59E0B);
+                RenderHelper.drawPasteHotbarIcon(context, btnPasteHotbarX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverPasteHotbar ? 0xFFFFFFFF : 0xFFFDE68A);
 
-                // load button (green, arrow down into hotbar tray icon)
-                boolean hoverLoad = (isCardHover && hoveredLoadBtn);
+                // load button
                 context.fill(btnLoadX, btnY, btnLoadX + btnW, btnY + btnH, hoverLoad ? 0x80065F46 : 0x40065F46);
                 RenderHelper.drawBorder(context, btnLoadX, btnY, btnW, btnH, hoverLoad ? 0xFF34D399 : 0x8034D399);
-                drawLoadHotbarIcon(context, btnLoadX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverLoad ? 0xFFFFFFFF : 0xFFA7F3D0);
+                RenderHelper.drawLoadHotbarIcon(context, btnLoadX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverLoad ? 0xFFFFFFFF : 0xFFA7F3D0);
 
-                // delete button (red, diagonal cross icon)
-                boolean hoverDel = (isCardHover && hoveredDeleteBtn);
+                // delete button
                 context.fill(btnDeleteX, btnY, btnDeleteX + btnW, btnY + btnH, hoverDel ? 0x807F1D1D : 0x407F1D1D);
                 RenderHelper.drawBorder(context, btnDeleteX, btnY, btnW, btnH, hoverDel ? 0xFFEF4444 : 0x80EF4444);
-                drawDeleteIcon(context, btnDeleteX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverDel ? 0xFFFFFFFF : 0xFFFCA5A5);
+                RenderHelper.drawDeleteIcon(context, btnDeleteX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverDel ? 0xFFFFFFFF : 0xFFFCA5A5);
 
                 // 9 slot continuous strip
                 int slotsY = headerY + headerH + 2;
@@ -391,26 +401,10 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                     int slotX = slotsStartX + (s * slotSize);
                     boolean isSlotHover = (isCardHover && hoveredSlotIndex == s);
 
-                    context.fill(slotX, slotsY, slotX + slotSize, slotsY + slotSize, isSlotHover ? 0x3338BDF8 : 0x1A000000);
-                    RenderHelper.drawBorder(context, slotX, slotsY, slotSize, slotSize, isSlotHover ? 0xFF38BDF8 : 0x22FFFFFF);
-
                     String itemId = row.getSlot(s);
-                    if (itemId != null) {
-                        ItemStack stack = getItemStackFromId(itemId);
-                        if (!stack.isEmpty()) {
-                            float cx = slotX + (slotSize - 1) / 2.0f;
-                            float cy = slotsY + (slotSize - 1) / 2.0f;
-
-                            context.getMatrices().pushMatrix();
-                            context.getMatrices().translate(cx, cy);
-                            context.getMatrices().scale(effectiveScale, effectiveScale);
-
-                            context.drawItem(stack, -8, -8);
-                            context.drawStackOverlay(tr, stack, -8, -8);
-
-                            context.getMatrices().popMatrix();
-                        }
-                    }
+                    ItemStack stack = RenderHelper.getItemStack(itemId);
+                    RenderHelper.renderSlot(context, tr, stack, slotX, slotsY, slotSize, itemScale,
+                            isSlotHover, 0x1A000000, 0x3338BDF8, 0x22FFFFFF, UITheme.PRIMARY);
                 }
             }
             currentY += cardH + cardGap;
@@ -420,19 +414,10 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
         scrollbar.render(context, mouseX, mouseY);
 
-        // delete confirmation modal
-        if (deletingPaletteId != null) {
-            renderDeleteModal(context, tr, mouseX, mouseY);
-        }
-
-        // paste hotbar confirmation modal
-        if (pastingHotbarPaletteId != null) {
-            renderPasteHotbarModal(context, tr, mouseX, mouseY);
-        }
-
-        // rename modal
-        if (renamingPaletteId != null) {
-            renderRenameModal(context, tr, mouseX, mouseY);
+        // floating modal rendering
+        if (activeModal != null) {
+            activeModal.updateParentBounds(x, y, width, height);
+            activeModal.render(context, tr, mouseX, mouseY, delta, textScale);
         }
 
         renderTooltips(context, tr, mouseX, mouseY);
@@ -483,7 +468,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         }
 
         // add palette button
-        boolean hoverAdd = (deletingPaletteId == null && renamingPaletteId == null && pastingHotbarPaletteId == null && hoveredTopAddBtn);
+        boolean hoverAdd = (activeModal == null && hoveredTopAddBtn);
         int addBg = hoverAdd ? 0x66065F46 : 0x33065F46;
         int addBorder = hoverAdd ? 0xFF34D399 : 0x8034D399;
         context.fill(addBtnX, addBtnY, addBtnX + addBtnW, addBtnY + addBtnH, addBg);
@@ -491,7 +476,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
         float iconScale = Math.max(0.7f, Math.min(1.5f, ((float) addBtnH / 14.0f) * textScale));
         if (width < 160) {
-            drawPlusIcon(context, addBtnX + (addBtnW - 1) / 2.0f, addBtnY + (addBtnH - 1) / 2.0f, iconScale, hoverAdd ? 0xFFFFFFFF : 0xFFE2E8F0);
+            RenderHelper.drawPlusIcon(context, addBtnX + (addBtnW - 1) / 2.0f, addBtnY + (addBtnH - 1) / 2.0f, iconScale, hoverAdd ? 0xFFFFFFFF : 0xFFE2E8F0);
         } else {
             TextScaleHelper.drawVerticallyCenteredScaledText(
                     context, tr, Text.translatable("palettes.itemorganizer.new"), addBtnX + addBtnW / 2, addBtnY + addBtnH / 2, hoverAdd ? 0xFFFFFFFF : 0xFFE2E8F0, textScale
@@ -499,218 +484,8 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         }
     }
 
-    private void drawDuplicateIcon(DrawContext context, float cx, float cy, float scale, int color) {
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(cx, cy);
-        context.getMatrices().scale(scale, scale);
-
-        // back sheet (top-right, 5x5 overall bounds [-2..2])
-        context.fill(0, -2, 3, -1, color);
-        context.fill(2, -1, 3, 1, color);
-
-        // front sheet (bottom-left)
-        context.fill(-2, -1, 2, 0, color);
-        context.fill(-2, 2, 2, 3, color);
-        context.fill(-2, 0, -1, 2, color);
-        context.fill(1, 0, 2, 2, color);
-
-        context.getMatrices().popMatrix();
-    }
-
-    private void drawLoadHotbarIcon(DrawContext context, float cx, float cy, float scale, int color) {
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(cx, cy);
-        context.getMatrices().scale(scale, scale);
-
-        // arrow down shaft (centered at x=0)
-        context.fill(0, -2, 1, 0, color);
-        // arrow down wings
-        context.fill(-1, -1, 2, 0, color);
-        context.fill(0, 0, 1, 1, color);
-        // hotbar tray (5x5 overall bounds [-2..2])
-        context.fill(-2, 2, 3, 3, color);
-        context.fill(-2, 1, -1, 2, color);
-        context.fill(2, 1, 3, 2, color);
-
-        context.getMatrices().popMatrix();
-    }
-
-    private void drawPasteHotbarIcon(DrawContext context, float cx, float cy, float scale, int color) {
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(cx, cy);
-        context.getMatrices().scale(scale, scale);
-
-        // arrow up tip & wings
-        context.fill(0, -2, 1, -1, color);
-        context.fill(-1, -1, 2, 0, color);
-        // arrow shaft
-        context.fill(0, 0, 1, 1, color);
-        // hotbar tray
-        context.fill(-2, 2, 3, 3, color);
-        context.fill(-2, 1, -1, 2, color);
-        context.fill(2, 1, 3, 2, color);
-
-        context.getMatrices().popMatrix();
-    }
-
-    private void drawDeleteIcon(DrawContext context, float cx, float cy, float scale, int color) {
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(cx, cy);
-        context.getMatrices().scale(scale, scale);
-
-        // crisp diagonal cross (5x5 overall bounds [-2..2])
-        context.fill(-2, -2, -1, -1, color);
-        context.fill(2, -2, 3, -1, color);
-        context.fill(-1, -1, 0, 0, color);
-        context.fill(1, -1, 2, 0, color);
-        context.fill(0, 0, 1, 1, color);
-        context.fill(-1, 1, 0, 2, color);
-        context.fill(1, 1, 2, 2, color);
-        context.fill(-2, 2, -1, 3, color);
-        context.fill(2, 2, 3, 3, color);
-
-        context.getMatrices().popMatrix();
-    }
-
-    private void drawArrowUpIcon(DrawContext context, float cx, float cy, float scale, int color) {
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(cx, cy);
-        context.getMatrices().scale(scale, scale);
-
-        // arrow up triangle centered vertically in [-1..1]
-        context.fill(0, -1, 1, 0, color);
-        context.fill(-1, 0, 2, 1, color);
-        context.fill(-2, 1, 3, 2, color);
-
-        context.getMatrices().popMatrix();
-    }
-
-    private void drawArrowDownIcon(DrawContext context, float cx, float cy, float scale, int color) {
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(cx, cy);
-        context.getMatrices().scale(scale, scale);
-
-        // arrow down triangle centered vertically in [-1..1]
-        context.fill(-2, -1, 3, 0, color);
-        context.fill(-1, 0, 2, 1, color);
-        context.fill(0, 1, 1, 2, color);
-
-        context.getMatrices().popMatrix();
-    }
-
-    private void drawPlusIcon(DrawContext context, float cx, float cy, float scale, int color) {
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(cx, cy);
-        context.getMatrices().scale(scale, scale);
-
-        // plus cross centered in [-2..2]
-        context.fill(-2, 0, 3, 1, color);
-        context.fill(0, -2, 1, 3, color);
-
-        context.getMatrices().popMatrix();
-    }
-
-    private void renderDeleteModal(DrawContext context, TextRenderer tr, int mouseX, int mouseY) {
-        float textScale = viewModel.getConfig().getTextScale();
-        int modalW = Math.min(220, width - 20);
-        int modalH = 85;
-        int modalX = x + (width - modalW) / 2;
-        int modalY = y + (height - modalH) / 2;
-
-        context.fill(x, y, x + width, y + height, 0xDD0B0F19);
-        context.fill(modalX, modalY, modalX + modalW, modalY + modalH, 0xFF141820);
-        RenderHelper.drawBorder(context, modalX, modalY, modalW, modalH, 0xFFEF4444);
-
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("palettes.itemorganizer.delete.title"), modalX + modalW / 2, modalY + 8, 0xFFEF4444, textScale);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("palettes.itemorganizer.delete.warning"), modalX + modalW / 2, modalY + 24, 0xFF94A3B8, textScale);
-
-        int btnW = (modalW - 28) / 2;
-        int btnH = 18;
-        int btnY = modalY + modalH - 24;
-
-        int delBtnX = modalX + 10;
-        boolean hoverDel = mouseX >= delBtnX && mouseX <= delBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        context.fill(delBtnX, btnY, delBtnX + btnW, btnY + btnH, hoverDel ? 0x807F1D1D : 0x407F1D1D);
-        RenderHelper.drawBorder(context, delBtnX, btnY, btnW, btnH, hoverDel ? 0xFFEF4444 : 0x80EF4444);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("profiles.itemorganizer.delete.btn"), delBtnX + btnW / 2, btnY + 5, 0xFFFFFFFF, textScale);
-
-        int cancelBtnX = delBtnX + btnW + 8;
-        boolean hoverCancel = mouseX >= cancelBtnX && mouseX <= cancelBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        context.fill(cancelBtnX, btnY, cancelBtnX + btnW, btnY + btnH, hoverCancel ? 0x33FFFFFF : 0x1AFFFFFF);
-        RenderHelper.drawBorder(context, cancelBtnX, btnY, btnW, btnH, hoverCancel ? 0x66FFFFFF : 0x33FFFFFF);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("button.itemorganizer.cancel"), cancelBtnX + btnW / 2, btnY + 5, 0xFFE2E8F0, textScale);
-    }
-
-    private void renderPasteHotbarModal(DrawContext context, TextRenderer tr, int mouseX, int mouseY) {
-        float textScale = viewModel.getConfig().getTextScale();
-        int modalW = Math.min(220, width - 20);
-        int modalH = 85;
-        int modalX = x + (width - modalW) / 2;
-        int modalY = y + (height - modalH) / 2;
-
-        context.fill(x, y, x + width, y + height, 0xDD0B0F19);
-        context.fill(modalX, modalY, modalX + modalW, modalY + modalH, 0xFF141820);
-        RenderHelper.drawBorder(context, modalX, modalY, modalW, modalH, 0xFFF59E0B);
-
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("palettes.itemorganizer.paste_hotbar.title"), modalX + modalW / 2, modalY + 8, 0xFFF59E0B, textScale);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("palettes.itemorganizer.paste_hotbar.warning"), modalX + modalW / 2, modalY + 24, 0xFF94A3B8, textScale);
-
-        int btnW = (modalW - 28) / 2;
-        int btnH = 18;
-        int btnY = modalY + modalH - 24;
-
-        int confirmBtnX = modalX + 10;
-        boolean hoverConfirm = mouseX >= confirmBtnX && mouseX <= confirmBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        context.fill(confirmBtnX, btnY, confirmBtnX + btnW, btnY + btnH, hoverConfirm ? 0x8078350F : 0x4078350F);
-        RenderHelper.drawBorder(context, confirmBtnX, btnY, btnW, btnH, hoverConfirm ? 0xFFF59E0B : 0x80F59E0B);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("palettes.itemorganizer.paste_hotbar.confirm"), confirmBtnX + btnW / 2, btnY + 5, 0xFFFFFFFF, textScale);
-
-        int cancelBtnX = confirmBtnX + btnW + 8;
-        boolean hoverCancel = mouseX >= cancelBtnX && mouseX <= cancelBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        context.fill(cancelBtnX, btnY, cancelBtnX + btnW, btnY + btnH, hoverCancel ? 0x33FFFFFF : 0x1AFFFFFF);
-        RenderHelper.drawBorder(context, cancelBtnX, btnY, btnW, btnH, hoverCancel ? 0x66FFFFFF : 0x33FFFFFF);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("button.itemorganizer.cancel"), cancelBtnX + btnW / 2, btnY + 5, 0xFFE2E8F0, textScale);
-    }
-
-    private void renderRenameModal(DrawContext context, TextRenderer tr, int mouseX, int mouseY) {
-        float textScale = viewModel.getConfig().getTextScale();
-        int modalW = Math.min(220, width - 20);
-        int modalH = 80;
-        int modalX = x + (width - modalW) / 2;
-        int modalY = y + (height - modalH) / 2;
-
-        context.fill(x, y, x + width, y + height, 0xDD0B0F19);
-        context.fill(modalX, modalY, modalX + modalW, modalY + modalH, 0xFF141820);
-        RenderHelper.drawBorder(context, modalX, modalY, modalW, modalH, 0xFF38BDF8);
-
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("palettes.itemorganizer.rename.title"), modalX + modalW / 2, modalY + 8, 0xFF38BDF8, textScale);
-
-        renameField.setX(modalX + 12);
-        renameField.setY(modalY + 24);
-        renameField.setWidth(modalW - 24);
-        context.fill(renameField.getX() - 1, renameField.getY() - 1, renameField.getX() + renameField.getWidth() + 1, renameField.getY() + renameField.getHeight() + 1, 0xFF0B0F19);
-        RenderHelper.drawBorder(context, renameField.getX() - 1, renameField.getY() - 1, renameField.getWidth() + 2, renameField.getHeight() + 2, 0x33FFFFFF);
-        renameField.renderWidget(context, mouseX, mouseY, 0);
-
-        int btnW = (modalW - 28) / 2;
-        int btnH = 16;
-        int btnY = modalY + modalH - 22;
-
-        int saveBtnX = modalX + 10;
-        boolean hoverSave = mouseX >= saveBtnX && mouseX <= saveBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        context.fill(saveBtnX, btnY, saveBtnX + btnW, btnY + btnH, hoverSave ? 0x801E3A5F : 0x401E3A5F);
-        RenderHelper.drawBorder(context, saveBtnX, btnY, btnW, btnH, hoverSave ? 0xFF38BDF8 : 0x8038BDF8);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("profiles.itemorganizer.save"), saveBtnX + btnW / 2, btnY + 4, 0xFFFFFFFF, textScale);
-
-        int cancelBtnX = saveBtnX + btnW + 8;
-        boolean hoverCancel = mouseX >= cancelBtnX && mouseX <= cancelBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        context.fill(cancelBtnX, btnY, cancelBtnX + btnW, btnY + btnH, hoverCancel ? 0x33FFFFFF : 0x1AFFFFFF);
-        RenderHelper.drawBorder(context, cancelBtnX, btnY, btnW, btnH, hoverCancel ? 0x66FFFFFF : 0x33FFFFFF);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("button.itemorganizer.cancel"), cancelBtnX + btnW / 2, btnY + 4, 0xFFE2E8F0, textScale);
-    }
-
     private void renderTooltips(DrawContext context, TextRenderer tr, int mouseX, int mouseY) {
-        if (deletingPaletteId != null || renamingPaletteId != null || pastingHotbarPaletteId != null || DragAndDropManager.getInstance().isDragging() || !isMouseOver(mouseX, mouseY)) {
+        if (activeModal != null || DragAndDropManager.getInstance().isDragging() || !isMouseOver(mouseX, mouseY)) {
             return;
         }
 
@@ -735,7 +510,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         activeTooltip = null;
         hoveredStack = ItemStack.EMPTY;
 
-        if (deletingPaletteId != null || renamingPaletteId != null || pastingHotbarPaletteId != null || !isMouseOver(mouseX, mouseY)) return;
+        if (activeModal != null || !isMouseOver(mouseX, mouseY)) return;
 
         int topBarH = getTopBarHeight();
         int searchH = getSearchHeight();
@@ -854,101 +629,13 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     }
 
     public ItemStack getItemStackFromId(String itemId) {
-        if (itemId == null || itemId.isEmpty()) return ItemStack.EMPTY;
-        Identifier id = Identifier.tryParse(itemId);
-        if (id != null) {
-            Item item = Registries.ITEM.get(id);
-            if (item != null && item != Items.AIR) {
-                return new ItemStack(item);
-            }
-        }
-        return ItemStack.EMPTY;
+        return RenderHelper.getItemStack(itemId);
     }
 
     @Override
     public boolean mouseClicked(Click click, boolean bl) {
-        // delete modal
-        if (deletingPaletteId != null) {
-            int modalW = Math.min(220, width - 20);
-            int modalH = 85;
-            int modalX = x + (width - modalW) / 2;
-            int modalY = y + (height - modalH) / 2;
-            int btnW = (modalW - 28) / 2;
-            int btnH = 18;
-            int btnY = modalY + modalH - 24;
-
-            int delBtnX = modalX + 10;
-            if (click.button() == 0 && click.x() >= delBtnX && click.x() <= delBtnX + btnW && click.y() >= btnY && click.y() <= btnY + btnH) {
-                executeDeletePalette();
-                return true;
-            }
-
-            int cancelBtnX = delBtnX + btnW + 8;
-            if (click.button() == 0 && click.x() >= cancelBtnX && click.x() <= cancelBtnX + btnW && click.y() >= btnY && click.y() <= btnY + btnH) {
-                deletingPaletteId = null;
-                playClickSound();
-                return true;
-            }
-            return true;
-        }
-
-        // paste hotbar modal
-        if (pastingHotbarPaletteId != null) {
-            int modalW = Math.min(220, width - 20);
-            int modalH = 85;
-            int modalX = x + (width - modalW) / 2;
-            int modalY = y + (height - modalH) / 2;
-            int btnW = (modalW - 28) / 2;
-            int btnH = 18;
-            int btnY = modalY + modalH - 24;
-
-            int confirmBtnX = modalX + 10;
-            if (click.button() == 0 && click.x() >= confirmBtnX && click.x() <= confirmBtnX + btnW && click.y() >= btnY && click.y() <= btnY + btnH) {
-                executePasteHotbar();
-                return true;
-            }
-
-            int cancelBtnX = confirmBtnX + btnW + 8;
-            if (click.button() == 0 && click.x() >= cancelBtnX && click.x() <= cancelBtnX + btnW && click.y() >= btnY && click.y() <= btnY + btnH) {
-                pastingHotbarPaletteId = null;
-                playClickSound();
-                return true;
-            }
-            return true;
-        }
-
-        // rename modal
-        if (renamingPaletteId != null) {
-            int modalW = Math.min(220, width - 20);
-            int modalH = 80;
-            int modalX = x + (width - modalW) / 2;
-            int modalY = y + (height - modalH) / 2;
-
-            boolean clickOnRenameField = (click.button() == 0 && click.x() >= renameField.getX() && click.x() <= renameField.getX() + renameField.getWidth()
-                    && click.y() >= renameField.getY() && click.y() <= renameField.getY() + renameField.getHeight());
-            renameField.setFocused(clickOnRenameField);
-            if (clickOnRenameField) {
-                renameField.mouseClicked(click, bl);
-                return true;
-            }
-
-            int btnW = (modalW - 28) / 2;
-            int btnH = 16;
-            int btnY = modalY + modalH - 22;
-
-            int saveBtnX = modalX + 10;
-            if (click.button() == 0 && click.x() >= saveBtnX && click.x() <= saveBtnX + btnW && click.y() >= btnY && click.y() <= btnY + btnH) {
-                applyRename();
-                return true;
-            }
-
-            int cancelBtnX = saveBtnX + btnW + 8;
-            if (click.button() == 0 && click.x() >= cancelBtnX && click.x() <= cancelBtnX + btnW && click.y() >= btnY && click.y() <= btnY + btnH) {
-                renamingPaletteId = null;
-                playClickSound();
-                return true;
-            }
-            return true;
+        if (activeModal != null) {
+            return activeModal.mouseClicked(click);
         }
 
         // search bar and add button
@@ -1010,12 +697,36 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
             if (click.button() == 0 && hoveredPasteHotbarBtn) {
                 pastingHotbarPaletteId = row.getId();
+                activeModal = ModalDialogComponent.builder()
+                        .parentBounds(x, y, width, height)
+                        .size(Math.min(220, width - 20), 85)
+                        .type(ModalDialogComponent.ModalType.WARNING)
+                        .title(Text.translatable("palettes.itemorganizer.paste_hotbar.title"))
+                        .message(Text.translatable("palettes.itemorganizer.paste_hotbar.warning"))
+                        .confirmButton(Text.translatable("palettes.itemorganizer.paste_hotbar.confirm"), this::executePasteHotbar)
+                        .cancelButton(Text.translatable("button.itemorganizer.cancel"), () -> {
+                            pastingHotbarPaletteId = null;
+                            activeModal = null;
+                        })
+                        .build();
                 playClickSound();
                 return true;
             }
 
             if (click.button() == 0 && hoveredDeleteBtn) {
                 deletingPaletteId = row.getId();
+                activeModal = ModalDialogComponent.builder()
+                        .parentBounds(x, y, width, height)
+                        .size(Math.min(220, width - 20), 85)
+                        .type(ModalDialogComponent.ModalType.DANGER)
+                        .title(Text.translatable("palettes.itemorganizer.delete.title"))
+                        .message(Text.translatable("palettes.itemorganizer.delete.warning"))
+                        .confirmButton(Text.translatable("profiles.itemorganizer.delete.btn"), this::executeDeletePalette)
+                        .cancelButton(Text.translatable("button.itemorganizer.cancel"), () -> {
+                            deletingPaletteId = null;
+                            activeModal = null;
+                        })
+                        .build();
                 playClickSound();
                 return true;
             }
@@ -1047,6 +758,28 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                 renamingPaletteId = row.getId();
                 renameField.setText(row.getName() != null ? row.getName() : "");
                 renameField.setFocused(true);
+                activeModal = ModalDialogComponent.builder()
+                        .parentBounds(x, y, width, height)
+                        .size(Math.min(220, width - 20), 80)
+                        .type(ModalDialogComponent.ModalType.INFO)
+                        .title(Text.translatable("palettes.itemorganizer.rename.title"))
+                        .customContent((ctx, tr1, cx, cy, cw, ch, mx, my, dt, ts) -> {
+                            renameField.setX(cx + 2);
+                            renameField.setY(cy);
+                            renameField.setWidth(cw - 4);
+                            ctx.fill(renameField.getX() - 1, renameField.getY() - 1, renameField.getX() + renameField.getWidth() + 1, renameField.getY() + renameField.getHeight() + 1, UITheme.BG_INPUT);
+                            RenderHelper.drawBorder(ctx, renameField.getX() - 1, renameField.getY() - 1, renameField.getWidth() + 2, renameField.getHeight() + 2, UITheme.BORDER_SUBTLE);
+                            renameField.renderWidget(ctx, mx, my, 0);
+                        })
+                        .customClickHandler((click1, cx, cy, cw, ch) -> renameField.mouseClicked(click1, false))
+                        .customKeyHandler(input -> renameField.keyPressed(input))
+                        .customCharHandler(input -> renameField.charTyped(input))
+                        .confirmButton(Text.translatable("profiles.itemorganizer.save"), this::applyRename)
+                        .cancelButton(Text.translatable("button.itemorganizer.cancel"), () -> {
+                            renamingPaletteId = null;
+                            activeModal = null;
+                        })
+                        .build();
                 playClickSound();
                 return true;
             }
@@ -1105,6 +838,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
             }
         }
         renamingPaletteId = null;
+        activeModal = null;
         playClickSound();
     }
 
@@ -1116,6 +850,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
             StorageManager.getInstance().getPaletteRepository().save(data);
         }
         deletingPaletteId = null;
+        activeModal = null;
         playClickSound();
     }
 
@@ -1144,6 +879,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
             }
         }
         pastingHotbarPaletteId = null;
+        activeModal = null;
         playClickSound();
     }
 
@@ -1245,43 +981,8 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
     @Override
     public boolean keyPressed(KeyInput input) {
-        if (pastingHotbarPaletteId != null) {
-            if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
-                executePasteHotbar();
-                return true;
-            }
-            if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
-                pastingHotbarPaletteId = null;
-                playClickSound();
-                return true;
-            }
-            return true;
-        }
-
-        if (renamingPaletteId != null) {
-            if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
-                applyRename();
-                return true;
-            }
-            if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
-                renamingPaletteId = null;
-                playClickSound();
-                return true;
-            }
-            return renameField.keyPressed(input);
-        }
-
-        if (deletingPaletteId != null) {
-            if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
-                executeDeletePalette();
-                return true;
-            }
-            if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
-                deletingPaletteId = null;
-                playClickSound();
-                return true;
-            }
-            return true;
+        if (activeModal != null) {
+            return activeModal.keyPressed(input);
         }
 
         if (searchField.isFocused()) {
@@ -1301,8 +1002,8 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     }
 
     public boolean charTyped(CharInput input) {
-        if (renamingPaletteId != null) {
-            return renameField.charTyped(input);
+        if (activeModal != null) {
+            return activeModal.charTyped(input);
         }
         if (searchField.isFocused()) {
             return searchField.charTyped(input);
@@ -1334,7 +1035,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     }
 
     public boolean isEditingOrSearching() {
-        return (searchField != null && searchField.isFocused()) || renamingPaletteId != null || deletingPaletteId != null || pastingHotbarPaletteId != null;
+        return (searchField != null && searchField.isFocused()) || activeModal != null;
     }
 
     public static boolean isDuplicatePalette(PaletteRow row, List<PaletteRow> allRows) {

@@ -4,6 +4,7 @@ import com.itemorganizer.core.model.PaletteRow;
 import com.itemorganizer.gui.dragdrop.DragAndDropManager;
 import com.itemorganizer.gui.dragdrop.DragPayload;
 import com.itemorganizer.gui.dragdrop.DragSource;
+import com.itemorganizer.gui.theme.UITheme;
 import com.itemorganizer.gui.util.RenderHelper;
 import com.itemorganizer.gui.util.SoundHelper;
 import com.itemorganizer.gui.util.TextScaleHelper;
@@ -14,12 +15,8 @@ import net.minecraft.client.gui.Drawable;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.Selectable;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
 
 import java.util.Objects;
 
@@ -151,40 +148,21 @@ public class PaletteSearchFilterWidget implements Drawable, Element, Selectable 
                     ? (isHovered ? 0x660284C7 : 0x330284C7)
                     : (isHovered ? 0x4D1E293B : 0x24141820);
             int borderColor = hasItem
-                    ? (isHovered ? 0xFF38BDF8 : 0x8038BDF8)
+                    ? (isHovered ? UITheme.PRIMARY : 0x8038BDF8)
                     : (isHovered ? 0x80FFFFFF : 0x33FFFFFF);
+            int badgeColor = isHovered ? UITheme.PRIMARY : 0x8894A3B8;
 
-            context.fill(slotX, slotY, slotX + slotSize, slotY + slotSize, bgColor);
-            RenderHelper.drawBorder(context, slotX, slotY, slotSize, slotSize, borderColor);
+            ItemStack stack = hasItem ? RenderHelper.getItemStack(itemId) : ItemStack.EMPTY;
+            RenderHelper.renderSlotWithBadge(context, client.textRenderer, stack, String.valueOf(i + 1),
+                    slotX, slotY, slotSize, this.itemScale, textScale, isHovered,
+                    bgColor, bgColor, borderColor, borderColor, badgeColor, badgeColor);
 
-            String slotNum = String.valueOf(i + 1);
-            int numColor = isHovered ? 0xFF38BDF8 : 0x8894A3B8;
-            TextScaleHelper.drawScaledText(
-                    context, client.textRenderer, slotNum, slotX + 2, slotY + 2, numColor, false, textScale
-            );
-
-            if (hasItem) {
-                ItemStack stack = getItemStackFromId(itemId);
+            if (isHovered && !DragAndDropManager.getInstance().isDragging()) {
                 if (!stack.isEmpty()) {
-                    float renderScale = ((float) slotSize / (float) HotbarWidget.BASE_SLOT_SIZE) * this.itemScale;
-                    float cx = slotX + (slotSize - 1) / 2.0f;
-                    float cy = slotY + (slotSize - 1) / 2.0f;
-
-                    context.getMatrices().pushMatrix();
-                    context.getMatrices().translate(cx, cy);
-                    context.getMatrices().scale(renderScale, renderScale);
-
-                    context.drawItem(stack, -8, -8);
-                    context.drawStackOverlay(client.textRenderer, stack, -8, -8);
-
-                    context.getMatrices().popMatrix();
-
-                    if (isHovered && !DragAndDropManager.getInstance().isDragging()) {
-                        context.drawItemTooltip(client.textRenderer, stack, mouseX, mouseY);
-                    }
+                    context.drawItemTooltip(client.textRenderer, stack, mouseX, mouseY);
+                } else {
+                    context.drawTooltip(client.textRenderer, Text.translatable("palettes.itemorganizer.filter_palette.empty_slot"), mouseX, mouseY);
                 }
-            } else if (isHovered && !DragAndDropManager.getInstance().isDragging()) {
-                context.drawTooltip(client.textRenderer, Text.translatable("palettes.itemorganizer.filter_palette.empty_slot"), mouseX, mouseY);
             }
         }
 
@@ -193,17 +171,13 @@ public class PaletteSearchFilterWidget implements Drawable, Element, Selectable 
         int btnX = x + (SLOT_COUNT * slotSize) + 4;
         int btnY = y;
         boolean hasAny = filterPalette.hasAnyItem();
-        int btnBg = hoveredClearBtn ? 0x807F1D1D : (hasAny ? 0x407F1D1D : 0x1AFFFFFF);
-        int btnBorder = hoveredClearBtn ? 0xFFEF4444 : (hasAny ? 0x80EF4444 : 0x33FFFFFF);
+        int btnBg = hoveredClearBtn ? UITheme.DANGER_HOVER_BG : (hasAny ? UITheme.DANGER_BG : UITheme.BG_SURFACE_HOVER);
+        int btnBorder = hoveredClearBtn ? UITheme.DANGER : (hasAny ? UITheme.DANGER_BORDER_MUTED : UITheme.BORDER_SUBTLE);
+        int xColor = hoveredClearBtn ? UITheme.TEXT_WHITE : (hasAny ? 0xFFFCA5A5 : UITheme.TEXT_HINT);
 
-        context.fill(btnX, btnY, btnX + clearW, btnY + slotSize, btnBg);
-        RenderHelper.drawBorder(context, btnX, btnY, clearW, slotSize, btnBorder);
-
-        Text xText = Text.literal("×");
-        int xColor = hoveredClearBtn ? 0xFFFFFFFF : (hasAny ? 0xFFFCA5A5 : 0xFF64748B);
-        TextScaleHelper.drawCenteredScaledText(
-                context, client.textRenderer, xText, btnX + clearW / 2, btnY + (slotSize - 8) / 2, xColor, textScale
-        );
+        RenderHelper.drawCard(context, btnX, btnY, clearW, slotSize, btnBg, btnBorder);
+        float iconScale = Math.max(0.6f, Math.min(1.4f, ((float) clearW / 14.0f) * textScale));
+        RenderHelper.drawDeleteIcon(context, btnX + (clearW - 1) / 2.0f, btnY + (slotSize - 1) / 2.0f, iconScale, xColor);
 
         if (hoveredClearBtn && !DragAndDropManager.getInstance().isDragging()) {
             context.drawTooltip(client.textRenderer, Text.translatable("palettes.itemorganizer.filter_palette.clear"), mouseX, mouseY);
@@ -244,7 +218,7 @@ public class PaletteSearchFilterWidget implements Drawable, Element, Selectable 
                 } else {
                     String itemId = filterPalette.getSlot(slot);
                     if (itemId != null && !itemId.trim().isEmpty()) {
-                        ItemStack stack = getItemStackFromId(itemId);
+                        ItemStack stack = RenderHelper.getItemStack(itemId);
                         if (!stack.isEmpty()) {
                             DragPayload payload = DragPayload.ofIndexed(itemId, stack.copy(), DragSource.HOTBAR, slot, false);
                             dragManager.startDrag(payload);
@@ -257,21 +231,6 @@ public class PaletteSearchFilterWidget implements Drawable, Element, Selectable 
         }
 
         return false;
-    }
-
-    private ItemStack getItemStackFromId(String itemId) {
-        if (itemId == null || itemId.trim().isEmpty()) {
-            return ItemStack.EMPTY;
-        }
-        try {
-            Identifier id = Identifier.of(itemId);
-            Item item = Registries.ITEM.get(id);
-            if (item != null && item != Items.AIR) {
-                return new ItemStack(item);
-            }
-        } catch (Exception ignored) {
-        }
-        return ItemStack.EMPTY;
     }
 
     @Override

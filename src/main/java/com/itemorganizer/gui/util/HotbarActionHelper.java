@@ -128,15 +128,7 @@ public final class HotbarActionHelper {
 
         ItemStack stack = payload.getItemStack();
         if (stack == null || stack.isEmpty()) {
-            if (payload.getItemId() != null) {
-                Identifier id = Identifier.tryParse(payload.getItemId());
-                if (id != null) {
-                    Item item = Registries.ITEM.get(id);
-                    if (item != null && item != Items.AIR) {
-                        stack = new ItemStack(item);
-                    }
-                }
-            }
+            stack = RenderHelper.getItemStack(payload.getItemId());
         }
 
         if (stack != null && !stack.isEmpty()) {

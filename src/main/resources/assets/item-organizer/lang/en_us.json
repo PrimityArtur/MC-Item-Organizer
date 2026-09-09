@@ -30,7 +30,7 @@
 
   "profiles.itemorganizer.title": "Profile Manager",
   "profiles.itemorganizer.active": "Active: ",
-  "profiles.itemorganizer.new": "+ New",
+  "profiles.itemorganizer.new": "+",
   "profiles.itemorganizer.tooltip.new": "Create a new sorting profile",
   "profiles.itemorganizer.load": "Load",
   "profiles.itemorganizer.loaded": "Loaded",
@@ -102,6 +102,9 @@
   "config.itemorganizer.quick_append_key": "Quick Insert",
   "config.itemorganizer.undo_key": "Undo Shortcut",
   "config.itemorganizer.reset_defaults": "Reset Defaults",
+  "config.itemorganizer.reset_defaults.confirm_title": "Reset Defaults?",
+  "config.itemorganizer.reset_defaults.confirm_desc": "Restore all visual settings, scales and keybinds?",
+  "config.itemorganizer.reset_defaults.warning": "Your custom configurations will be reset to default values.",
   "config.itemorganizer.press_key": "> Press a key... <",
   "config.itemorganizer.key_label": "Key: [ %s ]",
   "config.itemorganizer.key_label_ctrl": "Ctrl + [ %s ]",
