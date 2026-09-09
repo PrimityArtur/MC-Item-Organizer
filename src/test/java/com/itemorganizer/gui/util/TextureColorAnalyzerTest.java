@@ -147,31 +147,31 @@ public class TextureColorAnalyzerTest {
 
     @Test
     public void testModdedCategoryOrder_SlabsAndStairs() {
-        // verify slabs and stairs from mods match expected category indices
-        assertEquals(8, ItemColorHelper.getItemCategoryOrder("create:cut_granite_slab"));
-        assertEquals(8, ItemColorHelper.getItemCategoryOrder("botania:shimmerrock_slab"));
-        assertEquals(8, ItemColorHelper.getItemCategoryOrder("quark:duskbound_slab"));
+        // verify slabs and stairs from mods match expected categories
+        assertEquals(com.itemorganizer.core.model.ItemCategory.SLABS, com.itemorganizer.core.model.ItemCategory.getCategory("create:cut_granite_slab"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.SLABS, com.itemorganizer.core.model.ItemCategory.getCategory("botania:shimmerrock_slab"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.SLABS, com.itemorganizer.core.model.ItemCategory.getCategory("quark:duskbound_slab"));
 
-        assertEquals(10, ItemColorHelper.getItemCategoryOrder("create:cut_granite_stairs"));
-        assertEquals(10, ItemColorHelper.getItemCategoryOrder("botania:shimmerrock_stairs"));
-        assertEquals(10, ItemColorHelper.getItemCategoryOrder("quark:duskbound_stairs"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.STAIRS, com.itemorganizer.core.model.ItemCategory.getCategory("create:cut_granite_stairs"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.STAIRS, com.itemorganizer.core.model.ItemCategory.getCategory("botania:shimmerrock_stairs"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.STAIRS, com.itemorganizer.core.model.ItemCategory.getCategory("quark:duskbound_stairs"));
 
-        assertEquals(2, ItemColorHelper.getItemCategoryOrder("botania:mana_glass"));
-        assertEquals(3, ItemColorHelper.getItemCategoryOrder("botania:mana_glass_pane"));
-        assertEquals(4, ItemColorHelper.getItemCategoryOrder("create:brass_bars"));
-        assertEquals(7, ItemColorHelper.getItemCategoryOrder("create:industrial_iron_wall"));
-        assertEquals(6, ItemColorHelper.getItemCategoryOrder("botania:dreamwood_fence"));
-        assertEquals(9, ItemColorHelper.getItemCategoryOrder("botania:dreamwood_fence_gate"));
-        assertEquals(17, ItemColorHelper.getItemCategoryOrder("create:andesite_door"));
-        assertEquals(18, ItemColorHelper.getItemCategoryOrder("create:andesite_trapdoor"));
-        assertEquals(29, ItemColorHelper.getItemCategoryOrder("create:wrench"));
-        assertEquals(1, ItemColorHelper.getItemCategoryOrder("create:gearbox"));
-        assertEquals(1, ItemColorHelper.getItemCategoryOrder("minecraft:brain_coral_block"));
-        assertEquals(27, ItemColorHelper.getItemCategoryOrder("minecraft:brain_coral"));
-        assertEquals(44, ItemColorHelper.getItemCategoryOrder("minecraft:angler_pottery_sherd"));
-        assertEquals(45, ItemColorHelper.getItemCategoryOrder("ironchest:copper_chest"));
-        assertEquals(46, ItemColorHelper.getItemCategoryOrder("minecraft:chest_minecart"));
-        assertEquals(47, ItemColorHelper.getItemCategoryOrder("minecraft:iron_golem_spawn_egg"));
-        assertEquals(48, ItemColorHelper.getItemCategoryOrder("create:brass_ingot"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.GLASS, com.itemorganizer.core.model.ItemCategory.getCategory("botania:mana_glass"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.GLASS_PANES, com.itemorganizer.core.model.ItemCategory.getCategory("botania:mana_glass_pane"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.BARS, com.itemorganizer.core.model.ItemCategory.getCategory("create:brass_bars"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.WALLS, com.itemorganizer.core.model.ItemCategory.getCategory("create:industrial_iron_wall"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.FENCES, com.itemorganizer.core.model.ItemCategory.getCategory("botania:dreamwood_fence"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.FENCE_GATES, com.itemorganizer.core.model.ItemCategory.getCategory("botania:dreamwood_fence_gate"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.DOORS, com.itemorganizer.core.model.ItemCategory.getCategory("create:andesite_door"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.TRAPDOORS, com.itemorganizer.core.model.ItemCategory.getCategory("create:andesite_trapdoor"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.TOOLS, com.itemorganizer.core.model.ItemCategory.getCategory("create:wrench"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.FULL_BLOCKS, com.itemorganizer.core.model.ItemCategory.getCategory("create:gearbox"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.FULL_BLOCKS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:brain_coral_block"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.CORALS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:brain_coral"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.SHERDS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:angler_pottery_sherd"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.CHESTS, com.itemorganizer.core.model.ItemCategory.getCategory("ironchest:copper_chest"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.MINECARTS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:chest_minecart"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.SPAWN_EGGS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:iron_golem_spawn_egg"));
+        assertEquals(com.itemorganizer.core.model.ItemCategory.MISC, com.itemorganizer.core.model.ItemCategory.getCategory("create:brass_ingot"));
     }
 }

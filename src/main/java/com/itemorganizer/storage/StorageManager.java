@@ -43,6 +43,15 @@ public class StorageManager {
             profileRepository.init();
             paletteRepository.load();
             versionCatalogRepository.load();
+
+            // initialize and ensure category order file
+            Path categoryOrderFile = baseDir.resolve("category_order.json");
+            if (Files.exists(categoryOrderFile)) {
+                com.itemorganizer.core.model.ItemCategory.loadOrderFromFile(categoryOrderFile);
+            } else {
+                com.itemorganizer.core.model.ItemCategory.saveOrderToFile(categoryOrderFile);
+            }
+
             ItemOrganizer.LOGGER.info("ItemOrganizer StorageManager initialized at {}", baseDir);
         } catch (IOException e) {
             ItemOrganizer.LOGGER.error("failed initializing StorageManager: {}", e.getMessage());
