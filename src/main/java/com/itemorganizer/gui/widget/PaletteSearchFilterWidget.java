@@ -87,25 +87,116 @@ public class PaletteSearchFilterWidget implements Drawable, Element, Selectable 
         filterPalette.clearSlots();
     }
 
+    public enum MatchTier {
+        EXACT(1),
+        ITEM_MATCH(2),
+        COLOR_MATCH(3),
+        NONE(99);
+
+        private final int priority;
+
+        MatchTier(int priority) {
+            this.priority = priority;
+        }
+
+        public int getPriority() {
+            return priority;
+        }
+    }
+
+    public record FilterMatchResult(MatchTier tier, int matchScore, int totalFilterCount) {
+        public boolean isMatch() {
+            return tier != MatchTier.NONE;
+        }
+    }
+
+    public FilterMatchResult evaluateMatch(PaletteRow row) {
+        java.util.List<Integer> activeSlots = new java.util.ArrayList<>();
+        java.util.List<String> activeFilterItems = new java.util.ArrayList<>();
+        for (int i = 0; i < SLOT_COUNT; i++) {
+            String item = filterPalette.getSlot(i);
+            if (item != null && !item.trim().isEmpty()) {
+                activeSlots.add(i);
+                activeFilterItems.add(item.trim());
+            }
+        }
+
+        int totalFilter = activeFilterItems.size();
+        if (totalFilter == 0) {
+            return new FilterMatchResult(MatchTier.EXACT, 0, 0);
+        }
+        if (row == null) {
+            return new FilterMatchResult(MatchTier.NONE, 0, totalFilter);
+        }
+
+        // 1. exact slot match
+        boolean exact = true;
+        for (int idx = 0; idx < activeSlots.size(); idx++) {
+            int slot = activeSlots.get(idx);
+            String filterItem = activeFilterItems.get(idx);
+            String rowItem = (slot < row.getSlotCount()) ? row.getSlot(slot) : null;
+            String normRow = (rowItem != null && !rowItem.trim().isEmpty()) ? rowItem.trim() : null;
+            if (!filterItem.equalsIgnoreCase(normRow)) {
+                exact = false;
+                break;
+            }
+        }
+        if (exact) {
+            return new FilterMatchResult(MatchTier.EXACT, totalFilter, totalFilter);
+        }
+
+        // collect non-empty row items
+        java.util.Set<String> rowItems = new java.util.HashSet<>();
+        for (int i = 0; i < row.getSlotCount(); i++) {
+            String it = row.getSlot(i);
+            if (it != null && !it.trim().isEmpty()) {
+                rowItems.add(it.trim().toLowerCase());
+            }
+        }
+
+        if (rowItems.isEmpty()) {
+            return new FilterMatchResult(MatchTier.NONE, 0, totalFilter);
+        }
+
+        // 2. item matches anywhere in row
+        int itemMatchCount = 0;
+        for (String filterItem : activeFilterItems) {
+            if (rowItems.contains(filterItem.toLowerCase())) {
+                itemMatchCount++;
+            }
+        }
+
+        if (itemMatchCount == totalFilter) {
+            return new FilterMatchResult(MatchTier.ITEM_MATCH, itemMatchCount, totalFilter);
+        }
+
+        // 3. color matches
+        int colorMatchCount = 0;
+        for (String filterItem : activeFilterItems) {
+            boolean matched = false;
+            for (String rowItem : rowItems) {
+                if (com.itemorganizer.gui.util.ItemColorHelper.isSimilarColor(filterItem, rowItem)) {
+                    matched = true;
+                    break;
+                }
+            }
+            if (matched) {
+                colorMatchCount++;
+            }
+        }
+
+        if (colorMatchCount == totalFilter) {
+            return new FilterMatchResult(MatchTier.COLOR_MATCH, colorMatchCount, totalFilter);
+        }
+
+        return new FilterMatchResult(MatchTier.NONE, 0, totalFilter);
+    }
+
     public boolean matches(PaletteRow row) {
         if (!filterPalette.hasAnyItem()) {
             return true;
         }
-        if (row == null) {
-            return false;
-        }
-        for (int i = 0; i < SLOT_COUNT; i++) {
-            String filterItem = filterPalette.getSlot(i);
-            if (filterItem != null && !filterItem.trim().isEmpty()) {
-                String rowItem = row.getSlot(i);
-                String normFilter = filterItem.trim();
-                String normRow = (rowItem != null && !rowItem.trim().isEmpty()) ? rowItem.trim() : null;
-                if (!Objects.equals(normFilter, normRow)) {
-                    return false;
-                }
-            }
-        }
-        return true;
+        return evaluateMatch(row).tier() == MatchTier.EXACT;
     }
 
     public int getSlotAt(double mouseX, double mouseY) {

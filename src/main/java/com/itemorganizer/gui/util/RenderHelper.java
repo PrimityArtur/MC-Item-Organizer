@@ -287,4 +287,21 @@ public final class RenderHelper {
 
         context.getMatrices().popMatrix();
     }
+
+    // vector icon: sort by column color (three vertical column bars)
+    public static void drawColorSortIcon(DrawContext context, float cx, float cy, float scale, boolean active) {
+        context.getMatrices().pushMatrix();
+        context.getMatrices().translate(cx, cy);
+        context.getMatrices().scale(scale, scale);
+
+        int c1 = active ? 0xFFEF4444 : 0xFFA8A29E;
+        int c2 = active ? 0xFF10B981 : 0xFF78716C;
+        int c3 = active ? 0xFF38BDF8 : 0xFF57534E;
+
+        context.fill(-3, -3, -1, 3, c1);
+        context.fill(-1, -1, 1, 3, c2);
+        context.fill(1, 1, 3, 3, c3);
+
+        context.getMatrices().popMatrix();
+    }
 }

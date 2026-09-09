@@ -208,42 +208,97 @@ public class ItemColorHelper {
             }
 
             // 2. secondary: visual texture color
-            int rgb1 = getItemColor(id1);
-            int rgb2 = getItemColor(id2);
-
-            float[] hsv1 = rgbToHsv(rgb1);
-            float[] hsv2 = rgbToHsv(rgb2);
-
-            boolean neutral1 = isNeutral(hsv1);
-            boolean neutral2 = isNeutral(hsv2);
-
-            if (neutral1 != neutral2) {
-                return neutral1 ? -1 : 1;
-            }
-
-            if (neutral1) {
-                // neutrals: light to dark
-                int cmpV = Float.compare(hsv2[2], hsv1[2]);
-                if (cmpV != 0) return cmpV;
-
-                int cmpS = Float.compare(hsv1[1], hsv2[1]);
-                if (cmpS != 0) return cmpS;
-            } else {
-                // chromatic: continuous rainbow starting with red at 345 deg
-                float shiftedH1 = (hsv1[0] * 360.0f - 345.0f + 360.0f) % 360.0f;
-                float shiftedH2 = (hsv2[0] * 360.0f - 345.0f + 360.0f) % 360.0f;
-
-                int cmpH = Float.compare(shiftedH1, shiftedH2);
-                if (cmpH != 0) return cmpH;
-
-                int cmpV = Float.compare(hsv2[2], hsv1[2]);
-                if (cmpV != 0) return cmpV;
-
-                int cmpS = Float.compare(hsv2[1], hsv1[1]);
-                if (cmpS != 0) return cmpS;
-            }
-
-            return id1.compareTo(id2);
+            return compareItemColors(id1, id2);
         };
+    }
+
+    public static java.util.Comparator<String> getPureColorComparator() {
+        return ItemColorHelper::compareItemColors;
+    }
+
+    public static int compareItemColors(String id1, String id2) {
+        if (id1 == null && id2 == null) return 0;
+        if (id1 == null) return 1;
+        if (id2 == null) return -1;
+        if (id1.equals(id2)) return 0;
+
+        int rgb1 = getItemColor(id1);
+        int rgb2 = getItemColor(id2);
+
+        float[] hsv1 = rgbToHsv(rgb1);
+        float[] hsv2 = rgbToHsv(rgb2);
+
+        boolean neutral1 = isNeutral(hsv1);
+        boolean neutral2 = isNeutral(hsv2);
+
+        if (neutral1 != neutral2) {
+            return neutral1 ? -1 : 1;
+        }
+
+        if (neutral1) {
+            int cmpV = Float.compare(hsv2[2], hsv1[2]);
+            if (cmpV != 0) return cmpV;
+
+            int cmpS = Float.compare(hsv1[1], hsv2[1]);
+            if (cmpS != 0) return cmpS;
+        } else {
+            float shiftedH1 = (hsv1[0] * 360.0f - 345.0f + 360.0f) % 360.0f;
+            float shiftedH2 = (hsv2[0] * 360.0f - 345.0f + 360.0f) % 360.0f;
+
+            int cmpH = Float.compare(shiftedH1, shiftedH2);
+            if (cmpH != 0) return cmpH;
+
+            int cmpV = Float.compare(hsv2[2], hsv1[2]);
+            if (cmpV != 0) return cmpV;
+
+            int cmpS = Float.compare(hsv2[1], hsv1[1]);
+            if (cmpS != 0) return cmpS;
+        }
+
+        return id1.compareTo(id2);
+    }
+
+    public static double getColorDistance(int rgb1, int rgb2) {
+        int r1 = (rgb1 >> 16) & 0xFF;
+        int g1 = (rgb1 >> 8) & 0xFF;
+        int b1 = rgb1 & 0xFF;
+        int r2 = (rgb2 >> 16) & 0xFF;
+        int g2 = (rgb2 >> 8) & 0xFF;
+        int b2 = rgb2 & 0xFF;
+        long rmean = (r1 + r2) / 2;
+        long r = r1 - r2;
+        long g = g1 - g2;
+        long b = b1 - b2;
+        return Math.sqrt((((512 + rmean) * r * r) >> 8) + 4 * g * g + (((767 - rmean) * b * b) >> 8));
+    }
+
+    public static boolean isSimilarColor(String itemId1, String itemId2) {
+        if (itemId1 == null || itemId2 == null) return false;
+        if (itemId1.equalsIgnoreCase(itemId2)) return true;
+
+        int rgb1 = getItemColor(itemId1);
+        int rgb2 = getItemColor(itemId2);
+        if (rgb1 == rgb2) return true;
+
+        float[] hsv1 = rgbToHsv(rgb1);
+        float[] hsv2 = rgbToHsv(rgb2);
+
+        boolean neutral1 = isNeutral(hsv1);
+        boolean neutral2 = isNeutral(hsv2);
+        if (neutral1 != neutral2) return false;
+
+        if (neutral1) {
+            return Math.abs(hsv1[2] - hsv2[2]) < 0.30f;
+        }
+
+        float hueDiff = Math.abs(hsv1[0] - hsv2[0]);
+        if (hueDiff > 0.5f) hueDiff = 1.0f - hueDiff;
+        float hueAngleDiff = hueDiff * 360.0f;
+
+        if (hueAngleDiff > 35.0f) {
+            return false;
+        }
+
+        return getColorDistance(rgb1, rgb2) < 115.0;
     }
 }

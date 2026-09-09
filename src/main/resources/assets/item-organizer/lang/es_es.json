@@ -78,6 +78,8 @@
   "palettes.itemorganizer.filter_palette.title": "Paleta buscador",
   "palettes.itemorganizer.filter_palette.clear": "Limpiar filtro de búsqueda",
   "palettes.itemorganizer.filter_palette.empty_slot": "Arrastra un objeto para filtrar",
+  "palettes.itemorganizer.tooltip.sort_column_color": "Ordenar por Color de Columna",
+  "palettes.itemorganizer.tooltip.sort_column_color_active": "Orden por Color Activo (Clic para desactivar)",
 
   "config.itemorganizer.group.guide": "Guía de Atajos",
   "config.itemorganizer.group.general": "General",

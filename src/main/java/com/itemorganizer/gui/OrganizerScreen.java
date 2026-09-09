@@ -290,6 +290,7 @@ public class OrganizerScreen extends Screen {
         infinitePaletteListWidget = new com.itemorganizer.gui.widget.PaletteListWidget(
                 viewModel, 0, 0, 10, 10, true
         );
+        infinitePaletteListWidget.setSearchFilterWidget(paletteSearchFilterWidget);
         unorganizedGridWidget = new com.itemorganizer.gui.widget.UnorganizedGridWidget(
                 viewModel, 0, 0, 10, 10
         );
@@ -357,7 +358,7 @@ public class OrganizerScreen extends Screen {
         int hotbarX = (this.width - totalHotbarWidth) / 2;
         int hotbarY = this.height - hotbarSlotSize - 6;
 
-        boolean isPaletasTab = (viewModel.getActiveRightTab() == RightTab.PALETAS);
+        boolean isPaletasTab = (viewModel.getActiveRightTab() == RightTab.PALETAS || viewModel.getActiveRightTab() == RightTab.INF_PALETAS);
         if (isPaletasTab && paletteSearchFilterWidget != null) {
             int filterSlotSize = hotbarSlotSize;
             int clearW = Math.max(12, Math.round(14 * hotbarScale));
@@ -424,7 +425,7 @@ public class OrganizerScreen extends Screen {
         renderRightContentArea(context, mouseX, mouseY, delta);
 
         // render search filter palette if palettes tab is active
-        if (viewModel.getActiveRightTab() == RightTab.PALETAS && paletteSearchFilterWidget != null) {
+        if ((viewModel.getActiveRightTab() == RightTab.PALETAS || viewModel.getActiveRightTab() == RightTab.INF_PALETAS) && paletteSearchFilterWidget != null) {
             paletteSearchFilterWidget.render(context, mouseX, mouseY, delta);
         }
 
@@ -599,6 +600,9 @@ public class OrganizerScreen extends Screen {
             if (infinitePaletteListWidget != null && infinitePaletteListWidget.mouseClicked(click, bl)) {
                 return true;
             }
+            if (paletteSearchFilterWidget != null && paletteSearchFilterWidget.mouseClicked(click, bl)) {
+                return true;
+            }
         }
         if (rightTab == RightTab.POR_ORGANIZAR && unorganizedGridWidget != null && unorganizedGridWidget.mouseClicked(click, bl)) {
             return true;
@@ -620,7 +624,7 @@ public class OrganizerScreen extends Screen {
 
         if (dragManager.isDragging()) {
             // drop onto bottom search filter palette
-            if (viewModel.getActiveRightTab() == RightTab.PALETAS && paletteSearchFilterWidget != null) {
+            if ((viewModel.getActiveRightTab() == RightTab.PALETAS || viewModel.getActiveRightTab() == RightTab.INF_PALETAS) && paletteSearchFilterWidget != null) {
                 int filterSlot = paletteSearchFilterWidget.getSlotAt(click.x(), click.y());
                 if (filterSlot >= 0) {
                     com.itemorganizer.gui.dragdrop.DragPayload payload = dragManager.consumePayload();

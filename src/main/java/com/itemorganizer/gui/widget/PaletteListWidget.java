@@ -87,6 +87,8 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     private boolean hoveredDownBtn = false;
     private boolean hoveredName = false;
     private boolean hoveredTopAddBtn = false;
+    private boolean hoveredSortBtn = false;
+    private boolean colorSortActive = false;
     private String activeTooltip = null;
     private ItemStack hoveredStack = ItemStack.EMPTY;
 
@@ -153,7 +155,8 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         float textScale = viewModel.getConfig().getTextScale();
         int searchH = getSearchHeight();
         int addBtnW = (width < 160) ? searchH : Math.round(40 * Math.min(1.3f, textScale));
-        int searchW = Math.max(30, width - SCROLLBAR_WIDTH - addBtnW - 12);
+        int sortBtnW = searchH;
+        int searchW = Math.max(30, width - SCROLLBAR_WIDTH - addBtnW - sortBtnW - 15);
         this.searchField = new TextFieldWidget(tr, x + 4, y + 2, searchW, searchH, Text.translatable("palettes.itemorganizer.search_placeholder"));
         this.searchField.setPlaceholder(Text.translatable("palettes.itemorganizer.search_placeholder"));
         String initialQuery = infiniteMode ? viewModel.getInfinitePaletteSearchQuery() : viewModel.getPaletteSearchQuery();
@@ -215,6 +218,14 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         scrollbar.setScrollOffset(offset);
     }
 
+    public boolean isColorSortActive() {
+        return colorSortActive;
+    }
+
+    public void setColorSortActive(boolean colorSortActive) {
+        this.colorSortActive = colorSortActive;
+    }
+
     public void setBounds(int x, int y, int width, int height) {
         this.x = x;
         this.y = y;
@@ -230,7 +241,9 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         int addBtnH = searchH;
         int addBtnW = (width < 160) ? searchH : Math.round(40 * Math.min(1.3f, viewModel.getConfig().getTextScale()));
         int addBtnX = x + width - SCROLLBAR_WIDTH - addBtnW - 4;
-        int searchW = Math.max(30, addBtnX - (x + 4) - 4);
+        int sortBtnW = searchH;
+        int sortBtnX = addBtnX - sortBtnW - 3;
+        int searchW = Math.max(30, sortBtnX - (x + 4) - 4);
         int searchY = y + 2 + (topBarH - 4 - searchH) / 2;
         this.searchField.setX(x + 4);
         this.searchField.setY(searchY);
@@ -279,60 +292,85 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     }
 
     private List<DisplayPalette> getFilteredPalettes(List<PaletteRow> allRows) {
-        List<DisplayPalette> list = new ArrayList<>();
-        if (allRows == null) return list;
+        if (allRows == null) return new ArrayList<>();
 
         String query = searchField.getText().trim().toLowerCase();
+        boolean filterActive = (searchFilterWidget != null && searchFilterWidget.isActive());
+
+        List<DisplayPalette> exactList = new ArrayList<>();
+        List<DisplayPalette> itemList = new ArrayList<>();
+        List<DisplayPalette> colorList = new ArrayList<>();
+        List<DisplayPalette> standardList = new ArrayList<>();
+
         for (int i = 0; i < allRows.size(); i++) {
             PaletteRow row = allRows.get(i);
 
-            // filter by search filter palette if active in standard mode
-            if (!infiniteMode && searchFilterWidget != null && searchFilterWidget.isActive()) {
-                if (!searchFilterWidget.matches(row)) {
+            // check text query if present
+            if (!query.isEmpty()) {
+                boolean matchesText = false;
+                String idxStr = String.valueOf(i + 1);
+                if (idxStr.contains(query) || ("#" + idxStr).contains(query)) {
+                    matchesText = true;
+                } else if (row.getName() != null && row.getName().toLowerCase().contains(query)) {
+                    matchesText = true;
+                } else {
+                    int count = row.getSlotCount();
+                    for (int s = 0; s < count; s++) {
+                        String itemId = row.getSlot(s);
+                        if (itemId != null) {
+                            if (itemId.toLowerCase().contains(query)) {
+                                matchesText = true;
+                                break;
+                            }
+                            ItemStack stack = getItemStackFromId(itemId);
+                            if (!stack.isEmpty() && stack.getName().getString().toLowerCase().contains(query)) {
+                                matchesText = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (!matchesText) {
                     continue;
                 }
             }
 
-            if (query.isEmpty()) {
-                list.add(new DisplayPalette(i, row));
-                continue;
-            }
-
-            // filter by row index
-            String idxStr = String.valueOf(i + 1);
-            if (idxStr.contains(query) || ("#" + idxStr).contains(query)) {
-                list.add(new DisplayPalette(i, row));
-                continue;
-            }
-
-            // filter by custom name
-            if (row.getName() != null && row.getName().toLowerCase().contains(query)) {
-                list.add(new DisplayPalette(i, row));
-                continue;
-            }
-
-            // filter by item names inside slots
-            boolean matchedItem = false;
-            int count = row.getSlotCount();
-            for (int s = 0; s < count; s++) {
-                String itemId = row.getSlot(s);
-                if (itemId != null) {
-                    if (itemId.toLowerCase().contains(query)) {
-                        matchedItem = true;
-                        break;
-                    }
-                    ItemStack stack = getItemStackFromId(itemId);
-                    if (!stack.isEmpty() && stack.getName().getString().toLowerCase().contains(query)) {
-                        matchedItem = true;
-                        break;
+            if (filterActive) {
+                PaletteSearchFilterWidget.FilterMatchResult matchResult = searchFilterWidget.evaluateMatch(row);
+                if (matchResult.isMatch()) {
+                    DisplayPalette dp = new DisplayPalette(i, row);
+                    if (matchResult.tier() == PaletteSearchFilterWidget.MatchTier.EXACT) {
+                        exactList.add(dp);
+                    } else if (matchResult.tier() == PaletteSearchFilterWidget.MatchTier.ITEM_MATCH) {
+                        itemList.add(dp);
+                    } else if (matchResult.tier() == PaletteSearchFilterWidget.MatchTier.COLOR_MATCH) {
+                        colorList.add(dp);
                     }
                 }
-            }
-            if (matchedItem) {
-                list.add(new DisplayPalette(i, row));
+            } else {
+                standardList.add(new DisplayPalette(i, row));
             }
         }
-        return list;
+
+        com.itemorganizer.gui.util.PaletteColumnColorComparator colorComparator = com.itemorganizer.gui.util.PaletteColumnColorComparator.getInstance();
+
+        if (filterActive) {
+            if (colorSortActive) {
+                exactList.sort((d1, d2) -> colorComparator.compare(d1.row(), d2.row()));
+                itemList.sort((d1, d2) -> colorComparator.compare(d1.row(), d2.row()));
+                colorList.sort((d1, d2) -> colorComparator.compare(d1.row(), d2.row()));
+            }
+            List<DisplayPalette> combined = new ArrayList<>(exactList.size() + itemList.size() + colorList.size());
+            combined.addAll(exactList);
+            combined.addAll(itemList);
+            combined.addAll(colorList);
+            return combined;
+        } else {
+            if (colorSortActive) {
+                standardList.sort((d1, d2) -> colorComparator.compare(d1.row(), d2.row()));
+            }
+            return standardList;
+        }
     }
 
     public int calculateTotalContentHeight(int count) {
@@ -432,7 +470,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                 nextBtnX = btnPasteHotbarX;
 
                 int btnDupX = nextBtnX - btnGap - btnW;
-                boolean showReorder = (cardW >= 170 && searchField.getText().trim().isEmpty());
+                boolean showReorder = (cardW >= 170 && searchField.getText().trim().isEmpty() && !colorSortActive);
                 int btnDownX = showReorder ? btnDupX - btnGap - btnW : btnDupX;
                 int btnUpX = showReorder ? btnDownX - btnGap - btnW : btnDownX;
                 int leftmostBtnX = showReorder ? btnUpX : btnDupX;
@@ -553,8 +591,13 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         int addBtnX = x + width - SCROLLBAR_WIDTH - addBtnW - 4;
         int addBtnY = searchY;
 
+        int sortBtnW = searchH;
+        int sortBtnH = searchH;
+        int sortBtnX = addBtnX - sortBtnW - 3;
+        int sortBtnY = searchY;
+
         int searchX = x + 4;
-        int searchW = Math.max(30, addBtnX - searchX - 4);
+        int searchW = Math.max(30, sortBtnX - searchX - 4);
 
         searchField.setX(searchX);
         searchField.setY(searchY);
@@ -585,6 +628,20 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
             boolean hoverClear = mouseX >= clearBtnX && mouseX <= clearBtnX + clearBtnSize && mouseY >= clearBtnY && mouseY <= clearBtnY + clearBtnSize;
             TextScaleHelper.drawCenteredScaledText(context, tr, "×", clearBtnX + clearBtnSize / 2, clearBtnY, hoverClear ? 0xFFFF6666 : 0xFFAAAAAA, textScale);
         }
+
+        // sort by column color toggle button
+        boolean hoverSort = (activeModal == null && hoveredSortBtn);
+        int sortBg = colorSortActive
+                ? (hoverSort ? 0x800284C7 : 0x500284C7)
+                : (hoverSort ? 0x601E293B : 0x331E293B);
+        int sortBorder = colorSortActive
+                ? (hoverSort ? 0xFF38BDF8 : 0xCC38BDF8)
+                : (hoverSort ? 0xFF94A3B8 : 0x5094A3B8);
+        context.fill(sortBtnX, sortBtnY, sortBtnX + sortBtnW, sortBtnY + sortBtnH, sortBg);
+        RenderHelper.drawBorder(context, sortBtnX, sortBtnY, sortBtnW, sortBtnH, sortBorder);
+
+        float sortIconScale = Math.max(0.7f, Math.min(1.5f, ((float) sortBtnH / 14.0f) * textScale));
+        RenderHelper.drawColorSortIcon(context, sortBtnX + (sortBtnW - 1) / 2.0f, sortBtnY + (sortBtnH - 1) / 2.0f, sortIconScale, colorSortActive);
 
         // add palette button
         boolean hoverAdd = (activeModal == null && hoveredTopAddBtn);
@@ -627,6 +684,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         hoveredDownBtn = false;
         hoveredName = false;
         hoveredTopAddBtn = false;
+        hoveredSortBtn = false;
         activeTooltip = null;
         hoveredStack = ItemStack.EMPTY;
 
@@ -639,6 +697,19 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         int addBtnW = (width < 160) ? searchH : Math.round(40 * Math.min(1.3f, textScale));
         int addBtnX = x + width - SCROLLBAR_WIDTH - addBtnW - 4;
         int addBtnY = y + 2 + (topBarH - 4 - addBtnH) / 2;
+
+        int sortBtnW = searchH;
+        int sortBtnH = searchH;
+        int sortBtnX = addBtnX - sortBtnW - 3;
+        int sortBtnY = addBtnY;
+        if (mouseX >= sortBtnX && mouseX <= sortBtnX + sortBtnW && mouseY >= sortBtnY && mouseY <= sortBtnY + sortBtnH) {
+            hoveredSortBtn = true;
+            activeTooltip = colorSortActive
+                    ? Text.translatable("palettes.itemorganizer.tooltip.sort_column_color_active").getString()
+                    : Text.translatable("palettes.itemorganizer.tooltip.sort_column_color").getString();
+            return;
+        }
+
         if (mouseX >= addBtnX && mouseX <= addBtnX + addBtnW && mouseY >= addBtnY && mouseY <= addBtnY + addBtnH) {
             hoveredTopAddBtn = true;
             activeTooltip = Text.translatable("palettes.itemorganizer.tooltip.new").getString();
@@ -686,7 +757,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                 nextBtnX = btnPasteHotbarX;
 
                 int btnDupX = nextBtnX - btnGap - btnW;
-                boolean showReorder = (cardW >= 170 && searchField.getText().trim().isEmpty());
+                boolean showReorder = (cardW >= 170 && searchField.getText().trim().isEmpty() && !colorSortActive);
                 int btnDownX = showReorder ? btnDupX - btnGap - btnW : btnDupX;
                 int btnUpX = showReorder ? btnDownX - btnGap - btnW : btnDownX;
                 int leftmostBtnX = showReorder ? btnUpX : btnDupX;
@@ -823,6 +894,12 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
             double transformedX = textOriginX + (localX / textScale);
             Click transformedClick = new Click(transformedX, click.y(), click.buttonInfo());
             searchField.mouseClicked(transformedClick, bl);
+            return true;
+        }
+
+        if (click.button() == 0 && hoveredSortBtn) {
+            colorSortActive = !colorSortActive;
+            playClickSound();
             return true;
         }
 
