@@ -48,6 +48,7 @@ public class BlockedGridWidget implements Drawable, Element, Selectable {
     // double right-click tracking
     private long lastRightClickTime = 0;
     private String lastRightClickItemId = null;
+    private int lastShiftIndex = -1;
 
     public BlockedGridWidget(OrganizerViewModel viewModel, int x, int y, int width, int height) {
         this.viewModel = viewModel;
@@ -251,6 +252,7 @@ public class BlockedGridWidget implements Drawable, Element, Selectable {
                 if (click.button() == 0) {
                     if (HotbarActionHelper.hasShiftDown(click)) {
                         HotbarActionHelper.quickMoveToHotbar(MinecraftClient.getInstance(), hoveredStack);
+                        lastShiftIndex = hoveredIndex;
                         return true;
                     }
                     DragPayload payload = DragPayload.ofIndexed(itemId, hoveredStack, DragSource.BLOQUEADO, hoveredIndex, false);
@@ -265,6 +267,7 @@ public class BlockedGridWidget implements Drawable, Element, Selectable {
 
     @Override
     public boolean mouseReleased(Click click) {
+        lastShiftIndex = -1;
         if (scrollbar.mouseReleased(click)) {
             return true;
         }
@@ -276,6 +279,33 @@ public class BlockedGridWidget implements Drawable, Element, Selectable {
         if (scrollbar.mouseDragged(click, deltaX, deltaY)) {
             return true;
         }
+
+        if (click.button() == 0 && HotbarActionHelper.hasShiftDown(click)) {
+            if (isMouseOver(click.x(), click.y())) {
+                int slotSize = getSlotSize();
+                int cols = getColumnCount();
+                int relX = (int) click.x() - x - 2;
+                int relY = (int) click.y() - y - 2 + (int) scrollbar.getScrollOffset();
+                if (relX >= 0 && relY >= 0) {
+                    int col = relX / slotSize;
+                    int row = relY / slotSize;
+                    if (col < cols) {
+                        int index = row * cols + col;
+                        ProfileData profile = viewModel.getActiveProfile();
+                        if (profile != null && index >= 0 && index < profile.getBlockedItems().size() && index != lastShiftIndex) {
+                            lastShiftIndex = index;
+                            String id = profile.getBlockedItems().get(index);
+                            ItemStack stack = getItemStackFromId(id);
+                            if (!stack.isEmpty()) {
+                                HotbarActionHelper.quickMoveToHotbar(MinecraftClient.getInstance(), stack);
+                            }
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
         return false;
     }
 

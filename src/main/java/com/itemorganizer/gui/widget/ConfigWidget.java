@@ -63,6 +63,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
     // key listening state
     private boolean listeningForKey = false;
     private boolean listeningForQuickAppendKey = false;
+    private boolean listeningForUndoKey = false;
 
     // color presets
     private static final PresetColor[] PRESETS = new PresetColor[]{
@@ -156,6 +157,16 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         return "A";
     }
 
+    private String getUndoKeyName(ModConfig cfg) {
+        try {
+            InputUtil.Key k = InputUtil.fromTranslationKey(cfg.getKeyUndo());
+            if (k != null) {
+                return k.getLocalizedText().getString().toUpperCase();
+            }
+        } catch (Exception ignored) {}
+        return "Z";
+    }
+
     private List<ShortcutEntry> getShortcutEntries(ModConfig cfg) {
         List<ShortcutEntry> list = new ArrayList<>();
         String rightClick = Text.translatable("config.itemorganizer.shortcut.right_click").getString();
@@ -167,6 +178,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         list.add(new ShortcutEntry(rightClick + " + " + arrows, Text.translatable("config.itemorganizer.shortcut.move").getString()));
         list.add(new ShortcutEntry(rightClick + " + " + rightClick, Text.translatable("config.itemorganizer.shortcut.block").getString()));
         list.add(new ShortcutEntry(getQuickAppendKeyName(cfg), Text.translatable("config.itemorganizer.shortcut.quick_append").getString()));
+        list.add(new ShortcutEntry("Ctrl + " + getUndoKeyName(cfg), Text.translatable("config.itemorganizer.shortcut.undo").getString()));
         list.add(new ShortcutEntry("ESC", Text.translatable("config.itemorganizer.shortcut.exit").getString()));
         return list;
     }
@@ -229,7 +241,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
 
     private int calculateTotalHeight(float textScale) {
         int maxContentW = width - SCROLLBAR_WIDTH - 24;
-        return getShortcutGuideHeight(textScale, maxContentW) + Math.round(485 * Math.max(1.0f, textScale));
+        return getShortcutGuideHeight(textScale, maxContentW) + Math.round(520 * Math.max(1.0f, textScale));
     }
 
     @Override
@@ -561,8 +573,46 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             TextScaleHelper.drawVerticallyCenteredScaledText(context, tr, qkLabel, quickKeyBtnX + quickKeyBtnW / 2, quickKeyBtnY + quickKeyBtnH / 2, qkTextColor, textScale);
         }
 
+        // undo key binding
+        int sec11Y = quickKeyBtnY + quickKeyBtnH + secGap;
+        if (sec11Y + 12 >= listStartY && sec11Y <= listStartY + listHeight) {
+            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.undo_key"), contentX, sec11Y, 0xFF38BDF8, true, textScale);
+        }
+
+        int undoKeyBtnX = contentX;
+        int undoKeyBtnY = sec11Y + labelGap;
+        int undoKeyBtnW = Math.min(180, maxContentW);
+        int undoKeyBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
+
+        if (undoKeyBtnY + undoKeyBtnH >= listStartY && undoKeyBtnY <= listStartY + listHeight) {
+            boolean hoverUndoKey = mouseX >= undoKeyBtnX && mouseX <= undoKeyBtnX + undoKeyBtnW && mouseY >= undoKeyBtnY && mouseY <= undoKeyBtnY + undoKeyBtnH;
+            String undoLabel;
+            int undoBg;
+            int undoBorder;
+            int undoTextColor;
+
+            if (listeningForUndoKey) {
+                undoLabel = Text.translatable("config.itemorganizer.press_key").getString();
+                undoBg = 0x4DF59E0B;
+                undoBorder = 0xFFF59E0B;
+                undoTextColor = 0xFFF59E0B;
+            } else {
+                String boundKey = cfg.getKeyUndo();
+                InputUtil.Key k = InputUtil.fromTranslationKey(boundKey);
+                String keyName = (k != null) ? k.getLocalizedText().getString().toUpperCase() : "Z";
+                undoLabel = Text.translatable("config.itemorganizer.key_label_ctrl", keyName).getString();
+                undoBg = hoverUndoKey ? 0x801E3A5F : 0x14FFFFFF;
+                undoBorder = hoverUndoKey ? 0xFF38BDF8 : 0x25FFFFFF;
+                undoTextColor = hoverUndoKey ? 0xFFFFFFFF : 0xFFCBD5E1;
+            }
+
+            context.fill(undoKeyBtnX, undoKeyBtnY, undoKeyBtnX + undoKeyBtnW, undoKeyBtnY + undoKeyBtnH, undoBg);
+            RenderHelper.drawBorder(context, undoKeyBtnX, undoKeyBtnY, undoKeyBtnW, undoKeyBtnH, undoBorder);
+            TextScaleHelper.drawVerticallyCenteredScaledText(context, tr, undoLabel, undoKeyBtnX + undoKeyBtnW / 2, undoKeyBtnY + undoKeyBtnH / 2, undoTextColor, textScale);
+        }
+
         // reset defaults button
-        int resetBtnY = quickKeyBtnY + quickKeyBtnH + secGap + 2;
+        int resetBtnY = undoKeyBtnY + undoKeyBtnH + secGap + 2;
         int resetBtnW = Math.min(180, maxContentW);
         int resetBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
 
@@ -618,6 +668,9 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             }
             if (listeningForQuickAppendKey) {
                 listeningForQuickAppendKey = false;
+            }
+            if (listeningForUndoKey) {
+                listeningForUndoKey = false;
             }
             return false;
         }
@@ -797,6 +850,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         if (mouseX >= keyBtnX && mouseX <= keyBtnX + keyBtnW && mouseY >= keyBtnY && mouseY <= keyBtnY + keyBtnH) {
             listeningForKey = !listeningForKey;
             listeningForQuickAppendKey = false;
+            listeningForUndoKey = false;
             playClickSound();
             return true;
         }
@@ -810,12 +864,27 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         if (mouseX >= quickKeyBtnX && mouseX <= quickKeyBtnX + quickKeyBtnW && mouseY >= quickKeyBtnY && mouseY <= quickKeyBtnY + quickKeyBtnH) {
             listeningForQuickAppendKey = !listeningForQuickAppendKey;
             listeningForKey = false;
+            listeningForUndoKey = false;
+            playClickSound();
+            return true;
+        }
+
+        // undo key
+        int sec11Y = quickKeyBtnY + quickKeyBtnH + secGap;
+        int undoKeyBtnX = contentX;
+        int undoKeyBtnY = sec11Y + labelGap;
+        int undoKeyBtnW = Math.min(180, maxContentW);
+        int undoKeyBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
+        if (mouseX >= undoKeyBtnX && mouseX <= undoKeyBtnX + undoKeyBtnW && mouseY >= undoKeyBtnY && mouseY <= undoKeyBtnY + undoKeyBtnH) {
+            listeningForUndoKey = !listeningForUndoKey;
+            listeningForKey = false;
+            listeningForQuickAppendKey = false;
             playClickSound();
             return true;
         }
 
         // reset defaults button
-        int resetBtnY = quickKeyBtnY + quickKeyBtnH + secGap + 2;
+        int resetBtnY = undoKeyBtnY + undoKeyBtnH + secGap + 2;
         int resetBtnW = Math.min(180, maxContentW);
         int resetBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
         if (mouseX >= keyBtnX && mouseX <= keyBtnX + resetBtnW && mouseY >= resetBtnY && mouseY <= resetBtnY + resetBtnH) {
@@ -829,6 +898,9 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         }
         if (listeningForQuickAppendKey) {
             listeningForQuickAppendKey = false;
+        }
+        if (listeningForUndoKey) {
+            listeningForUndoKey = false;
         }
 
         return false;
@@ -962,6 +1034,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             c.setPaletteItemScale(1.00f);
             c.setKeyOpenClose("key.keyboard.o");
             c.setKeyQuickAppend("key.keyboard.a");
+            c.setKeyUndo("key.keyboard.z");
         });
         hexColorField.setText("#101010");
         hexErrorMessage = "";
@@ -1107,6 +1180,24 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             }
 
             listeningForQuickAppendKey = false;
+            playClickSound();
+            return true;
+        }
+
+        if (listeningForUndoKey) {
+            if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
+                listeningForUndoKey = false;
+                playClickSound();
+                return true;
+            }
+
+            InputUtil.Key newKey = InputUtil.fromKeyCode(input);
+            if (newKey != null) {
+                String translationKey = newKey.getTranslationKey();
+                viewModel.updateConfig(c -> c.setKeyUndo(translationKey));
+            }
+
+            listeningForUndoKey = false;
             playClickSound();
             return true;
         }

@@ -14,6 +14,7 @@ public class ModConfig {
     private float paletteItemScale = 1.0f;  // palette item render scale (0.5 to 1.5)
     private String keyOpenClose = "key.keyboard.o"; // toggle key
     private String keyQuickAppend = "key.keyboard.a"; // quick append key
+    private String keyUndo = "key.keyboard.z"; // undo shortcut key
     private String selectedProfile = "default"; // active profile name
     private float blur = 0.50f; // background blur intensity (0.0 to 5.0)
 
@@ -137,6 +138,14 @@ public class ModConfig {
 
     public void setKeyQuickAppend(String keyQuickAppend) {
         this.keyQuickAppend = keyQuickAppend;
+    }
+
+    public String getKeyUndo() {
+        return (keyUndo != null && !keyUndo.isEmpty()) ? keyUndo : "key.keyboard.z";
+    }
+
+    public void setKeyUndo(String keyUndo) {
+        this.keyUndo = keyUndo;
     }
 
     public String getSelectedProfile() {

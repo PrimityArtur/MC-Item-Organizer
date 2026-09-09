@@ -711,5 +711,103 @@ public class ProfileAndConfigTest {
             // PlayerInventory may require full game bootstrap in headless environment
         }
     }
+
+    @Test
+    void testConfigUndoKey() {
+        ModConfig config = new ModConfig();
+        // default undo key: z
+        assertEquals("key.keyboard.z", config.getKeyUndo());
+
+        // reassign key
+        config.setKeyUndo("key.keyboard.u");
+        assertEquals("key.keyboard.u", config.getKeyUndo());
+
+        // fallback for null or empty
+        config.setKeyUndo(null);
+        assertEquals("key.keyboard.z", config.getKeyUndo());
+        config.setKeyUndo("");
+        assertEquals("key.keyboard.z", config.getKeyUndo());
+    }
+
+    @Test
+    void testUndoManagerStackAndCapacity() {
+        com.itemorganizer.gui.undo.UndoManager manager = com.itemorganizer.gui.undo.UndoManager.getInstance();
+        manager.clear();
+        assertFalse(manager.canUndo());
+        assertEquals(0, manager.getHistorySize());
+
+        // record actions
+        java.util.concurrent.atomic.AtomicInteger counter = new java.util.concurrent.atomic.AtomicInteger(0);
+        manager.record((client, vm) -> counter.set(1));
+        manager.record((client, vm) -> counter.set(2));
+
+        assertTrue(manager.canUndo());
+        assertEquals(2, manager.getHistorySize());
+
+        // pop LIFO
+        assertTrue(manager.undo(null, null));
+        assertEquals(2, counter.get());
+        assertEquals(1, manager.getHistorySize());
+
+        assertTrue(manager.undo(null, null));
+        assertEquals(1, counter.get());
+        assertEquals(0, manager.getHistorySize());
+
+        // empty stack
+        assertFalse(manager.undo(null, null));
+        assertFalse(manager.canUndo());
+
+        // capacity bound: up to 100 actions
+        for (int i = 0; i < 120; i++) {
+            final int val = i;
+            manager.record((client, vm) -> counter.set(val));
+        }
+        assertEquals(100, manager.getHistorySize());
+
+        manager.clear();
+        assertEquals(0, manager.getHistorySize());
+        assertFalse(manager.canUndo());
+    }
+
+    @Test
+    void testPaletteDataFindRowById() {
+        com.itemorganizer.core.model.PaletteData data = new com.itemorganizer.core.model.PaletteData();
+        com.itemorganizer.core.model.PaletteRow row1 = new com.itemorganizer.core.model.PaletteRow();
+        com.itemorganizer.core.model.PaletteRow row2 = new com.itemorganizer.core.model.PaletteRow();
+        data.addRow(row1);
+        data.addRow(row2);
+
+        assertEquals(row1, data.findRowById(row1.getId()));
+        assertEquals(row2, data.findRowById(row2.getId()));
+        assertNull(data.findRowById("non_existent_id"));
+        assertNull(data.findRowById(null));
+    }
+
+    @Test
+    void testPaletteUndoActionsData() {
+        com.itemorganizer.core.model.PaletteRow row = new com.itemorganizer.core.model.PaletteRow();
+        row.setSlot(0, "minecraft:stone");
+        row.setSlot(1, "minecraft:dirt");
+
+        // full row undo snapshot
+        com.itemorganizer.gui.undo.PaletteFullUndoAction fullAction = new com.itemorganizer.gui.undo.PaletteFullUndoAction(row);
+        assertEquals(row.getId(), fullAction.getPaletteId());
+        assertEquals("minecraft:stone", fullAction.getPreviousSlots()[0]);
+        assertEquals("minecraft:dirt", fullAction.getPreviousSlots()[1]);
+        assertNull(fullAction.getPreviousSlots()[2]);
+
+        // slot undo snapshot
+        com.itemorganizer.gui.undo.PaletteSlotUndoAction slotAction = new com.itemorganizer.gui.undo.PaletteSlotUndoAction(row.getId(), 0, "minecraft:stone");
+        assertEquals(row.getId(), slotAction.getPaletteId());
+        assertEquals(0, slotAction.getSlot());
+        assertEquals("minecraft:stone", slotAction.getPreviousItemId());
+    }
+
+    @Test
+    void testHotbarActionHelperDefensiveChecks() {
+        assertFalse(com.itemorganizer.gui.util.HotbarActionHelper.isItemInHotbar(null, null));
+        assertFalse(com.itemorganizer.gui.util.HotbarActionHelper.quickMoveToHotbar(null, null));
+        assertFalse(com.itemorganizer.gui.util.HotbarActionHelper.dropPayloadToSlot(null, null, 0));
+    }
 }
 

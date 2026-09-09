@@ -58,6 +58,8 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
     private long lastLeftClickTime = 0;
     private int lastLeftClickCol = -1;
     private int lastLeftClickRow = -1;
+    private int lastShiftCol = -1;
+    private int lastShiftRow = -1;
 
     public OrderedGridWidget(OrganizerViewModel viewModel, int x, int y, int width, int height) {
         this.viewModel = viewModel;
@@ -295,6 +297,8 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
                                 if (!stack.isEmpty()) {
                                     HotbarActionHelper.quickMoveToHotbar(MinecraftClient.getInstance(), stack);
                                 }
+                                lastShiftCol = col;
+                                lastShiftRow = row;
                                 return true;
                             }
 
@@ -339,6 +343,8 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
 
     @Override
     public boolean mouseReleased(Click click) {
+        lastShiftCol = -1;
+        lastShiftRow = -1;
         if (scrollbar.mouseReleased(click)) {
             return true;
         }
@@ -525,6 +531,32 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
         if (scrollbar.mouseDragged(click, deltaX, deltaY)) {
             return true;
         }
+
+        if (click.button() == 0 && HotbarActionHelper.hasShiftDown(click)) {
+            int gridStartX = getGridStartX();
+            if (click.x() >= gridStartX && click.x() < x + width && click.y() >= y && click.y() <= y + height) {
+                int slotSize = getSlotSize();
+                int relX = (int) click.x() - gridStartX;
+                int relY = (int) click.y() - y + (int) scrollbar.getScrollOffset();
+                int col = relX / slotSize;
+                int row = relY / slotSize;
+                if (col >= 0 && col < getColumnCount() && (col != lastShiftCol || row != lastShiftRow)) {
+                    lastShiftCol = col;
+                    lastShiftRow = row;
+                    ProfileData profile = viewModel.getActiveProfile();
+                    if (profile != null) {
+                        profile.findItemAt(col, row).ifPresent(pos -> {
+                            ItemStack stack = getItemStackFromId(pos.getItemId());
+                            if (!stack.isEmpty()) {
+                                HotbarActionHelper.quickMoveToHotbar(MinecraftClient.getInstance(), stack);
+                            }
+                        });
+                    }
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 

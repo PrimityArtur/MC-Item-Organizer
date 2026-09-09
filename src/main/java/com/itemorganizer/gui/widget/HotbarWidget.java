@@ -6,6 +6,7 @@ import com.itemorganizer.gui.dragdrop.DragSource;
 import com.itemorganizer.gui.util.HotbarActionHelper;
 import com.itemorganizer.gui.util.RenderHelper;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Drawable;
 import net.minecraft.client.gui.Element;
@@ -34,6 +35,7 @@ public class HotbarWidget implements Drawable, Element, Selectable {
     private float itemScale = 1.0f;
     private float textScale = 1.0f;
     private int hoveredSlot = -1;
+    private int lastShiftSlot = -1;
 
     public HotbarWidget(int x, int y) {
         this.x = x;
@@ -155,9 +157,13 @@ public class HotbarWidget implements Drawable, Element, Selectable {
                     PlayerInventory inv = client.player.getInventory();
                     ItemStack stack = inv.getStack(slot);
                     if (!stack.isEmpty()) {
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                new com.itemorganizer.gui.undo.HotbarSlotUndoAction(slot, stack.copy())
+                        );
                         inv.setStack(slot, ItemStack.EMPTY);
                         HotbarActionHelper.assignItemToSlot(client, slot, ItemStack.EMPTY);
                         SoundHelper.playClick();
+                        lastShiftSlot = slot;
                         return true;
                     }
                 }
@@ -186,6 +192,37 @@ public class HotbarWidget implements Drawable, Element, Selectable {
         return false;
     }
 
+    @Override
+    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+        if (click.button() == 0 && HotbarActionHelper.hasShiftDown(click)) {
+            int slot = getSlotAt(click.x(), click.y());
+            if (slot >= 0 && slot < SLOT_COUNT && slot != lastShiftSlot) {
+                lastShiftSlot = slot;
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client.player != null) {
+                    PlayerInventory inv = client.player.getInventory();
+                    ItemStack stack = inv.getStack(slot);
+                    if (!stack.isEmpty()) {
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                new com.itemorganizer.gui.undo.HotbarSlotUndoAction(slot, stack.copy())
+                        );
+                        inv.setStack(slot, ItemStack.EMPTY);
+                        HotbarActionHelper.assignItemToSlot(client, slot, ItemStack.EMPTY);
+                        SoundHelper.playClick();
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean mouseReleased(Click click) {
+        lastShiftSlot = -1;
+        return false;
+    }
+
     public boolean keyPressed(KeyInput input) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (hoveredSlot >= 0 && hoveredSlot < SLOT_COUNT && client.player != null) {
@@ -200,6 +237,9 @@ public class HotbarWidget implements Drawable, Element, Selectable {
                         ItemStack stackHovered = inv.getStack(hoveredSlot).copy();
                         ItemStack stackTarget = inv.getStack(i).copy();
 
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                com.itemorganizer.gui.undo.HotbarFullUndoAction.capture(client)
+                        );
                         inv.setStack(i, stackHovered);
                         inv.setStack(hoveredSlot, stackTarget);
 

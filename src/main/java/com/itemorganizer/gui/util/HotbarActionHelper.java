@@ -57,16 +57,40 @@ public final class HotbarActionHelper {
         }
     }
 
+    // checks whether the specified item is already present in the player hotbar (0..8)
+    public static boolean isItemInHotbar(PlayerInventory inventory, ItemStack stack) {
+        if (inventory == null || stack == null || stack.isEmpty()) {
+            return false;
+        }
+        for (int i = 0; i < 9; i++) {
+            ItemStack slotStack = inventory.getStack(i);
+            if (!slotStack.isEmpty() && slotStack.getItem() == stack.getItem()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // attempts to insert an item into the first available hotbar slot
     public static boolean quickMoveToHotbar(MinecraftClient client, ItemStack stack) {
         if (client == null || client.player == null || stack == null || stack.isEmpty()) {
             return false;
         }
 
-        int emptySlot = findFirstEmptySlot(client.player.getInventory());
+        PlayerInventory inventory = client.player.getInventory();
+        if (isItemInHotbar(inventory, stack)) {
+            return false;
+        }
+
+        int emptySlot = findFirstEmptySlot(inventory);
         if (emptySlot < 0) {
             return false;
         }
+
+        ItemStack previousStack = inventory.getStack(emptySlot).copy();
+        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                new com.itemorganizer.gui.undo.HotbarSlotUndoAction(emptySlot, previousStack)
+        );
 
         assignItemToSlot(client, emptySlot, stack);
         SoundHelper.playClick();
@@ -83,6 +107,10 @@ public final class HotbarActionHelper {
             int sourceSlot = payload.getSourceIndex();
             if (sourceSlot >= 0 && sourceSlot < 9) {
                 if (sourceSlot != targetSlot) {
+                    com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                            com.itemorganizer.gui.undo.HotbarFullUndoAction.capture(client)
+                    );
+
                     PlayerInventory inv = client.player.getInventory();
                     ItemStack sourceStack = inv.getStack(sourceSlot).copy();
                     ItemStack targetStack = inv.getStack(targetSlot).copy();
@@ -112,6 +140,11 @@ public final class HotbarActionHelper {
         }
 
         if (stack != null && !stack.isEmpty()) {
+            ItemStack previous = client.player.getInventory().getStack(targetSlot).copy();
+            com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                    new com.itemorganizer.gui.undo.HotbarSlotUndoAction(targetSlot, previous)
+            );
+
             assignItemToSlot(client, targetSlot, stack);
             SoundHelper.playClick();
             return true;
@@ -132,6 +165,10 @@ public final class HotbarActionHelper {
                     || input.key() == (GLFW.GLFW_KEY_KP_1 + i);
 
             if (matches) {
+                ItemStack previous = client.player.getInventory().getStack(i).copy();
+                com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                        new com.itemorganizer.gui.undo.HotbarSlotUndoAction(i, previous)
+                );
                 assignItemToSlot(client, i, hoveredStack);
                 SoundHelper.playClick();
                 return true;
@@ -149,6 +186,18 @@ public final class HotbarActionHelper {
         if (client != null && client.getWindow() != null) {
             return InputUtil.isKeyPressed(client.getWindow(), GLFW.GLFW_KEY_LEFT_SHIFT)
                     || InputUtil.isKeyPressed(client.getWindow(), GLFW.GLFW_KEY_RIGHT_SHIFT);
+        }
+        return false;
+    }
+
+    // checks whether the control key is currently pressed
+    public static boolean hasControlDown() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client != null && client.getWindow() != null) {
+            return InputUtil.isKeyPressed(client.getWindow(), GLFW.GLFW_KEY_LEFT_CONTROL)
+                    || InputUtil.isKeyPressed(client.getWindow(), GLFW.GLFW_KEY_RIGHT_CONTROL)
+                    || InputUtil.isKeyPressed(client.getWindow(), GLFW.GLFW_KEY_LEFT_SUPER)
+                    || InputUtil.isKeyPressed(client.getWindow(), GLFW.GLFW_KEY_RIGHT_SUPER);
         }
         return false;
     }

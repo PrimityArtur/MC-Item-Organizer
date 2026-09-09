@@ -587,6 +587,10 @@ public class OrganizerScreen extends Screen {
             return true;
         }
 
+        if (hotbarWidget != null) {
+            hotbarWidget.mouseReleased(click);
+        }
+
         return super.mouseReleased(click);
     }
 
@@ -615,6 +619,10 @@ public class OrganizerScreen extends Screen {
             return true;
         }
         if (rightTab == RightTab.POR_VERSION && versionCatalogWidget != null && versionCatalogWidget.mouseDragged(click, deltaX, deltaY)) {
+            return true;
+        }
+
+        if (hotbarWidget != null && hotbarWidget.mouseDragged(click, deltaX, deltaY)) {
             return true;
         }
 
@@ -718,6 +726,15 @@ public class OrganizerScreen extends Screen {
         if (pressedKey != null && openKeyStr != null && pressedKey.getTranslationKey().equalsIgnoreCase(openKeyStr)) {
             this.close();
             return true;
+        }
+
+        // undo action (Ctrl + configured key, default Ctrl + Z)
+        if (com.itemorganizer.gui.util.HotbarActionHelper.hasControlDown()) {
+            String undoKeyStr = viewModel.getConfig().getKeyUndo();
+            if (pressedKey != null && undoKeyStr != null && pressedKey.getTranslationKey().equalsIgnoreCase(undoKeyStr)) {
+                com.itemorganizer.gui.undo.UndoManager.getInstance().undo(this.client, viewModel);
+                return true;
+            }
         }
 
         // quick append key to organized grid

@@ -44,6 +44,7 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
     private final VerticalScrollbar scrollbar;
     private String hoveredItemId = null;
     private ItemStack hoveredStack = ItemStack.EMPTY;
+    private String lastShiftItemId = null;
 
     public VersionCatalogWidget(OrganizerViewModel viewModel, int x, int y, int width, int height) {
         this.viewModel = viewModel;
@@ -263,6 +264,7 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
         if (click.button() == 0 && hoveredItemId != null && !hoveredStack.isEmpty()) {
             if (HotbarActionHelper.hasShiftDown(click)) {
                 HotbarActionHelper.quickMoveToHotbar(MinecraftClient.getInstance(), hoveredStack);
+                lastShiftItemId = hoveredItemId;
                 return true;
             }
             DragPayload payload = DragPayload.ofIndexed(hoveredItemId, hoveredStack, DragSource.POR_VERSION, 0, true);
@@ -275,6 +277,7 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
 
     @Override
     public boolean mouseReleased(Click click) {
+        lastShiftItemId = null;
         if (scrollbar.mouseReleased(click)) {
             return true;
         }
@@ -286,6 +289,19 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
         if (scrollbar.mouseDragged(click, deltaX, deltaY)) {
             return true;
         }
+
+        if (click.button() == 0 && HotbarActionHelper.hasShiftDown(click)) {
+            VersionCatalog catalog = viewModel.getVersionCatalog();
+            if (catalog != null) {
+                updateHover(click.x(), click.y(), catalog);
+                if (hoveredItemId != null && !hoveredItemId.equals(lastShiftItemId) && !hoveredStack.isEmpty()) {
+                    lastShiftItemId = hoveredItemId;
+                    HotbarActionHelper.quickMoveToHotbar(MinecraftClient.getInstance(), hoveredStack);
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 

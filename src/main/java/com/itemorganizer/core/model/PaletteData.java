@@ -33,6 +33,16 @@ public class PaletteData {
         return rows.removeIf(row -> id.equals(row.getId()));
     }
 
+    public PaletteRow findRowById(String id) {
+        if (id == null) return null;
+        for (PaletteRow row : rows) {
+            if (id.equals(row.getId())) {
+                return row;
+            }
+        }
+        return null;
+    }
+
     public PaletteRow duplicateRow(int index) {
         if (index >= 0 && index < rows.size()) {
             PaletteRow copy = rows.get(index).copy();
