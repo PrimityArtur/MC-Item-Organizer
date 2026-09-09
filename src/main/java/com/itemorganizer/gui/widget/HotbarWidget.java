@@ -150,7 +150,7 @@ public class HotbarWidget implements Drawable, Element, Selectable {
         int slot = getSlotAt(click.x(), click.y());
         if (slot >= 0) {
             MinecraftClient client = MinecraftClient.getInstance();
-            if (click.button() == 0 && client.player != null) {
+            if (click.button() == 0 && client.player != null && client.player.isCreative()) {
                 // delete item with shift + left click
                 boolean hasShift = HotbarActionHelper.hasShiftDown(click);
                 if (hasShift) {
@@ -199,7 +199,7 @@ public class HotbarWidget implements Drawable, Element, Selectable {
             if (slot >= 0 && slot < SLOT_COUNT && slot != lastShiftSlot) {
                 lastShiftSlot = slot;
                 MinecraftClient client = MinecraftClient.getInstance();
-                if (client.player != null) {
+                if (client.player != null && client.player.isCreative()) {
                     PlayerInventory inv = client.player.getInventory();
                     ItemStack stack = inv.getStack(slot);
                     if (!stack.isEmpty()) {
@@ -225,7 +225,7 @@ public class HotbarWidget implements Drawable, Element, Selectable {
 
     public boolean keyPressed(KeyInput input) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (hoveredSlot >= 0 && hoveredSlot < SLOT_COUNT && client.player != null) {
+        if (hoveredSlot >= 0 && hoveredSlot < SLOT_COUNT && client.player != null && client.player.isCreative()) {
             for (int i = 0; i < SLOT_COUNT; i++) {
                 boolean matches = (client.options != null && client.options.hotbarKeys[i].matchesKey(input))
                         || input.key() == (GLFW.GLFW_KEY_1 + i)

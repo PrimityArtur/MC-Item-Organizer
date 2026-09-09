@@ -121,6 +121,11 @@ public class OrganizerScreen extends Screen {
     protected void init() {
         super.init();
 
+        if (client != null && client.player != null && !client.player.isCreative()) {
+            this.close();
+            return;
+        }
+
         if (originalVanillaBlur == -1 && client != null && client.options != null) {
             originalVanillaBlur = client.options.getMenuBackgroundBlurrinessValue();
         }
@@ -328,6 +333,11 @@ public class OrganizerScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        if (client == null || client.player == null || !client.player.isCreative()) {
+            this.close();
+            return;
+        }
+
         activeToolbarTooltip = null;
 
         // update layout and blur

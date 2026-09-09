@@ -34,7 +34,7 @@ public final class HotbarActionHelper {
 
     // assigns an item to a specific hotbar slot and synchronizes with server
     public static void assignItemToSlot(MinecraftClient client, int slot, ItemStack stack) {
-        if (client == null || client.player == null || slot < 0 || slot >= 9) {
+        if (client == null || client.player == null || !client.player.isCreative() || slot < 0 || slot >= 9) {
             return;
         }
 
@@ -73,7 +73,7 @@ public final class HotbarActionHelper {
 
     // attempts to insert an item into the first available hotbar slot
     public static boolean quickMoveToHotbar(MinecraftClient client, ItemStack stack) {
-        if (client == null || client.player == null || stack == null || stack.isEmpty()) {
+        if (client == null || client.player == null || !client.player.isCreative() || stack == null || stack.isEmpty()) {
             return false;
         }
 
@@ -99,7 +99,7 @@ public final class HotbarActionHelper {
 
     // drops a dragged payload into the specified hotbar slot, or swaps if source is hotbar
     public static boolean dropPayloadToSlot(MinecraftClient client, DragPayload payload, int targetSlot) {
-        if (client == null || client.player == null || payload == null || targetSlot < 0 || targetSlot >= 9) {
+        if (client == null || client.player == null || !client.player.isCreative() || payload == null || targetSlot < 0 || targetSlot >= 9) {
             return false;
         }
 

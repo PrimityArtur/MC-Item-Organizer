@@ -1150,7 +1150,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     // copy the 9 slots to player hotbar
     private void loadRowToHotbar(PaletteRow row) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.player == null) return;
+        if (client == null || client.player == null || !client.player.isCreative()) return;
 
         com.itemorganizer.gui.undo.UndoManager.getInstance().record(
                 com.itemorganizer.gui.undo.HotbarFullUndoAction.capture(client)
