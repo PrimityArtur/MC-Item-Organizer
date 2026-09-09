@@ -9,6 +9,7 @@ public class ModConfig {
     private float textScale = 1.0f;         // text render scale (0.5 to 1.5)
     private float splitRatio = 0.50f;       // left vs right split ratio (0.20 to 0.80)
     private float hotbarScale = 1.0f;       // hotbar size scale (0.5 to 2.0)
+    private float hotbarItemScale = 1.0f;   // hotbar item render scale (0.5 to 1.5)
     private float paletteScale = 1.0f;      // palette size scale (0.5 to 2.0)
     private float paletteItemScale = 1.0f;  // palette item render scale (0.5 to 1.5)
     private String keyOpenClose = "key.keyboard.o"; // toggle key
@@ -77,6 +78,15 @@ public class ModConfig {
 
     public void setHotbarScale(float hotbarScale) {
         this.hotbarScale = Math.max(0.50f, Math.min(2.00f, hotbarScale));
+    }
+
+    public float getHotbarItemScale() {
+        if (hotbarItemScale < 0.10f) hotbarItemScale = 1.0f;
+        return hotbarItemScale;
+    }
+
+    public void setHotbarItemScale(float hotbarItemScale) {
+        this.hotbarItemScale = Math.max(0.50f, Math.min(1.50f, hotbarItemScale));
     }
 
     public float getPaletteScale() {

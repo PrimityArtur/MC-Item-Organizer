@@ -4,6 +4,7 @@ import com.itemorganizer.core.model.VersionCatalog;
 import com.itemorganizer.gui.dragdrop.DragAndDropManager;
 import com.itemorganizer.gui.dragdrop.DragPayload;
 import com.itemorganizer.gui.dragdrop.DragSource;
+import com.itemorganizer.gui.util.HotbarActionHelper;
 import com.itemorganizer.gui.util.RenderHelper;
 import com.itemorganizer.gui.viewmodel.OrganizerViewModel;
 import net.minecraft.client.MinecraftClient;
@@ -258,8 +259,12 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
             return true;
         }
 
-        // start drag with left click (catalog items copy by default)
+        // start drag or shift-click with left click (catalog items copy by default)
         if (click.button() == 0 && hoveredItemId != null && !hoveredStack.isEmpty()) {
+            if (HotbarActionHelper.hasShiftDown(click)) {
+                HotbarActionHelper.quickMoveToHotbar(MinecraftClient.getInstance(), hoveredStack);
+                return true;
+            }
             DragPayload payload = DragPayload.ofIndexed(hoveredItemId, hoveredStack, DragSource.POR_VERSION, 0, true);
             DragAndDropManager.getInstance().startDrag(payload);
             return true;
@@ -296,21 +301,9 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
     public boolean keyPressed(KeyInput input) {
         MinecraftClient client = MinecraftClient.getInstance();
 
-        // quick assign to hotbar (keys 1-9 in creative)
-        if (!hoveredStack.isEmpty() && client.player != null) {
-            for (int i = 0; i < 9; i++) {
-                if (client.options.hotbarKeys[i].matchesKey(input)) {
-                    if (client.player.isCreative()) {
-                        ItemStack giveStack = new ItemStack(hoveredStack.getItem(), 1);
-                        client.player.getInventory().setStack(i, giveStack);
-                        if (client.getNetworkHandler() != null) {
-                            client.getNetworkHandler().sendPacket(new CreativeInventoryActionC2SPacket(36 + i, giveStack));
-                        }
-                        SoundHelper.playClick();
-                        return true;
-                    }
-                }
-            }
+        // 1-9 hotbar keys
+        if (HotbarActionHelper.handleHotbarKeyPress(client, input, hoveredStack)) {
+            return true;
         }
         return false;
     }

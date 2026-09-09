@@ -227,6 +227,7 @@ public class OrganizerScreen extends Screen {
         int margin = 10;
         int topMargin = 8;
         float hotbarScale = viewModel.getConfig().getHotbarScale();
+        float hotbarItemScale = viewModel.getConfig().getHotbarItemScale();
         float splitRatio = viewModel.getConfig().getSplitRatio();
         float textScale = viewModel.getConfig().getTextScale();
 
@@ -278,7 +279,7 @@ public class OrganizerScreen extends Screen {
         int hotbarX = (this.width - totalHotbarWidth) / 2;
         int hotbarY = this.height - hotbarSlotSize - 6;
         if (hotbarWidget != null) {
-            hotbarWidget.setBounds(hotbarX, hotbarY, hotbarScale, textScale);
+            hotbarWidget.setBounds(hotbarX, hotbarY, hotbarScale, hotbarItemScale, textScale);
         }
 
         // position content panels
@@ -416,6 +417,14 @@ public class OrganizerScreen extends Screen {
             return true;
         }
 
+        // right click cancels active drag
+        com.itemorganizer.gui.dragdrop.DragAndDropManager dragManager = com.itemorganizer.gui.dragdrop.DragAndDropManager.getInstance();
+        if (dragManager.isDragging() && click.button() == 1) {
+            dragManager.cancelDrag();
+            playClickSound();
+            return true;
+        }
+
         // subtab toolbar in organized view
         LeftTab leftTab = viewModel.getActiveLeftTab();
         if (leftTab == LeftTab.ORDENADO) {
@@ -508,36 +517,10 @@ public class OrganizerScreen extends Screen {
                 int hotbarSlot = hotbarWidget.getSlotAt(click.x(), click.y());
                 if (hotbarSlot >= 0 && client != null && client.player != null) {
                     com.itemorganizer.gui.dragdrop.DragPayload payload = dragManager.getActivePayload();
-                    if (payload != null) {
-                        if (payload.getSource() == com.itemorganizer.gui.dragdrop.DragSource.HOTBAR) {
-                            int sourceSlot = payload.getSourceIndex();
-                            int targetSlot = hotbarSlot;
-                            if (sourceSlot != targetSlot && sourceSlot >= 0 && sourceSlot < 9) {
-                                net.minecraft.entity.player.PlayerInventory inv = client.player.getInventory();
-                                net.minecraft.item.ItemStack sourceStack = inv.getStack(sourceSlot).copy();
-                                net.minecraft.item.ItemStack targetStack = inv.getStack(targetSlot).copy();
-                                inv.setStack(targetSlot, sourceStack);
-                                inv.setStack(sourceSlot, targetStack);
-                                if (client.getNetworkHandler() != null && client.player.isCreative()) {
-                                    client.getNetworkHandler().sendPacket(new net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket(36 + targetSlot, sourceStack));
-                                    client.getNetworkHandler().sendPacket(new net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket(36 + sourceSlot, targetStack));
-                                }
-                                SoundHelper.playClick();
-                            }
-                        } else if (client.player.isCreative()) {
-                            net.minecraft.item.ItemStack stack = new net.minecraft.item.ItemStack(
-                                    payload.getItemStack().getItem(),
-                                    1
-                            );
-                            client.player.getInventory().setStack(hotbarSlot, stack);
-                            if (client.getNetworkHandler() != null) {
-                                client.getNetworkHandler().sendPacket(new net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket(36 + hotbarSlot, stack));
-                            }
-                            SoundHelper.playClick();
-                        }
+                    if (payload != null && com.itemorganizer.gui.util.HotbarActionHelper.dropPayloadToSlot(client, payload, hotbarSlot)) {
+                        dragManager.consumePayload();
+                        return true;
                     }
-                    dragManager.consumePayload();
-                    return true;
                 }
             }
 

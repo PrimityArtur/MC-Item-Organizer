@@ -5,6 +5,7 @@ import com.itemorganizer.core.model.PaletteRow;
 import com.itemorganizer.gui.dragdrop.DragAndDropManager;
 import com.itemorganizer.gui.dragdrop.DragPayload;
 import com.itemorganizer.gui.dragdrop.DragSource;
+import com.itemorganizer.gui.util.HotbarActionHelper;
 import com.itemorganizer.gui.util.RenderHelper;
 import com.itemorganizer.gui.util.TextScaleHelper;
 import com.itemorganizer.gui.viewmodel.OrganizerViewModel;
@@ -947,12 +948,16 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                     return true;
                 }
 
-                // left click: drag
+                // left click: shift-click to hotbar or drag
                 if (click.button() == 0) {
                     String itemId = row.getSlot(hoveredSlotIndex);
                     if (itemId != null) {
                         ItemStack stack = getItemStackFromId(itemId);
                         if (!stack.isEmpty()) {
+                            if (HotbarActionHelper.hasShiftDown(click)) {
+                                HotbarActionHelper.quickMoveToHotbar(MinecraftClient.getInstance(), stack);
+                                return true;
+                            }
                             DragPayload payload = DragPayload.ofIndexed(itemId, stack, DragSource.PALETAS, hoveredSlotIndex, true);
                             DragAndDropManager.getInstance().startDrag(payload);
                             return true;
@@ -1081,22 +1086,10 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
             return searchField.keyPressed(input);
         }
 
-        // 1-9 hotbar keys in creative
+        // 1-9 hotbar keys
         MinecraftClient client = MinecraftClient.getInstance();
-        if (!hoveredStack.isEmpty() && client.player != null) {
-            for (int i = 0; i < 9; i++) {
-                if (client.options.hotbarKeys[i].matchesKey(input)) {
-                    if (client.player.isCreative()) {
-                        ItemStack giveStack = new ItemStack(hoveredStack.getItem(), 1);
-                        client.player.getInventory().setStack(i, giveStack);
-                        if (client.getNetworkHandler() != null) {
-                            client.getNetworkHandler().sendPacket(new CreativeInventoryActionC2SPacket(36 + i, giveStack));
-                        }
-                        SoundHelper.playClick();
-                        return true;
-                    }
-                }
-            }
+        if (HotbarActionHelper.handleHotbarKeyPress(client, input, hoveredStack)) {
+            return true;
         }
         return false;
     }

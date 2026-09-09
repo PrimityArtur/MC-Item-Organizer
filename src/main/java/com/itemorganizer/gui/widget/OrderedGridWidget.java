@@ -5,6 +5,7 @@ import com.itemorganizer.core.model.ProfileData;
 import com.itemorganizer.gui.dragdrop.DragAndDropManager;
 import com.itemorganizer.gui.dragdrop.DragPayload;
 import com.itemorganizer.gui.dragdrop.DragSource;
+import com.itemorganizer.gui.util.HotbarActionHelper;
 import com.itemorganizer.gui.util.RenderHelper;
 import com.itemorganizer.gui.viewmodel.OrganizerViewModel;
 import com.itemorganizer.storage.StorageManager;
@@ -288,6 +289,14 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
                         Optional<ItemSlotPosition> slotItem = profile.findItemAt(col, row);
                         if (slotItem.isPresent()) {
                             String itemId = slotItem.get().getItemId();
+                            ItemStack stack = getItemStackFromId(itemId);
+
+                            if (HotbarActionHelper.hasShiftDown(click)) {
+                                if (!stack.isEmpty()) {
+                                    HotbarActionHelper.quickMoveToHotbar(MinecraftClient.getInstance(), stack);
+                                }
+                                return true;
+                            }
 
                             if (now - lastLeftClickTime < 350 && col == lastLeftClickCol && row == lastLeftClickRow) {
                                 profile.removeAt(col, row);
@@ -306,7 +315,6 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
                             lastLeftClickCol = col;
                             lastLeftClickRow = row;
 
-                            ItemStack stack = getItemStackFromId(itemId);
                             if (!stack.isEmpty()) {
                                 boolean isCopy = viewModel.isBlockerActive();
                                 DragPayload payload = DragPayload.ofGrid(itemId, stack, DragSource.ORDENADO, col, row, isCopy);
@@ -410,20 +418,8 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
         MinecraftClient client = MinecraftClient.getInstance();
 
         // 1-9 hotbar key assignment
-        if (!hoveredStack.isEmpty() && client.player != null) {
-            for (int i = 0; i < 9; i++) {
-                if (client.options.hotbarKeys[i].matchesKey(input)) {
-                    if (client.player.isCreative()) {
-                        ItemStack giveStack = new ItemStack(hoveredStack.getItem(), 1);
-                        client.player.getInventory().setStack(i, giveStack);
-                        if (client.getNetworkHandler() != null) {
-                            client.getNetworkHandler().sendPacket(new CreativeInventoryActionC2SPacket(36 + i, giveStack));
-                        }
-                        SoundHelper.playClick();
-                        return true;
-                    }
-                }
-            }
+        if (HotbarActionHelper.handleHotbarKeyPress(client, input, hoveredStack)) {
+            return true;
         }
 
         // deselect with ESC

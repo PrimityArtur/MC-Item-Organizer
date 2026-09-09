@@ -86,6 +86,7 @@
   "config.itemorganizer.text_scale": "Text Scale",
   "config.itemorganizer.panel_split": "Panel Split",
   "config.itemorganizer.hotbar_scale": "Hotbar Scale",
+  "config.itemorganizer.hotbar_item_scale": "Hotbar Item Scale",
   "config.itemorganizer.palette_scale": "Palette Scale",
   "config.itemorganizer.palette_item_scale": "Palette Item Scale",
   "config.itemorganizer.open_key": "Open Interface",

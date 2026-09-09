@@ -56,6 +56,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
     private boolean draggingTextScale = false;
     private boolean draggingSplitRatio = false;
     private boolean draggingHotbarScale = false;
+    private boolean draggingHotbarItemScale = false;
     private boolean draggingPaletteScale = false;
     private boolean draggingPaletteItemScale = false;
 
@@ -228,7 +229,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
 
     private int calculateTotalHeight(float textScale) {
         int maxContentW = width - SCROLLBAR_WIDTH - 24;
-        return getShortcutGuideHeight(textScale, maxContentW) + Math.round(455 * Math.max(1.0f, textScale));
+        return getShortcutGuideHeight(textScale, maxContentW) + Math.round(485 * Math.max(1.0f, textScale));
     }
 
     @Override
@@ -443,8 +444,22 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             renderSlider(context, tr, slider6X, slider6Y, sliderW, sliderH, normHotbar, hotbarPercent + "% (" + String.format("%.2f", cfg.getHotbarScale()) + "x)", mouseX, mouseY, textScale, 0x4D38BDF8, 0xFF38BDF8);
         }
 
+        // hotbar item scale slider
+        int sec7bY = slider6Y + sliderH + secGap;
+        int hotbarItemPercent = Math.round(cfg.getHotbarItemScale() * 100.0f);
+        if (sec7bY + 12 >= listStartY && sec7bY <= listStartY + listHeight) {
+            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.hotbar_item_scale"), contentX, sec7bY, 0xFF38BDF8, true, textScale);
+        }
+
+        int slider6bX = contentX;
+        int slider6bY = sec7bY + labelGap;
+        if (slider6bY + sliderH >= listStartY && slider6bY <= listStartY + listHeight) {
+            float normHotbarItem = (cfg.getHotbarItemScale() - 0.50f) / 1.00f;
+            renderSlider(context, tr, slider6bX, slider6bY, sliderW, sliderH, normHotbarItem, hotbarItemPercent + "% (" + String.format("%.2f", cfg.getHotbarItemScale()) + "x)", mouseX, mouseY, textScale, 0x4D38BDF8, 0xFF38BDF8);
+        }
+
         // palette scale slider
-        int sec8Y = slider6Y + sliderH + secGap;
+        int sec8Y = slider6bY + sliderH + secGap;
         int palettePercent = Math.round(cfg.getPaletteScale() * 100.0f);
         if (sec8Y + 12 >= listStartY && sec8Y <= listStartY + listHeight) {
             TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.palette_scale"), contentX, sec8Y, 0xFF38BDF8, true, textScale);
@@ -743,8 +758,18 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             return true;
         }
 
+        // hotbar item scale slider
+        int sec7bY = slider6Y + sliderH + secGap;
+        int slider6bX = contentX;
+        int slider6bY = sec7bY + labelGap;
+        if (mouseX >= slider6bX && mouseX <= slider6bX + sliderW && mouseY >= slider6bY && mouseY <= slider6bY + sliderH) {
+            draggingHotbarItemScale = true;
+            updateHotbarItemScaleFromMouse(mouseX, slider6bX, sliderW);
+            return true;
+        }
+
         // palette scale slider
-        int sec8Y = slider6Y + sliderH + secGap;
+        int sec8Y = slider6bY + sliderH + secGap;
         int slider7X = contentX;
         int slider7Y = sec8Y + labelGap;
         if (mouseX >= slider7X && mouseX <= slider7X + sliderW && mouseY >= slider7Y && mouseY <= slider7Y + sliderH) {
@@ -898,6 +923,14 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         viewModel.updateConfig(c -> c.setHotbarScale(finalScale));
     }
 
+    private void updateHotbarItemScaleFromMouse(int mouseX, int sx, int sw) {
+        float norm = MathHelper.clamp((float) (mouseX - sx) / (float) sw, 0.0f, 1.0f);
+        float scale = 0.50f + (norm * 1.00f);
+        scale = Math.round(scale * 100.0f) / 100.0f;
+        final float finalScale = scale;
+        viewModel.updateConfig(c -> c.setHotbarItemScale(finalScale));
+    }
+
     private void updatePaletteScaleFromMouse(int mouseX, int sx, int sw) {
         float norm = MathHelper.clamp((float) (mouseX - sx) / (float) sw, 0.0f, 1.0f);
         float scale = 0.50f + (norm * 1.50f);
@@ -924,6 +957,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             c.setTextScale(1.0f);
             c.setSplitRatio(0.50f);
             c.setHotbarScale(1.00f);
+            c.setHotbarItemScale(1.00f);
             c.setPaletteScale(1.00f);
             c.setPaletteItemScale(1.00f);
             c.setKeyOpenClose("key.keyboard.o");
@@ -952,6 +986,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         draggingTextScale = false;
         draggingSplitRatio = false;
         draggingHotbarScale = false;
+        draggingHotbarItemScale = false;
         draggingPaletteScale = false;
         draggingPaletteItemScale = false;
         scrollbar.mouseReleased(click);
@@ -1007,6 +1042,10 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         }
         if (draggingHotbarScale) {
             updateHotbarScaleFromMouse(mouseX, contentX, sliderW);
+            return true;
+        }
+        if (draggingHotbarItemScale) {
+            updateHotbarItemScaleFromMouse(mouseX, contentX, sliderW);
             return true;
         }
         if (draggingPaletteScale) {

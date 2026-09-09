@@ -4,6 +4,7 @@ import com.itemorganizer.core.model.ProfileData;
 import com.itemorganizer.gui.dragdrop.DragAndDropManager;
 import com.itemorganizer.gui.dragdrop.DragPayload;
 import com.itemorganizer.gui.dragdrop.DragSource;
+import com.itemorganizer.gui.util.HotbarActionHelper;
 import com.itemorganizer.gui.util.RenderHelper;
 import com.itemorganizer.gui.util.TextScaleHelper;
 import com.itemorganizer.gui.viewmodel.OrganizerViewModel;
@@ -246,8 +247,12 @@ public class BlockedGridWidget implements Drawable, Element, Selectable {
                     }
                 }
 
-                // left click to drag
+                // left click to drag or shift-click to hotbar
                 if (click.button() == 0) {
+                    if (HotbarActionHelper.hasShiftDown(click)) {
+                        HotbarActionHelper.quickMoveToHotbar(MinecraftClient.getInstance(), hoveredStack);
+                        return true;
+                    }
                     DragPayload payload = DragPayload.ofIndexed(itemId, hoveredStack, DragSource.BLOQUEADO, hoveredIndex, false);
                     DragAndDropManager.getInstance().startDrag(payload);
                     return true;
@@ -287,20 +292,8 @@ public class BlockedGridWidget implements Drawable, Element, Selectable {
         MinecraftClient client = MinecraftClient.getInstance();
 
         // 1-9 hotbar key assignment
-        if (!hoveredStack.isEmpty() && client.player != null) {
-            for (int i = 0; i < 9; i++) {
-                if (client.options.hotbarKeys[i].matchesKey(input)) {
-                    if (client.player.isCreative()) {
-                        ItemStack giveStack = new ItemStack(hoveredStack.getItem(), 1);
-                        client.player.getInventory().setStack(i, giveStack);
-                        if (client.getNetworkHandler() != null) {
-                            client.getNetworkHandler().sendPacket(new CreativeInventoryActionC2SPacket(36 + i, giveStack));
-                        }
-                        SoundHelper.playClick();
-                        return true;
-                    }
-                }
-            }
+        if (HotbarActionHelper.handleHotbarKeyPress(client, input, hoveredStack)) {
+            return true;
         }
 
         return false;

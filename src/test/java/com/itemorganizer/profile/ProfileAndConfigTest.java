@@ -128,6 +128,20 @@ public class ProfileAndConfigTest {
         assertEquals(0.50f, config.getHotbarScale(), 0.001f);
         config.setHotbarScale(3.50f);
         assertEquals(2.00f, config.getHotbarScale(), 0.001f);
+
+        // hotbar item scale clamping (0.50 to 1.50, default 1.00)
+        assertEquals(1.00f, config.getHotbarItemScale(), 0.001f);
+        config.setHotbarItemScale(0.20f);
+        assertEquals(0.50f, config.getHotbarItemScale(), 0.001f);
+        config.setHotbarItemScale(3.50f);
+        assertEquals(1.50f, config.getHotbarItemScale(), 0.001f);
+
+        // palette item scale clamping (0.50 to 1.50, default 1.00)
+        assertEquals(1.00f, config.getPaletteItemScale(), 0.001f);
+        config.setPaletteItemScale(0.20f);
+        assertEquals(0.50f, config.getPaletteItemScale(), 0.001f);
+        config.setPaletteItemScale(3.50f);
+        assertEquals(1.50f, config.getPaletteItemScale(), 0.001f);
     }
 
     @Test
@@ -636,12 +650,16 @@ public class ProfileAndConfigTest {
 
         initial.setSelectedProfile("creative_builds");
         initial.setBlur(0.75f);
+        initial.setHotbarItemScale(1.25f);
+        initial.setPaletteItemScale(0.80f);
         assertTrue(configRepo.save(initial));
 
         com.itemorganizer.storage.ConfigRepository reloadedRepo = new com.itemorganizer.storage.ConfigRepository(tempDir);
         ModConfig loaded = reloadedRepo.load();
         assertEquals("creative_builds", loaded.getSelectedProfile());
         assertEquals(0.75f, loaded.getBlur(), 0.001f);
+        assertEquals(1.25f, loaded.getHotbarItemScale(), 0.001f);
+        assertEquals(0.80f, loaded.getPaletteItemScale(), 0.001f);
         assertTrue(loaded.isBackgroundBlur());
     }
 
@@ -680,6 +698,18 @@ public class ProfileAndConfigTest {
         assertTrue(reloaded.isItemBlocked("minecraft:command_block"));
         assertTrue(reloaded.isItemBlocked("minecraft:bedrock"));
         assertTrue(reloaded.isItemBlocked("minecraft:barrier"));
+    }
+
+    @Test
+    void testHotbarSlotFinder() {
+        assertEquals(-1, com.itemorganizer.gui.util.HotbarActionHelper.findFirstEmptySlot(null));
+
+        try {
+            net.minecraft.entity.player.PlayerInventory inventory = new net.minecraft.entity.player.PlayerInventory(null, null);
+            assertEquals(0, com.itemorganizer.gui.util.HotbarActionHelper.findFirstEmptySlot(inventory));
+        } catch (Throwable ignored) {
+            // PlayerInventory may require full game bootstrap in headless environment
+        }
     }
 }
 

@@ -3,6 +3,7 @@ package com.itemorganizer.gui.widget;
 import com.itemorganizer.gui.dragdrop.DragAndDropManager;
 import com.itemorganizer.gui.dragdrop.DragPayload;
 import com.itemorganizer.gui.dragdrop.DragSource;
+import com.itemorganizer.gui.util.HotbarActionHelper;
 import com.itemorganizer.gui.util.RenderHelper;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -30,6 +31,7 @@ public class HotbarWidget implements Drawable, Element, Selectable {
     private int x;
     private int y;
     private float scale = 1.0f;
+    private float itemScale = 1.0f;
     private float textScale = 1.0f;
     private int hoveredSlot = -1;
 
@@ -44,9 +46,14 @@ public class HotbarWidget implements Drawable, Element, Selectable {
     }
 
     public void setBounds(int x, int y, float scale, float textScale) {
+        setBounds(x, y, scale, 1.0f, textScale);
+    }
+
+    public void setBounds(int x, int y, float scale, float itemScale, float textScale) {
         this.x = x;
         this.y = y;
         this.scale = scale;
+        this.itemScale = itemScale;
         this.textScale = textScale;
     }
 
@@ -110,13 +117,13 @@ public class HotbarWidget implements Drawable, Element, Selectable {
             if (inventory != null) {
                 ItemStack stack = inventory.getStack(i);
                 if (!stack.isEmpty()) {
-                    float itemScale = ((float) slotSize / (float) BASE_SLOT_SIZE);
+                    float renderScale = ((float) slotSize / (float) BASE_SLOT_SIZE) * this.itemScale;
                     float cx = slotX + (slotSize - 1) / 2.0f;
                     float cy = slotY + (slotSize - 1) / 2.0f;
 
                     context.getMatrices().pushMatrix();
                     context.getMatrices().translate(cx, cy);
-                    context.getMatrices().scale(itemScale, itemScale);
+                    context.getMatrices().scale(renderScale, renderScale);
 
                     context.drawItem(stack, -8, -8);
                     context.drawStackOverlay(client.textRenderer, stack, -8, -8);
@@ -143,27 +150,34 @@ public class HotbarWidget implements Drawable, Element, Selectable {
             MinecraftClient client = MinecraftClient.getInstance();
             if (click.button() == 0 && client.player != null) {
                 // delete item with shift + left click
-                boolean hasShift = click.hasShift() || (client.getWindow() != null
-                        && (InputUtil.isKeyPressed(client.getWindow(), GLFW.GLFW_KEY_LEFT_SHIFT)
-                        || InputUtil.isKeyPressed(client.getWindow(), GLFW.GLFW_KEY_RIGHT_SHIFT)));
+                boolean hasShift = HotbarActionHelper.hasShiftDown(click);
                 if (hasShift) {
                     PlayerInventory inv = client.player.getInventory();
                     ItemStack stack = inv.getStack(slot);
                     if (!stack.isEmpty()) {
                         inv.setStack(slot, ItemStack.EMPTY);
-                        if (client.getNetworkHandler() != null && client.player.isCreative()) {
-                            client.getNetworkHandler().sendPacket(new CreativeInventoryActionC2SPacket(36 + slot, ItemStack.EMPTY));
-                        }
+                        HotbarActionHelper.assignItemToSlot(client, slot, ItemStack.EMPTY);
                         SoundHelper.playClick();
                         return true;
                     }
                 }
 
+                // drop dragged payload if currently dragging
+                DragAndDropManager dragManager = DragAndDropManager.getInstance();
+                if (dragManager.isDragging()) {
+                    DragPayload payload = dragManager.getActivePayload();
+                    if (payload != null && HotbarActionHelper.dropPayloadToSlot(client, payload, slot)) {
+                        dragManager.consumePayload();
+                        return true;
+                    }
+                }
+
+                // otherwise drag item from this hotbar slot
                 ItemStack stack = client.player.getInventory().getStack(slot);
                 if (!stack.isEmpty()) {
                     String itemId = Registries.ITEM.getId(stack.getItem()).toString();
                     DragPayload payload = DragPayload.ofIndexed(itemId, stack.copy(), DragSource.HOTBAR, slot, false);
-                    DragAndDropManager.getInstance().startDrag(payload);
+                    dragManager.startDrag(payload);
                     return true;
                 }
             }
@@ -176,7 +190,11 @@ public class HotbarWidget implements Drawable, Element, Selectable {
         MinecraftClient client = MinecraftClient.getInstance();
         if (hoveredSlot >= 0 && hoveredSlot < SLOT_COUNT && client.player != null) {
             for (int i = 0; i < SLOT_COUNT; i++) {
-                if (client.options.hotbarKeys[i].matchesKey(input)) {
+                boolean matches = (client.options != null && client.options.hotbarKeys[i].matchesKey(input))
+                        || input.key() == (GLFW.GLFW_KEY_1 + i)
+                        || input.key() == (GLFW.GLFW_KEY_KP_1 + i);
+
+                if (matches) {
                     if (i != hoveredSlot) {
                         PlayerInventory inv = client.player.getInventory();
                         ItemStack stackHovered = inv.getStack(hoveredSlot).copy();
@@ -185,10 +203,8 @@ public class HotbarWidget implements Drawable, Element, Selectable {
                         inv.setStack(i, stackHovered);
                         inv.setStack(hoveredSlot, stackTarget);
 
-                        if (client.getNetworkHandler() != null && client.player.isCreative()) {
-                            client.getNetworkHandler().sendPacket(new CreativeInventoryActionC2SPacket(36 + i, stackHovered));
-                            client.getNetworkHandler().sendPacket(new CreativeInventoryActionC2SPacket(36 + hoveredSlot, stackTarget));
-                        }
+                        HotbarActionHelper.assignItemToSlot(client, i, stackHovered);
+                        HotbarActionHelper.assignItemToSlot(client, hoveredSlot, stackTarget);
 
                         SoundHelper.playClick();
                         return true;
