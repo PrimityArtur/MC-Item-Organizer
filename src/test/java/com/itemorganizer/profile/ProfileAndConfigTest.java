@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -319,140 +318,194 @@ public class ProfileAndConfigTest {
 
     @Test
     void testItemCategoryOrderingExactSequence() {
-        // category sequence checks: full blocks, logs&stem, ores, glazed, grate, bulb, tools redstone, working stations, etc.
-        assertEquals(com.itemorganizer.core.model.ItemCategory.FULL_BLOCKS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:stone"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.FULL_BLOCKS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:white_concrete"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.FULL_BLOCKS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:oak_planks"));
+        // category sequence checks: full blocks, logs&stem, ores, glazed, grate, bulb, tools redstone, workstations, etc.
+        assertEquals(1, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:stone"));
+        assertEquals(1, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_concrete"));
+        assertEquals(1, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_planks"));
 
-        // requested new sections
-        assertEquals(com.itemorganizer.core.model.ItemCategory.LOGS_AND_STEMS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:oak_log"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.LOGS_AND_STEMS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:stripped_oak_log"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.LOGS_AND_STEMS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:warped_stem"));
+        assertEquals(2, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_log"));
+        assertEquals(2, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:spruce_log"));
 
-        assertEquals(com.itemorganizer.core.model.ItemCategory.ORES, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:iron_ore"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.ORES, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:deepslate_diamond_ore"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.ORES, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:ancient_debris"));
+        assertEquals(3, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:iron_ore"));
+        assertEquals(3, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:coal_ore"));
 
-        assertEquals(com.itemorganizer.core.model.ItemCategory.GLAZED_TERRACOTTA, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:white_glazed_terracotta"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.GLAZED_TERRACOTTA, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:magenta_glazed_terracotta"));
+        assertEquals(4, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_glazed_terracotta"));
+        assertEquals(4, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:red_glazed_terracotta"));
 
-        assertEquals(com.itemorganizer.core.model.ItemCategory.GRATES, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:copper_grate"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.GRATES, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:waxed_exposed_copper_grate"));
+        assertEquals(5, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:copper_grate"));
 
-        assertEquals(com.itemorganizer.core.model.ItemCategory.BULBS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:copper_bulb"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.BULBS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:waxed_oxidized_copper_bulb"));
+        assertEquals(6, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:copper_bulb"));
 
-        assertEquals(com.itemorganizer.core.model.ItemCategory.TOOLS_REDSTONE, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:redstone"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.TOOLS_REDSTONE, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:repeater"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.TOOLS_REDSTONE, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:comparator"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.TOOLS_REDSTONE, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:piston"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.TOOLS_REDSTONE, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:observer"));
+        assertEquals(7, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:redstone"));
+        assertEquals(7, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:repeater"));
 
-        assertEquals(com.itemorganizer.core.model.ItemCategory.WORKING_STATIONS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:crafting_table"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.WORKING_STATIONS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:furnace"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.WORKING_STATIONS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:stonecutter"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.WORKING_STATIONS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:anvil"));
+        assertEquals(8, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:crafting_table"));
+        assertEquals(8, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:furnace"));
+        assertEquals(8, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:anvil"));
 
-        assertEquals(com.itemorganizer.core.model.ItemCategory.UNCATEGORIZED_VEGETATION, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:fern"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.UNCATEGORIZED_VEGETATION, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:short_grass"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.UNCATEGORIZED_VEGETATION, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:vine"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.UNCATEGORIZED_VEGETATION, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:kelp"));
+        assertEquals(9, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:fern"));
+        assertEquals(9, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:short_grass"));
 
-        assertEquals(com.itemorganizer.core.model.ItemCategory.CROPS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:wheat"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.CROPS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:carrot"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.CROPS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:potato"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.CROPS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:pumpkin_seeds"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.CROPS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:nether_wart"));
+        assertEquals(10, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:wheat"));
+        assertEquals(10, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:carrot"));
 
-        assertEquals(com.itemorganizer.core.model.ItemCategory.FLOWERS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:dandelion"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.FLOWERS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:poppy"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.FLOWERS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:blue_orchid"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.FLOWERS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:sunflower"));
+        assertEquals(11, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:dandelion"));
+        assertEquals(11, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:poppy"));
 
-        assertEquals(com.itemorganizer.core.model.ItemCategory.TORCH, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:torch"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.TORCH, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:soul_torch"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.TORCH, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:copper_torch"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.TORCH, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:redstone_torch"));
+        assertEquals(12, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:torch"));
+        assertEquals(12, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:soul_torch"));
 
-        // additional standard categories
-        assertEquals(com.itemorganizer.core.model.ItemCategory.GLASS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:glass"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.GLASS_PANES, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:glass_pane"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.BARS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:iron_bars"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.CHAINS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:chain"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.FENCES, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:oak_fence"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.WALLS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:cobblestone_wall"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.SLABS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:oak_slab"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.FENCE_GATES, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:oak_fence_gate"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.STAIRS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:oak_stairs"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.SAPLINGS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:oak_sapling"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.LEAVES, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:oak_leaves"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.CARPETS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:white_carpet"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.LANTERNS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:lantern"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.SHELVES, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:bookshelf"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.SIGNS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:oak_sign"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.DOORS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:oak_door"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.TRAPDOORS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:oak_trapdoor"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.PRESSURE_PLATES, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:oak_pressure_plate"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.BEDS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:white_bed"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.BOATS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:oak_boat"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.BUTTONS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:oak_button"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.DYES, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:white_dye"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.SPAWN_EGGS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:egg"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.CANDLES, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:candle"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.BANNERS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:white_banner"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.CORALS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:tube_coral"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.HARNESS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:saddle"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.TOOLS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:diamond_pickaxe"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.ARMOR, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:diamond_helmet"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.RODS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:blaze_rod"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.BUNDLES, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:bundle"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.BOOKS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:book"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.SHERDS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:angler_pottery_sherd"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.HEADS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:skeleton_skull"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.TRIMS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:netherite_upgrade_smithing_template"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.SHULKER_BOXES, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:shulker_box"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.CHESTS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:chest"));
-        assertEquals(com.itemorganizer.core.model.ItemCategory.MINECARTS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:minecart"));
+        assertEquals(13, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:glass"));
+        assertEquals(13, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:tinted_glass"));
+        assertEquals(13, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_stained_glass"));
 
-        // sequence order verification (Full Blocks < Logs < Ores < Glazed < Grates < Bulbs < ToolsRedstone < WorkingStations < Veg < Crops < Flowers < Torch)
-        int orderFullBlocks = com.itemorganizer.core.model.ItemCategory.getOrder(com.itemorganizer.core.model.ItemCategory.FULL_BLOCKS);
-        int orderLogs = com.itemorganizer.core.model.ItemCategory.getOrder(com.itemorganizer.core.model.ItemCategory.LOGS_AND_STEMS);
-        int orderOres = com.itemorganizer.core.model.ItemCategory.getOrder(com.itemorganizer.core.model.ItemCategory.ORES);
-        int orderGlazed = com.itemorganizer.core.model.ItemCategory.getOrder(com.itemorganizer.core.model.ItemCategory.GLAZED_TERRACOTTA);
-        int orderGrates = com.itemorganizer.core.model.ItemCategory.getOrder(com.itemorganizer.core.model.ItemCategory.GRATES);
-        int orderBulbs = com.itemorganizer.core.model.ItemCategory.getOrder(com.itemorganizer.core.model.ItemCategory.BULBS);
-        int orderRedstone = com.itemorganizer.core.model.ItemCategory.getOrder(com.itemorganizer.core.model.ItemCategory.TOOLS_REDSTONE);
-        int orderWorkstations = com.itemorganizer.core.model.ItemCategory.getOrder(com.itemorganizer.core.model.ItemCategory.WORKING_STATIONS);
-        int orderVeg = com.itemorganizer.core.model.ItemCategory.getOrder(com.itemorganizer.core.model.ItemCategory.UNCATEGORIZED_VEGETATION);
-        int orderCrops = com.itemorganizer.core.model.ItemCategory.getOrder(com.itemorganizer.core.model.ItemCategory.CROPS);
-        int orderFlowers = com.itemorganizer.core.model.ItemCategory.getOrder(com.itemorganizer.core.model.ItemCategory.FLOWERS);
-        int orderTorch = com.itemorganizer.core.model.ItemCategory.getOrder(com.itemorganizer.core.model.ItemCategory.TORCH);
+        assertEquals(14, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:glass_pane"));
+        assertEquals(14, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:red_stained_glass_pane"));
 
-        assertTrue(orderFullBlocks < orderLogs);
-        assertTrue(orderLogs < orderOres);
-        assertTrue(orderOres < orderGlazed);
-        assertTrue(orderGlazed < orderGrates);
-        assertTrue(orderGrates < orderBulbs);
-        assertTrue(orderBulbs < orderRedstone);
-        assertTrue(orderRedstone < orderWorkstations);
-        assertTrue(orderWorkstations < orderVeg);
-        assertTrue(orderVeg < orderCrops);
-        assertTrue(orderCrops < orderFlowers);
-        assertTrue(orderFlowers < orderTorch);
+        assertEquals(15, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:iron_bars"));
 
-        // test dynamic reordering capability
-        List<com.itemorganizer.core.model.ItemCategory> customOrder = new ArrayList<>(com.itemorganizer.core.model.ItemCategory.DEFAULT_ORDER);
-        customOrder.remove(com.itemorganizer.core.model.ItemCategory.TORCH);
-        customOrder.add(0, com.itemorganizer.core.model.ItemCategory.TORCH); // move Torches to top
-        com.itemorganizer.core.model.ItemCategory.setOrder(customOrder);
+        assertEquals(16, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:chain"));
 
-        assertEquals(1, com.itemorganizer.core.model.ItemCategory.getOrder(com.itemorganizer.core.model.ItemCategory.TORCH));
-        assertEquals(1, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:torch"));
-        assertTrue(com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:stone") > 1);
+        assertEquals(17, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_fence"));
+        assertEquals(17, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:nether_brick_fence"));
 
-        // reset back to default
-        com.itemorganizer.core.model.ItemCategory.resetToDefaultOrder();
-        assertEquals(com.itemorganizer.core.model.ItemCategory.SHERDS, com.itemorganizer.core.model.ItemCategory.getCategory("minecraft:skull_pottery_sherd"));
+        assertEquals(18, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:cobblestone_wall"));
+        assertEquals(18, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:deepslate_brick_wall"));
+
+        assertEquals(19, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_slab"));
+        assertEquals(19, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:stone_slab"));
+
+        assertEquals(20, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_fence_gate"));
+        assertEquals(20, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:bamboo_fence_gate"));
+
+        assertEquals(21, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_stairs"));
+        assertEquals(21, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:brick_stairs"));
+
+        assertEquals(22, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_sapling"));
+        assertEquals(22, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:mangrove_propagule"));
+
+        assertEquals(23, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_leaves"));
+        assertEquals(23, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:cherry_leaves"));
+
+        assertEquals(24, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_carpet"));
+        assertEquals(24, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:red_carpet"));
+
+        assertEquals(25, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:lantern"));
+        assertEquals(25, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:soul_lantern"));
+
+        assertEquals(26, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:bookshelf"));
+        assertEquals(26, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:chiseled_bookshelf"));
+
+        assertEquals(27, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_sign"));
+        assertEquals(27, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:spruce_hanging_sign"));
+
+        assertEquals(28, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_door"));
+        assertEquals(28, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:iron_door"));
+
+        assertEquals(29, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_trapdoor"));
+        assertEquals(29, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:iron_trapdoor"));
+
+        assertEquals(30, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_pressure_plate"));
+        assertEquals(30, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:stone_pressure_plate"));
+
+        assertEquals(31, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_bed"));
+        assertEquals(31, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:red_bed"));
+
+        assertEquals(32, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_boat"));
+        assertEquals(32, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:bamboo_raft"));
+
+        assertEquals(33, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_button"));
+        assertEquals(33, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:stone_button"));
+
+        assertEquals(34, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_dye"));
+        assertEquals(34, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:red_dye"));
+
+        assertEquals(35, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:egg"));
+        assertEquals(35, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:turtle_egg"));
+        assertEquals(35, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:zombie_spawn_egg"));
+
+        assertEquals(36, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:candle"));
+        assertEquals(36, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_candle"));
+
+        assertEquals(37, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_banner"));
+        assertEquals(37, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:flower_banner_pattern"));
+
+        assertEquals(38, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:tube_coral"));
+        assertEquals(38, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:fire_coral_fan"));
+        assertEquals(1, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:brain_coral_block"));
+
+        assertEquals(39, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:harness"));
+        assertEquals(39, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:saddle"));
+        assertEquals(39, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:lead"));
+
+        assertEquals(40, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:diamond_pickaxe"));
+        assertEquals(40, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:iron_sword"));
+        assertEquals(40, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:bow"));
+        assertEquals(40, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:shield"));
+        assertEquals(40, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:spyglass"));
+
+        assertEquals(41, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:diamond_helmet"));
+        assertEquals(41, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:iron_chestplate"));
+        assertEquals(41, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:golden_leggings"));
+        assertEquals(41, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:chainmail_boots"));
+        assertEquals(41, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:elytra"));
+
+        assertEquals(42, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:blaze_rod"));
+        assertEquals(42, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:end_rod"));
+
+        assertEquals(43, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:bundle"));
+        assertEquals(43, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_bundle"));
+
+        assertEquals(44, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:book"));
+        assertEquals(44, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:enchanted_book"));
+        assertEquals(44, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:writable_book"));
+
+        assertEquals(45, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:angler_pottery_sherd"));
+        assertEquals(45, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:scrape_pottery_sherd"));
+        assertEquals(45, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:skull_pottery_sherd"));
+
+        assertEquals(46, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:skeleton_skull"));
+        assertEquals(46, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:zombie_head"));
+        assertEquals(46, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:creeper_head"));
+
+        assertEquals(47, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:coast_armor_trim_smithing_template"));
+        assertEquals(47, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:netherite_upgrade_smithing_template"));
+
+        assertEquals(48, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:shulker_box"));
+        assertEquals(48, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_shulker_box"));
+        assertEquals(48, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:shulker_shell"));
+
+        assertEquals(49, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:netherite_scrap"));
+
+        assertEquals(50, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:bucket"));
+        assertEquals(50, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:water_bucket"));
+        assertEquals(50, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:lava_bucket"));
+
+        assertEquals(51, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:potion"));
+        assertEquals(51, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:splash_potion"));
+
+        assertEquals(52, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:arrow"));
+        assertEquals(52, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:spectral_arrow"));
+
+        assertEquals(53, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:music_disc_13"));
+        assertEquals(53, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:music_disc_cat"));
+
+        assertEquals(54, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:rail"));
+        assertEquals(54, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:powered_rail"));
+
+        assertEquals(55, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:chest"));
+        assertEquals(55, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:trapped_chest"));
+        assertEquals(55, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:ender_chest"));
+
+        assertEquals(56, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:minecart"));
+        assertEquals(56, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:chest_minecart"));
+        assertEquals(56, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:hopper_minecart"));
+
+        assertEquals(57, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:copper_golem_statue"));
+
+        assertEquals(58, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:apple"));
+        assertEquals(58, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:diamond"));
+        assertEquals(58, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:glass_bottle"));
 
         // verify strict relative order with comparator
         java.util.Comparator<String> cmp = com.itemorganizer.gui.util.ItemColorHelper.getColorComparator();
