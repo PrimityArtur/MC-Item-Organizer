@@ -87,6 +87,7 @@
   "config.itemorganizer.panel_split": "Ancho Paneles",
   "config.itemorganizer.hotbar_scale": "Escala Hotbar",
   "config.itemorganizer.palette_scale": "Escala Hotbar Paletas",
+  "config.itemorganizer.palette_item_scale": "Escala Ítems Paletas",
   "config.itemorganizer.open_key": "Abrir Interfaz",
   "config.itemorganizer.quick_append_key": "Inserción Rápida",
   "config.itemorganizer.reset_defaults": "Restablecer Valores",

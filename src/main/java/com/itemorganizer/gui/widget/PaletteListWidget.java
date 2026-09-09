@@ -238,7 +238,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         List<DisplayPalette> displayList = getFilteredPalettes(allRows);
 
         float textScale = viewModel.getConfig().getTextScale();
-        float itemScale = viewModel.getConfig().getItemScale();
+        float itemScale = viewModel.getConfig().getPaletteItemScale();
 
         // top bar
         renderTopBar(context, tr, mouseX, mouseY, delta, textScale);

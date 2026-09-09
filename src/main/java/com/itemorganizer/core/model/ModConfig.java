@@ -10,6 +10,7 @@ public class ModConfig {
     private float splitRatio = 0.50f;       // left vs right split ratio (0.20 to 0.80)
     private float hotbarScale = 1.0f;       // hotbar size scale (0.5 to 2.0)
     private float paletteScale = 1.0f;      // palette size scale (0.5 to 2.0)
+    private float paletteItemScale = 1.0f;  // palette item render scale (0.5 to 1.5)
     private String keyOpenClose = "key.keyboard.o"; // toggle key
     private String keyQuickAppend = "key.keyboard.a"; // quick append key
     private String selectedProfile = "default"; // active profile name
@@ -85,6 +86,15 @@ public class ModConfig {
 
     public void setPaletteScale(float paletteScale) {
         this.paletteScale = Math.max(0.50f, Math.min(2.00f, paletteScale));
+    }
+
+    public float getPaletteItemScale() {
+        if (paletteItemScale < 0.10f) paletteItemScale = 1.0f;
+        return paletteItemScale;
+    }
+
+    public void setPaletteItemScale(float paletteItemScale) {
+        this.paletteItemScale = Math.max(0.50f, Math.min(1.50f, paletteItemScale));
     }
 
     public float getItemScale() {

@@ -12,11 +12,13 @@ import net.minecraft.client.gui.Selectable;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.input.KeyInput;
 import com.itemorganizer.gui.util.SoundHelper;
+import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket;
 import net.minecraft.registry.Registries;
 import net.minecraft.sound.SoundEvents;
+import org.lwjgl.glfw.GLFW;
 
 // bottom widget rendering the player hotbar slots
 public class HotbarWidget implements Drawable, Element, Selectable {
@@ -140,6 +142,23 @@ public class HotbarWidget implements Drawable, Element, Selectable {
         if (slot >= 0) {
             MinecraftClient client = MinecraftClient.getInstance();
             if (click.button() == 0 && client.player != null) {
+                // delete item with shift + left click
+                boolean hasShift = click.hasShift() || (client.getWindow() != null
+                        && (InputUtil.isKeyPressed(client.getWindow(), GLFW.GLFW_KEY_LEFT_SHIFT)
+                        || InputUtil.isKeyPressed(client.getWindow(), GLFW.GLFW_KEY_RIGHT_SHIFT)));
+                if (hasShift) {
+                    PlayerInventory inv = client.player.getInventory();
+                    ItemStack stack = inv.getStack(slot);
+                    if (!stack.isEmpty()) {
+                        inv.setStack(slot, ItemStack.EMPTY);
+                        if (client.getNetworkHandler() != null && client.player.isCreative()) {
+                            client.getNetworkHandler().sendPacket(new CreativeInventoryActionC2SPacket(36 + slot, ItemStack.EMPTY));
+                        }
+                        SoundHelper.playClick();
+                        return true;
+                    }
+                }
+
                 ItemStack stack = client.player.getInventory().getStack(slot);
                 if (!stack.isEmpty()) {
                     String itemId = Registries.ITEM.getId(stack.getItem()).toString();

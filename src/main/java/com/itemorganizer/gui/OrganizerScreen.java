@@ -1,5 +1,6 @@
 package com.itemorganizer.gui;
 
+import com.itemorganizer.client.ItemOrganizerClient;
 import com.itemorganizer.gui.navigation.LeftTab;
 import com.itemorganizer.gui.navigation.OrdenadoSubTab;
 import com.itemorganizer.gui.navigation.RightTab;
@@ -11,6 +12,8 @@ import com.itemorganizer.gui.widget.HotbarWidget;
 import com.itemorganizer.gui.widget.TabButtonWidget;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
 
 // main screen layout with left/right panels and hotbar
@@ -720,8 +723,21 @@ public class OrganizerScreen extends Screen {
             return true;
         }
 
+        // toggle close if open key is pressed
+        KeyBinding openKey = ItemOrganizerClient.getOpenKeyBinding();
+        if (openKey != null && openKey.matchesKey(input)) {
+            this.close();
+            return true;
+        }
+
+        InputUtil.Key pressedKey = InputUtil.fromKeyCode(input);
+        String openKeyStr = viewModel.getConfig().getKeyOpenClose();
+        if (pressedKey != null && openKeyStr != null && pressedKey.getTranslationKey().equalsIgnoreCase(openKeyStr)) {
+            this.close();
+            return true;
+        }
+
         // quick append key to organized grid
-        net.minecraft.client.util.InputUtil.Key pressedKey = net.minecraft.client.util.InputUtil.fromKeyCode(input);
         String appendKey = viewModel.getConfig().getKeyQuickAppend();
         if (pressedKey != null && pressedKey.getTranslationKey().equalsIgnoreCase(appendKey)) {
             String hoveredItem = null;

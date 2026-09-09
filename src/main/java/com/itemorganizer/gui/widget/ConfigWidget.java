@@ -57,6 +57,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
     private boolean draggingSplitRatio = false;
     private boolean draggingHotbarScale = false;
     private boolean draggingPaletteScale = false;
+    private boolean draggingPaletteItemScale = false;
 
     // key listening state
     private boolean listeningForKey = false;
@@ -227,7 +228,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
 
     private int calculateTotalHeight(float textScale) {
         int maxContentW = width - SCROLLBAR_WIDTH - 24;
-        return getShortcutGuideHeight(textScale, maxContentW) + Math.round(425 * Math.max(1.0f, textScale));
+        return getShortcutGuideHeight(textScale, maxContentW) + Math.round(455 * Math.max(1.0f, textScale));
     }
 
     @Override
@@ -456,8 +457,22 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             renderSlider(context, tr, slider7X, slider7Y, sliderW, sliderH, normPalette, palettePercent + "% (" + String.format("%.2f", cfg.getPaletteScale()) + "x)", mouseX, mouseY, textScale, 0x4D38BDF8, 0xFF38BDF8);
         }
 
+        // palette item scale slider
+        int sec8bY = slider7Y + sliderH + secGap;
+        int paletteItemPercent = Math.round(cfg.getPaletteItemScale() * 100.0f);
+        if (sec8bY + 12 >= listStartY && sec8bY <= listStartY + listHeight) {
+            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.palette_item_scale"), contentX, sec8bY, 0xFF38BDF8, true, textScale);
+        }
+
+        int slider7bX = contentX;
+        int slider7bY = sec8bY + labelGap;
+        if (slider7bY + sliderH >= listStartY && slider7bY <= listStartY + listHeight) {
+            float normPaletteItem = (cfg.getPaletteItemScale() - 0.50f) / 1.00f;
+            renderSlider(context, tr, slider7bX, slider7bY, sliderW, sliderH, normPaletteItem, paletteItemPercent + "% (" + String.format("%.2f", cfg.getPaletteItemScale()) + "x)", mouseX, mouseY, textScale, 0x4D38BDF8, 0xFF38BDF8);
+        }
+
         // open key binding
-        int sec9Y = slider7Y + sliderH + secGap;
+        int sec9Y = slider7bY + sliderH + secGap;
         if (sec9Y + 12 >= listStartY && sec9Y <= listStartY + listHeight) {
             TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.open_key"), contentX, sec9Y, 0xFF38BDF8, true, textScale);
         }
@@ -738,8 +753,18 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             return true;
         }
 
+        // palette item scale slider
+        int sec8bY = slider7Y + sliderH + secGap;
+        int slider7bX = contentX;
+        int slider7bY = sec8bY + labelGap;
+        if (mouseX >= slider7bX && mouseX <= slider7bX + sliderW && mouseY >= slider7bY && mouseY <= slider7bY + sliderH) {
+            draggingPaletteItemScale = true;
+            updatePaletteItemScaleFromMouse(mouseX, slider7bX, sliderW);
+            return true;
+        }
+
         // open/close key
-        int sec9Y = slider7Y + sliderH + secGap;
+        int sec9Y = slider7bY + sliderH + secGap;
         int keyBtnX = contentX;
         int keyBtnY = sec9Y + labelGap;
         int keyBtnW = Math.min(180, maxContentW);
@@ -881,6 +906,14 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         viewModel.updateConfig(c -> c.setPaletteScale(finalScale));
     }
 
+    private void updatePaletteItemScaleFromMouse(int mouseX, int sx, int sw) {
+        float norm = MathHelper.clamp((float) (mouseX - sx) / (float) sw, 0.0f, 1.0f);
+        float scale = 0.50f + (norm * 1.00f);
+        scale = Math.round(scale * 100.0f) / 100.0f;
+        final float finalScale = scale;
+        viewModel.updateConfig(c -> c.setPaletteItemScale(finalScale));
+    }
+
     private void resetToDefaults() {
         viewModel.updateConfig(c -> {
             c.setBackgroundColor(0x101010);
@@ -892,6 +925,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             c.setSplitRatio(0.50f);
             c.setHotbarScale(1.00f);
             c.setPaletteScale(1.00f);
+            c.setPaletteItemScale(1.00f);
             c.setKeyOpenClose("key.keyboard.o");
             c.setKeyQuickAppend("key.keyboard.a");
         });
@@ -919,6 +953,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         draggingSplitRatio = false;
         draggingHotbarScale = false;
         draggingPaletteScale = false;
+        draggingPaletteItemScale = false;
         scrollbar.mouseReleased(click);
         return false;
     }
@@ -976,6 +1011,10 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         }
         if (draggingPaletteScale) {
             updatePaletteScaleFromMouse(mouseX, contentX, sliderW);
+            return true;
+        }
+        if (draggingPaletteItemScale) {
+            updatePaletteItemScaleFromMouse(mouseX, contentX, sliderW);
             return true;
         }
 
