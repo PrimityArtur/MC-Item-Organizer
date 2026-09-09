@@ -34,12 +34,13 @@ Item Organizer adds a dedicated interface to view and manage Minecraft blocks an
 
 ## Controls
 
-| Key / Action | Function |
-| :--- | :--- |
-| **O** | Open or close the Item Organizer screen |
-| **Left Click** | Select an item or click UI buttons |
-| **Double Right Click** | Hide or unhide an item (Blocker list) |
-| **Escape** | Close the screen |
+| Key / Action           | Function                                |
+|:-----------------------|:----------------------------------------|
+| **O**                  | Open or close the Item Organizer screen |
+| **Left Click**         | Select an item or click UI buttons      |
+| **Double Right Click** | Hide or unhide an item (Blocker list)   |
+| **Ctrl + z**           | Revert Changes                          |
+| **Escape**             | Close the screen                        |
 
 ---
 
