@@ -467,6 +467,9 @@ public class ProfileAndConfigTest {
         assertEquals(46, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:skeleton_skull"));
         assertEquals(46, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:zombie_head"));
         assertEquals(46, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:creeper_head"));
+        assertEquals(46, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:conduit"));
+        assertEquals(46, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:dried_ghast"));
+        assertEquals(46, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:carved_pumpkin"));
 
         assertEquals(47, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:coast_armor_trim_smithing_template"));
         assertEquals(47, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:netherite_upgrade_smithing_template"));

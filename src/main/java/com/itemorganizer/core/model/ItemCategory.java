@@ -73,7 +73,9 @@ public enum ItemCategory {
     CHESTS("Chests"),
     MINECARTS("Minecarts"),
     GOLEMS("Golem Statues"),
-    MISC("Miscellaneous");
+    MISC("Miscellaneous"),
+    COMMAND_BLOCKS("Command Blocks"),
+    SPAWNERS("Spawners");
 
     private final String displayName;
 
@@ -85,13 +87,7 @@ public enum ItemCategory {
         return displayName;
     }
 
-    // =========================================================================
-    // CATEGORY DISPLAY ORDER
-    //
-    // TO CHANGE THE ORDER OF GROUPS:
-    // Simply rearrange the entries in the list below!
-    // The organizer will sort items group by group following this exact list.
-    // =========================================================================
+    // ORDER OF GROUPS
     public static final List<ItemCategory> DEFAULT_ORDER = List.of(
         FULL_BLOCKS,
         LOGS_AND_STEMS,
@@ -150,7 +146,9 @@ public enum ItemCategory {
         CHESTS,
         MINECARTS,
         GOLEMS,
-        MISC
+        MISC,
+        COMMAND_BLOCKS,
+        SPAWNERS
     );
 
     private static List<ItemCategory> activeOrder = new ArrayList<>(DEFAULT_ORDER);
@@ -266,43 +264,52 @@ public enum ItemCategory {
         } catch (Throwable ignored) {
         }
 
-        // 1. Glazed Terracotta
+        // Glazed Terracotta
         if (path.contains("glazed_terracotta") || path.contains("glazed")) {
             return GLAZED_TERRACOTTA;
         }
 
-        // 2. Ores
-        if (path.endsWith("_ore") || path.contains("_ore") || path.equals("ancient_debris") || path.equals("gilded_blackstone")) {
+        // command Blocks
+        if (path.equals("test_instance_block") || path.equals("barrier") || path.equals("command_block")
+            || path.equals("structure_block") || path.equals("structure_void") || path.equals("repeating_command_block") || path.equals("chain_command_block")
+            || path.equals("jigsaw") || path.equals("test_block")) {
+            return COMMAND_BLOCKS;
+        }
+
+        // spawners
+        if (path.contains("vault") || path.contains("trial_spawner") || path.contains("spawner")){
+            return SPAWNERS;
+        }
+
+        // Ores
+        if (path.endsWith("_ore") || path.contains("_ore") || path.equals("gilded_blackstone")) {
             return ORES;
         }
 
-        // 3. Grates
+        // Grates
         if (path.contains("grate")) {
             return GRATES;
         }
 
-        // 4. Bulbs
+        // Bulbs
         if (path.contains("bulb")) {
             return BULBS;
         }
 
-        // 5. Torches
+        // Torches
         if ((path.endsWith("torch") || path.contains("torch")) && !path.contains("torchflower")) {
             return TORCH;
         }
 
-        // 6. Redstone Tools & Components
+        // Redstone Tools & Components
         if (path.equals("redstone") || path.equals("redstone_wire") || path.equals("repeater") ||
-                path.equals("comparator") || path.equals("lever") || path.equals("tripwire_hook") ||
-                path.equals("daylight_detector") || path.equals("piston") || path.equals("sticky_piston") ||
+                path.equals("comparator") || path.equals("lever") || path.equals("tripwire_hook") || path.equals("piston") || path.equals("sticky_piston") ||
                 path.equals("dispenser") || path.equals("dropper") || path.equals("observer") ||
-                path.equals("hopper") || path.equals("tnt") || path.equals("target") ||
-                path.equals("redstone_lamp") || path.equals("sculk_sensor") || path.equals("calibrated_sculk_sensor") ||
-                path.contains("lightning_rod")) {
+                path.equals("hopper") || path.equals("tnt") || path.equals("target")) {
             return TOOLS_REDSTONE;
         }
 
-        // 7. Working Stations
+        // Working Stations
         if (path.equals("crafting_table") || path.equals("furnace") || path.equals("blast_furnace") ||
                 path.equals("smoker") || path.equals("stonecutter") || path.equals("smithing_table") ||
                 path.equals("cartography_table") || path.equals("fletching_table") || path.equals("loom") ||
@@ -314,7 +321,7 @@ public enum ItemCategory {
             return WORKING_STATIONS;
         }
 
-        // 8. Crops
+        // Crops
         if (path.equals("wheat") || path.equals("wheat_seeds") || path.equals("carrot") || path.equals("carrots") ||
                 path.equals("potato") || path.equals("potatoes") || path.equals("beetroot") || path.equals("beetroots") ||
                 path.equals("beetroot_seeds") || path.equals("melon_seeds") || path.equals("pumpkin_seeds") ||
@@ -324,18 +331,17 @@ public enum ItemCategory {
             return CROPS;
         }
 
-        // 9. Flowers
+        // Flowers
         if (isFlower(path, block, item)) {
             return FLOWERS;
         }
 
-        // 10. Logs & Stems
-        if (path.endsWith("_log") || path.equals("log") || path.endsWith("_stem") || path.equals("stem") ||
-                path.endsWith("_wood") || path.endsWith("_hyphae") || (path.contains("bamboo_block") && !path.contains("mosaic"))) {
+        // logs & Stems
+        if (path.endsWith("_log") || path.equals("log") || path.endsWith("_stem") || path.equals("stem")) {
             return LOGS_AND_STEMS;
         }
 
-        // 11. Glass Panes
+        // Glass Panes
         if (!path.contains("bars") && !path.endsWith("_bars") && !path.equals("bars")) {
             if (path.endsWith("glass_pane") || path.endsWith("glass_plane") || path.endsWith("_pane") || path.contains("glass_pane") ||
                     (path.contains("glass") && (path.contains("pane") || path.contains("plane")))) {
@@ -346,7 +352,7 @@ public enum ItemCategory {
             }
         }
 
-        // 12. Glass Blocks
+        // Glass Blocks
         if (!path.contains("pane") && !path.contains("plane") && !path.equals("spyglass") && !path.contains("bottle")) {
             if (block instanceof net.minecraft.block.StainedGlassBlock ||
                     path.endsWith("glass") || path.endsWith("_glass") || path.contains("stained_glass")) {
@@ -356,150 +362,152 @@ public enum ItemCategory {
             }
         }
 
-        // 13. Bars
+        // Bars
         if (path.endsWith("_bars") || path.equals("bars") || path.contains("bars")) {
             return BARS;
         }
 
-        // 14. Chains
+        // Chains
         if (path.endsWith("chain") || path.endsWith("chains") || path.equals("chain")) {
             return CHAINS;
         }
 
-        // 15. Fence Gates
+        // Fence Gates
         if (block instanceof net.minecraft.block.FenceGateBlock ||
                 path.endsWith("_fence_gate") || path.endsWith("_gate") || path.equals("fence_gate") || path.equals("gate")) {
             return FENCE_GATES;
         }
 
-        // 16. Fences
+        // Fences
         if (block instanceof net.minecraft.block.FenceBlock ||
                 path.endsWith("_fence") || path.equals("fence")) {
             return FENCES;
         }
 
-        // 17. Walls
+        // Walls
         if (block instanceof net.minecraft.block.WallBlock ||
                 ((path.endsWith("_wall") || path.equals("wall")) && !path.contains("torch") && !path.contains("sign") && !path.contains("banner") && !path.contains("fan"))) {
             return WALLS;
         }
 
-        // 18. Slabs
+        // Slabs
         if (block instanceof net.minecraft.block.SlabBlock ||
-                path.endsWith("_slab") || path.equals("slab")) {
+                path.endsWith("_slab") || path.equals("slab") ||
+                path.equals("sculk_sensor") || path.equals("calibrated_sculk_sensor") ||
+                path.equals("daylight_detector") ) {
             return SLABS;
         }
 
-        // 19. Stairs & Ladders
+        // Stairs & Ladders
         if (block instanceof net.minecraft.block.StairsBlock ||
                 path.endsWith("_stairs") || path.equals("stairs") || path.equals("ladder") || path.equals("scaffolding")) {
             return STAIRS;
         }
 
-        // 20. Saplings & Propagules
+        // saplings & Propagules
         if (block instanceof net.minecraft.block.SaplingBlock ||
                 path.endsWith("_sapling") || path.equals("sapling") || path.endsWith("_propagule") || path.equals("mangrove_propagule")) {
             return SAPLINGS;
         }
 
-        // 21. Leaves
+        // Leaves
         if (block instanceof net.minecraft.block.LeavesBlock ||
-                path.endsWith("_leaves") || path.equals("leaves")) {
+                path.endsWith("_leaves") || path.equals("leaves") || path.equals("mangrove_roots")) {
             return LEAVES;
         }
 
-        // 22. Carpets
+        // carpets
         if (block instanceof net.minecraft.block.CarpetBlock ||
-                path.endsWith("_carpet") || path.equals("carpet")) {
+                path.endsWith("_carpet") || path.equals("carpet") || path.equals("snow")) {
             return CARPETS;
         }
 
-        // 23. Lanterns & Light Sources
+        // Lanterns & Light Sources
         if (block instanceof net.minecraft.block.LanternBlock ||
-                path.endsWith("lantern") || path.equals("lantern") || path.equals("campfire") ||
-                path.equals("soul_campfire") || path.equals("sea_lantern") || path.equals("beacon") ||
+                path.endsWith("lantern") || path.equals("lantern") ||
+                path.equals("campfire") || path.equals("soul_campfire") || path.equals("sea_lantern") || path.equals("beacon") ||
                 path.equals("glowstone") || path.equals("shroomlight") || path.equals("jack_o_lantern") ||
-                path.contains("froglight")) {
+                path.equals("redstone_lamp") || path.contains("froglight")) {
             return LANTERNS;
         }
 
-        // 24. Shelves & Bookshelves
+        // Shelves & Bookshelves
         if (path.endsWith("bookshelf") || path.endsWith("shelf") || path.contains("shelf")) {
             return SHELVES;
         }
 
-        // 25. Signs & Hanging Signs
+        // Signs & Hanging Signs
         if (block instanceof net.minecraft.block.AbstractSignBlock ||
                 path.endsWith("_sign") || path.equals("sign") || path.endsWith("_hanging_sign") || path.equals("hanging_sign") || path.contains("hanging_sign")) {
             return SIGNS;
         }
 
-        // 26. Trapdoors
+        // Trapdoors
         if (block instanceof net.minecraft.block.TrapdoorBlock ||
                 path.endsWith("_trapdoor") || path.equals("trapdoor")) {
             return TRAPDOORS;
         }
 
-        // 27. Doors
+        // Doors
         if (block instanceof net.minecraft.block.DoorBlock ||
                 path.endsWith("_door") || path.equals("door")) {
             return DOORS;
         }
 
-        // 28. Pressure Plates
+        // Pressure Plates
         if (block instanceof net.minecraft.block.PressurePlateBlock ||
                 path.endsWith("_pressure_plate") || path.equals("pressure_plate")) {
             return PRESSURE_PLATES;
         }
 
-        // 29. Beds
+        // Beds
         if (block instanceof net.minecraft.block.BedBlock ||
                 ((path.endsWith("_bed") || path.equals("bed")) && !path.contains("bedrock"))) {
             return BEDS;
         }
 
-        // 30. Boats & Rafts
+        // Boats & Rafts
         if (item instanceof net.minecraft.item.BoatItem ||
                 path.endsWith("_boat") || path.equals("boat") || path.endsWith("_raft") || path.equals("raft")) {
             return BOATS;
         }
 
-        // 31. Buttons
+        // Buttons
         if (block instanceof net.minecraft.block.ButtonBlock ||
                 path.endsWith("_button") || path.equals("button")) {
             return BUTTONS;
         }
 
-        // 32. Dyes
+        // Dyes
         if (item instanceof net.minecraft.item.DyeItem ||
                 path.endsWith("_dye") || path.equals("dye")) {
             return DYES;
         }
 
-        // 33. Golems & Statues
+        // Golems & Statues
         if (path.contains("golem") && !path.contains("spawn_egg") && !path.endsWith("_egg")) {
             return GOLEMS;
         }
 
-        // 34. Spawn Eggs & Eggs
+        // Spawn Eggs & Eggs
         if (item instanceof net.minecraft.item.SpawnEggItem ||
                 path.endsWith("_egg") || path.equals("egg")) {
             return SPAWN_EGGS;
         }
 
-        // 35. Candles
+        // Candles
         if (block instanceof net.minecraft.block.CandleBlock ||
                 path.endsWith("_candle") || path.equals("candle") || path.contains("candle")) {
             return CANDLES;
         }
 
-        // 36. Banners
+        // Banners
         if (block instanceof net.minecraft.block.BannerBlock ||
                 path.endsWith("_banner") || path.equals("banner") || path.contains("banner")) {
             return BANNERS;
         }
 
-        // 37. Corals
+        // Corals
         if (!path.contains("coral_block") && !(block instanceof net.minecraft.block.CoralBlockBlock)) {
             if (block instanceof net.minecraft.block.CoralBlock ||
                     block instanceof net.minecraft.block.CoralFanBlock ||
@@ -509,107 +517,107 @@ public enum ItemCategory {
             }
         }
 
-        // 38. Harness & Saddles
+        // Harness & Saddles
         if (path.contains("harness") || path.equals("saddle") || path.equals("lead")) {
             return HARNESS;
         }
 
-        // 39. Tools & Weapons
+        // Heads & Skulls
+        if (isHead(path)) {
+            return HEADS;
+        }
+
+        // Tools & Weapons
         if (isTool(path, item)) {
             return TOOLS;
         }
 
-        // 40. Armor
+        // Armor
         if (isArmor(path, item)) {
             return ARMOR;
         }
 
-        // 41. Rods
+        // Rods
         if ((path.endsWith("_rod") || path.equals("rod")) && !path.equals("fishing_rod") && !path.endsWith("_on_a_stick")) {
             return RODS;
         }
 
-        // 42. Bundles
+        // Bundles
         if ((item != null && item.getComponents().contains(net.minecraft.component.DataComponentTypes.BUNDLE_CONTENTS)) ||
                 path.endsWith("_bundle") || path.equals("bundle") || path.contains("bundle")) {
             return BUNDLES;
         }
 
-        // 43. Books
+        // Books
         if ((item != null && (item.getComponents().contains(net.minecraft.component.DataComponentTypes.WRITTEN_BOOK_CONTENT) ||
                 item.getComponents().contains(net.minecraft.component.DataComponentTypes.WRITABLE_BOOK_CONTENT))) ||
                 ((path.endsWith("book") || path.contains("book")) && !path.contains("shelf"))) {
             return BOOKS;
         }
 
-        // 44. Pottery Sherds & Pots
+        // Pottery Sherds & Pots
         if (isSherd(path, item) || path.equals("decorated_pot") || path.equals("flower_pot")) {
             return SHERDS;
         }
 
-        // 45. Heads & Skulls
-        if ((path.endsWith("_head") || path.equals("head") || path.endsWith("_skull") || path.equals("skull") || path.contains("head") || path.contains("skull")) && !path.contains("banner")) {
-            return HEADS;
-        }
-
-        // 46. Trims & Templates
+        // Trims & Templates
         if (path.contains("trim") || path.contains("smithing_template")) {
             return TRIMS;
         }
 
-        // 47. Shulker Boxes
-        if (block instanceof net.minecraft.block.ShulkerBoxBlock || path.contains("shulker")) {
+        // Shulker Boxes
+        if (path.contains("shulker")) {
             return SHULKER_BOXES;
         }
 
-        // 48. Scraps
+        // Scraps
         if (path.contains("scrap") || path.contains("scrape")) {
             return SCRAPS;
         }
 
-        // 49. Buckets
+        // Buckets
         if (item instanceof net.minecraft.item.BucketItem || path.endsWith("bucket") || path.contains("bucket")) {
             return BUCKETS;
         }
 
-        // 50. Potions
+        // Potions
         if ((item != null && item.getComponents().contains(net.minecraft.component.DataComponentTypes.POTION_CONTENTS)) || path.contains("potion")) {
             return POTIONS;
         }
 
-        // 51. Arrows
+        // Arrows
         if (item instanceof net.minecraft.item.ArrowItem || path.endsWith("arrow") || path.contains("arrow")) {
             return ARROWS;
         }
 
-        // 52. Music Discs
+        // Music Discs
         if ((item != null && item.getComponents().contains(net.minecraft.component.DataComponentTypes.JUKEBOX_PLAYABLE)) ||
                 path.contains("music_disc") || path.contains("disc")) {
             return DISCS;
         }
 
-        // 53. Rails
+        // Rails
         if (block instanceof net.minecraft.block.AbstractRailBlock || path.endsWith("rail") || path.contains("rail")) {
             return RAILS;
         }
 
-        // 54. Chests
+        // Chests
         if (!path.contains("chestplate") && !path.contains("minecart") && (path.contains("chest") || path.contains("chess"))) {
             return CHESTS;
         }
 
-        // 55. Minecarts
+        // Minecarts
         if (path.contains("minecart")) {
             return MINECARTS;
         }
 
-        // 56. Uncategorized Vegetation
+        // Uncategorized Vegetation
         if (isUncategorizedVegetation(path, block)) {
             return UNCATEGORIZED_VEGETATION;
         }
 
-        // 57. Full Cube Blocks
-        if (isFullCubeBlock(item, block, path)) {
+        // Full Cube Blocks
+        if (isFullCubeBlock(item, block, path) || path.contains("farmland") || path.contains("dirt_path")) {
             return FULL_BLOCKS;
         }
 
@@ -626,15 +634,6 @@ public enum ItemCategory {
                 path.equals("wildflowers") || path.equals("cactus_flower") || path.equals("spore_blossom") ||
                 path.equals("chorus_flower")) {
             return true;
-        }
-        try {
-            if (item != null && item.getDefaultStack().isIn(net.minecraft.registry.tag.ItemTags.FLOWERS)) {
-                return true;
-            }
-            if (block instanceof net.minecraft.block.FlowerBlock || block instanceof net.minecraft.block.TallFlowerBlock) {
-                return true;
-            }
-        } catch (Throwable ignored) {
         }
         return false;
     }
@@ -654,7 +653,7 @@ public enum ItemCategory {
                 path.equals("sea_pickle") || path.equals("cactus") || path.equals("big_dripleaf") ||
                 path.equals("small_dripleaf") || path.equals("brown_mushroom") || path.equals("red_mushroom") ||
                 path.equals("crimson_fungus") || path.equals("warped_fungus") || path.equals("glow_lichen") ||
-                path.equals("sculk_vein") || path.equals("chorus_plant") || path.equals("mangrove_roots") ||
+                path.equals("sculk_vein") || path.equals("chorus_plant") ||
                 path.equals("azalea") || path.equals("flowering_azalea") || path.equals("frogspawn");
     }
 
@@ -687,7 +686,22 @@ public enum ItemCategory {
                 path.contains("wrench") || path.contains("hammer");
     }
 
+    private static boolean isHead(String path) {
+        if (path.contains("banner") || path.contains("sherd") || path.contains("pattern") || path.contains("piston")) {
+            return false;
+        }
+        return path.endsWith("_head") || path.equals("head") ||
+                path.endsWith("_skull") || path.equals("skull") ||
+                path.equals("conduit") || path.contains("conduit") ||
+                path.equals("dried_ghast") || path.contains("dried_ghast") ||
+                path.equals("carved_pumpkin") ||
+                path.contains("head") || path.contains("skull");
+    }
+
     private static boolean isArmor(String path, Item item) {
+        if (isHead(path)) {
+            return false;
+        }
         if (item != null) {
             try {
                 if (item.getComponents().contains(net.minecraft.component.DataComponentTypes.EQUIPPABLE) ||
@@ -743,9 +757,10 @@ public enum ItemCategory {
                 path.endsWith("_ingot") || path.endsWith("_nugget") || path.endsWith("_dust") ||
                 path.contains("feather") || path.contains("string") || path.contains("flint") ||
                 path.contains("chest") || path.contains("hopper") || path.contains("cauldron") ||
-                path.contains("bottle") || path.contains("pearl") || path.contains("powder")) {
+                path.contains("bottle") || path.contains("pearl") || path.contains("powder") ||
+                path.contains("respawn")) {
             return false;
         }
         return true;
     }
-}
+}
