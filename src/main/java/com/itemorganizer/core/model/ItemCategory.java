@@ -20,16 +20,11 @@ public enum ItemCategory {
     LOGS_AND_STEMS("Logs & Stems"),
     ORES("Ores"),
     GLAZED_TERRACOTTA("Glazed Terracotta"),
-    GRATES("Grates"),
-    BULBS("Bulbs"),
     TOOLS_REDSTONE("Redstone Tools"),
     WORKING_STATIONS("Working Stations"),
-    UNCATEGORIZED_VEGETATION("Uncategorized Vegetation"),
-    CROPS("Crops"),
-    FLOWERS("Flowers"),
-    TORCH("Torches"),
     GLASS("Glass"),
     GLASS_PANES("Glass Panes"),
+    GRATES("Grates"),
     BARS("Bars"),
     CHAINS("Chains"),
     FENCES("Fences"),
@@ -39,8 +34,15 @@ public enum ItemCategory {
     STAIRS("Stairs"),
     SAPLINGS("Saplings"),
     LEAVES("Leaves"),
+    UNCATEGORIZED_VEGETATION("Uncategorized Vegetation"),
+    CROPS("Crops"),
+    FLOWERS("Flowers"),
+    CORALS("Corals"),
     CARPETS("Carpets"),
+    BULBS("Bulbs"),
+    LANTERN_BLOCKS("Lantern Blocks"),
     LANTERNS("Lanterns & Lights"),
+    TORCH("Torches"),
     SHELVES("Shelves & Bookshelves"),
     SIGNS("Signs & Hanging Signs"),
     DOORS("Doors"),
@@ -53,7 +55,6 @@ public enum ItemCategory {
     SPAWN_EGGS("Spawn Eggs"),
     CANDLES("Candles"),
     BANNERS("Banners"),
-    CORALS("Corals"),
     HARNESS("Harness & Saddles"),
     TOOLS("Tools & Weapons"),
     ARMOR("Armor"),
@@ -89,66 +90,67 @@ public enum ItemCategory {
 
     // ORDER OF GROUPS
     public static final List<ItemCategory> DEFAULT_ORDER = List.of(
-        FULL_BLOCKS,
-        LOGS_AND_STEMS,
-        ORES,
-        GLAZED_TERRACOTTA,
-        GRATES,
-        BULBS,
-        TOOLS_REDSTONE,
-        WORKING_STATIONS,
-        UNCATEGORIZED_VEGETATION,
-        CROPS,
-        FLOWERS,
-        TORCH,
-        GLASS,
-        GLASS_PANES,
-        BARS,
-        CHAINS,
-        FENCES,
-        WALLS,
-        SLABS,
-        FENCE_GATES,
-        STAIRS,
-        SAPLINGS,
-        LEAVES,
-        CARPETS,
-        LANTERNS,
-        SHELVES,
-        SIGNS,
-        DOORS,
-        TRAPDOORS,
-        PRESSURE_PLATES,
-        BEDS,
-        BOATS,
-        BUTTONS,
-        DYES,
-        SPAWN_EGGS,
-        CANDLES,
-        BANNERS,
-        CORALS,
-        HARNESS,
-        TOOLS,
-        ARMOR,
-        RODS,
-        BUNDLES,
-        BOOKS,
-        SHERDS,
-        HEADS,
-        TRIMS,
-        SHULKER_BOXES,
-        SCRAPS,
-        BUCKETS,
-        POTIONS,
-        ARROWS,
-        DISCS,
-        RAILS,
-        CHESTS,
-        MINECARTS,
-        GOLEMS,
-        MISC,
-        COMMAND_BLOCKS,
-        SPAWNERS
+            FULL_BLOCKS,
+            LOGS_AND_STEMS,
+            ORES,
+            GLAZED_TERRACOTTA,
+            GLASS,
+            GLASS_PANES,
+            TOOLS_REDSTONE,
+            WORKING_STATIONS,
+            GRATES,
+            BARS,
+            CHAINS,
+            FENCES,
+            RODS,
+            WALLS,
+            SLABS,
+            STAIRS,
+            SHERDS,
+            SAPLINGS,
+            LEAVES,
+            UNCATEGORIZED_VEGETATION,
+            CROPS,
+            FLOWERS,
+            CORALS,
+            CARPETS,
+            BULBS,
+            LANTERN_BLOCKS,
+            LANTERNS,
+            TORCH,
+            SHELVES,
+            SIGNS,
+            FENCE_GATES,
+            DOORS,
+            TRAPDOORS,
+            PRESSURE_PLATES,
+            BEDS,
+            BOATS,
+            BUTTONS,
+            DYES,
+            SPAWN_EGGS,
+            CANDLES,
+            BANNERS,
+            HARNESS,
+            TOOLS,
+            ARMOR,
+            BUNDLES,
+            BOOKS,
+            HEADS,
+            TRIMS,
+            SHULKER_BOXES,
+            SCRAPS,
+            BUCKETS,
+            POTIONS,
+            ARROWS,
+            DISCS,
+            RAILS,
+            CHESTS,
+            MINECARTS,
+            GOLEMS,
+            MISC,
+            COMMAND_BLOCKS,
+            SPAWNERS
     );
 
     private static List<ItemCategory> activeOrder = new ArrayList<>(DEFAULT_ORDER);
@@ -423,13 +425,16 @@ public enum ItemCategory {
         }
 
         // Lanterns & Light Sources
-        if (block instanceof net.minecraft.block.LanternBlock ||
-                path.endsWith("lantern") || path.equals("lantern") ||
-                path.equals("campfire") || path.equals("soul_campfire") || path.equals("sea_lantern") || path.equals("beacon") ||
+        if (path.equals("campfire") || path.equals("soul_campfire") || path.equals("sea_lantern") || path.equals("beacon") ||
                 path.equals("glowstone") || path.equals("shroomlight") || path.equals("jack_o_lantern") ||
                 path.equals("redstone_lamp") || path.contains("froglight")) {
+            return LANTERN_BLOCKS;
+        }
+
+        if (path.endsWith("lantern") || path.equals("lantern")) {
             return LANTERNS;
         }
+
 
         // Shelves & Bookshelves
         if (path.endsWith("bookshelf") || path.endsWith("shelf") || path.contains("shelf")) {
@@ -632,7 +637,8 @@ public enum ItemCategory {
                 path.equals("pitcher_plant") || path.equals("sunflower") || path.equals("lilac") ||
                 path.equals("rose_bush") || path.equals("peony") || path.equals("pink_petals") ||
                 path.equals("wildflowers") || path.equals("cactus_flower") || path.equals("spore_blossom") ||
-                path.equals("chorus_flower")) {
+                path.equals("chorus_flower") || path.equals("brown_mushroom") || path.equals("red_mushroom") ||
+                path.equals("crimson_fungus") || path.equals("warped_fungus") ) {
             return true;
         }
         return false;
@@ -651,8 +657,7 @@ public enum ItemCategory {
                 path.equals("crimson_roots") || path.equals("hanging_roots") || path.equals("pale_hanging_moss") ||
                 path.equals("leaf_litter") || path.equals("resin_clump") || path.equals("lily_pad") ||
                 path.equals("sea_pickle") || path.equals("cactus") || path.equals("big_dripleaf") ||
-                path.equals("small_dripleaf") || path.equals("brown_mushroom") || path.equals("red_mushroom") ||
-                path.equals("crimson_fungus") || path.equals("warped_fungus") || path.equals("glow_lichen") ||
+                path.equals("small_dripleaf") || path.equals("glow_lichen") ||
                 path.equals("sculk_vein") || path.equals("chorus_plant") ||
                 path.equals("azalea") || path.equals("flowering_azalea") || path.equals("frogspawn");
     }
