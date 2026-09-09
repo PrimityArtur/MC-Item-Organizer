@@ -36,9 +36,19 @@ public class PaletteSlotUndoAction implements UndoAction {
         PaletteData data = viewModel.getPaletteData();
         if (data != null) {
             PaletteRow row = data.findRowById(paletteId);
-            if (row != null && slot >= 0 && slot < 9) {
+            if (row != null && slot >= 0 && slot < row.getSlotCount()) {
                 row.setSlot(slot, previousItemId);
                 StorageManager.getInstance().getPaletteRepository().save(data);
+                return;
+            }
+        }
+        PaletteData infData = viewModel.getInfinitePaletteData();
+        if (infData != null) {
+            PaletteRow row = infData.findRowById(paletteId);
+            if (row != null && slot >= 0) {
+                row.setSlot(slot, previousItemId);
+                row.updateInfiniteSlots();
+                StorageManager.getInstance().getInfinitePaletteRepository().save(infData);
             }
         }
     }

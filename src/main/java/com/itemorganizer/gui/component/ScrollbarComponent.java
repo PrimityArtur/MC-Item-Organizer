@@ -42,7 +42,11 @@ public class ScrollbarComponent {
     }
 
     public void setScrollOffset(double offset) {
-        this.scrollOffset = MathHelper.clamp(offset, 0, maxScroll);
+        if (this.maxScroll > 0) {
+            this.scrollOffset = MathHelper.clamp(offset, 0, this.maxScroll);
+        } else {
+            this.scrollOffset = Math.max(0, offset);
+        }
     }
 
     public double getMaxScroll() {

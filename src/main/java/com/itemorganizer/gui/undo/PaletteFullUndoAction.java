@@ -6,23 +6,24 @@ import com.itemorganizer.gui.viewmodel.OrganizerViewModel;
 import com.itemorganizer.storage.StorageManager;
 import net.minecraft.client.MinecraftClient;
 
-// restores all 9 slots of a palette row to their previous items
+import java.util.ArrayList;
+import java.util.List;
+
+// restores all slots of a palette row to their previous items
 public class PaletteFullUndoAction implements UndoAction {
     private final String paletteId;
-    private final String[] previousSlots = new String[9];
+    private final List<String> previousSlots;
 
     public PaletteFullUndoAction(PaletteRow row) {
         this.paletteId = (row != null) ? row.getId() : "";
-        for (int i = 0; i < 9; i++) {
-            this.previousSlots[i] = (row != null) ? row.getSlot(i) : null;
-        }
+        this.previousSlots = (row != null && row.getSlots() != null) ? new ArrayList<>(row.getSlots()) : new ArrayList<>();
     }
 
     public String getPaletteId() {
         return paletteId;
     }
 
-    public String[] getPreviousSlots() {
+    public List<String> getPreviousSlots() {
         return previousSlots;
     }
 
@@ -33,10 +34,18 @@ public class PaletteFullUndoAction implements UndoAction {
         if (data != null) {
             PaletteRow row = data.findRowById(paletteId);
             if (row != null) {
-                for (int i = 0; i < 9; i++) {
-                    row.setSlot(i, previousSlots[i]);
-                }
+                row.setSlots(new ArrayList<>(previousSlots));
                 StorageManager.getInstance().getPaletteRepository().save(data);
+                return;
+            }
+        }
+        PaletteData infData = viewModel.getInfinitePaletteData();
+        if (infData != null) {
+            PaletteRow row = infData.findRowById(paletteId);
+            if (row != null) {
+                row.setSlots(new ArrayList<>(previousSlots));
+                row.updateInfiniteSlots();
+                StorageManager.getInstance().getInfinitePaletteRepository().save(infData);
             }
         }
     }

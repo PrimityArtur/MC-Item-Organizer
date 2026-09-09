@@ -25,14 +25,24 @@ import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.input.CharInput;
 import net.minecraft.client.input.KeyInput;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket;
 import net.minecraft.registry.Registries;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -69,6 +79,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     private int hoveredOriginalRowIndex = -1;
     private int hoveredSlotIndex = -1;
     private boolean hoveredLoadBtn = false;
+    private boolean hoveredPlaceWorldBtn = false;
     private boolean hoveredPasteHotbarBtn = false;
     private boolean hoveredDeleteBtn = false;
     private boolean hoveredDupBtn = false;
@@ -83,14 +94,21 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     private int lastShiftPaletteRow = -1;
     private int lastShiftPaletteSlot = -1;
 
+    private final boolean infiniteMode;
+
     public record DisplayPalette(int originalIndex, PaletteRow row) {}
 
     public PaletteListWidget(OrganizerViewModel viewModel, int x, int y, int width, int height) {
+        this(viewModel, x, y, width, height, false);
+    }
+
+    public PaletteListWidget(OrganizerViewModel viewModel, int x, int y, int width, int height, boolean infiniteMode) {
         this.viewModel = viewModel;
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
+        this.infiniteMode = infiniteMode;
 
         int listStartY = y + getTopBarHeight() + 2;
         int listHeight = height - getTopBarHeight() - 4;
@@ -111,21 +129,21 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     }
 
     public int getHeaderHeight() {
-        float paletteScale = viewModel.getConfig().getPaletteScale();
+        float btnScale = viewModel.getConfig().getPaletteButtonScale();
         float textScale = viewModel.getConfig().getTextScale();
         int btnH = getButtonSize();
         int textH = Math.round(9 * textScale);
-        return Math.max(btnH + 2, Math.max(textH + 2, Math.round(10 * Math.max(paletteScale, textScale))));
+        return Math.max(btnH + 2, Math.max(textH + 2, Math.round(10 * Math.max(btnScale, textScale))));
     }
 
     public int getButtonSize() {
-        float paletteScale = viewModel.getConfig().getPaletteScale();
-        return Math.max(6, Math.min(16, Math.round(8 * paletteScale)));
+        float btnScale = viewModel.getConfig().getPaletteButtonScale();
+        return Math.max(6, Math.min(22, Math.round(8 * btnScale)));
     }
 
     public int getButtonGap() {
-        float paletteScale = viewModel.getConfig().getPaletteScale();
-        return Math.max(1, Math.round(2 * paletteScale));
+        float btnScale = viewModel.getConfig().getPaletteButtonScale();
+        return Math.max(1, Math.round(2 * btnScale));
     }
 
     private void initInputs() {
@@ -138,11 +156,63 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         int searchW = Math.max(30, width - SCROLLBAR_WIDTH - addBtnW - 12);
         this.searchField = new TextFieldWidget(tr, x + 4, y + 2, searchW, searchH, Text.translatable("palettes.itemorganizer.search_placeholder"));
         this.searchField.setPlaceholder(Text.translatable("palettes.itemorganizer.search_placeholder"));
-        this.searchField.setChangedListener(text -> scrollbar.setScrollOffset(0));
+        String initialQuery = infiniteMode ? viewModel.getInfinitePaletteSearchQuery() : viewModel.getPaletteSearchQuery();
+        if (initialQuery != null && !initialQuery.isEmpty()) {
+            this.searchField.setText(initialQuery);
+        }
+        this.searchField.setChangedListener(text -> {
+            String current = infiniteMode ? viewModel.getInfinitePaletteSearchQuery() : viewModel.getPaletteSearchQuery();
+            if (!Objects.equals(text, current)) {
+                if (infiniteMode) {
+                    viewModel.setInfinitePaletteSearchQuery(text);
+                } else {
+                    viewModel.setPaletteSearchQuery(text);
+                }
+                scrollbar.setScrollOffset(0);
+            }
+        });
         this.searchField.setDrawsBackground(false);
 
         this.renameField = new TextFieldWidget(tr, x + 20, y + 20, 120, 16, Text.translatable("palettes.itemorganizer.rename.title"));
         this.renameField.setMaxLength(24);
+    }
+
+    public PaletteData getPaletteData() {
+        return infiniteMode ? viewModel.getInfinitePaletteData() : viewModel.getPaletteData();
+    }
+
+    public void savePaletteData(PaletteData data) {
+        if (data == null) return;
+        if (infiniteMode) {
+            StorageManager.getInstance().getInfinitePaletteRepository().save(data);
+        } else {
+            StorageManager.getInstance().getPaletteRepository().save(data);
+        }
+    }
+
+    public boolean isInfiniteMode() {
+        return infiniteMode;
+    }
+
+    public String getSearchText() {
+        return searchField != null ? searchField.getText() : "";
+    }
+
+    public void setSearchText(String text) {
+        if (searchField != null) {
+            String clean = (text != null) ? text : "";
+            if (!Objects.equals(searchField.getText(), clean)) {
+                searchField.setText(clean);
+            }
+        }
+    }
+
+    public double getScrollOffset() {
+        return scrollbar.getScrollOffset();
+    }
+
+    public void setScrollOffset(double offset) {
+        scrollbar.setScrollOffset(offset);
     }
 
     public void setBounds(int x, int y, int width, int height) {
@@ -182,10 +252,26 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         return Math.max(10, Math.min(36, scaled));
     }
 
+    public int getSlotsPerRow(int cardW, int slotSize) {
+        int availW = Math.max(slotSize, cardW - 8);
+        return Math.max(1, availW / slotSize);
+    }
+
     public int getCardHeight() {
+        return getCardHeight(null);
+    }
+
+    public int getCardHeight(PaletteRow row) {
         int slotSize = getSlotSize();
         int headerH = getHeaderHeight();
-        return 2 + headerH + 2 + slotSize + 3;
+        if (!infiniteMode || row == null) {
+            return 2 + headerH + 2 + slotSize + 3;
+        }
+        int cardW = getCardWidth();
+        int slotsPerRow = getSlotsPerRow(cardW, slotSize);
+        int totalLines = Math.max(1, (row.getSlotCount() + slotsPerRow - 1) / slotsPerRow);
+        int slotGap = 1;
+        return 2 + headerH + 2 + (totalLines * slotSize) + ((totalLines - 1) * slotGap) + 3;
     }
 
     public int getCardGap() {
@@ -200,8 +286,8 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         for (int i = 0; i < allRows.size(); i++) {
             PaletteRow row = allRows.get(i);
 
-            // filter by search filter palette if active
-            if (searchFilterWidget != null && searchFilterWidget.isActive()) {
+            // filter by search filter palette if active in standard mode
+            if (!infiniteMode && searchFilterWidget != null && searchFilterWidget.isActive()) {
                 if (!searchFilterWidget.matches(row)) {
                     continue;
                 }
@@ -227,7 +313,8 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
             // filter by item names inside slots
             boolean matchedItem = false;
-            for (int s = 0; s < 9; s++) {
+            int count = row.getSlotCount();
+            for (int s = 0; s < count; s++) {
                 String itemId = row.getSlot(s);
                 if (itemId != null) {
                     if (itemId.toLowerCase().contains(query)) {
@@ -248,15 +335,25 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         return list;
     }
 
-    private int calculateTotalContentHeight(int filteredCount) {
-        return (filteredCount * (getCardHeight() + getCardGap())) + 8;
+    public int calculateTotalContentHeight(int count) {
+        if (count <= 0) return 0;
+        return (count * getCardHeight()) + ((count - 1) * getCardGap()) + 8;
+    }
+
+    private int calculateTotalContentHeight(List<DisplayPalette> displayList) {
+        int total = 8;
+        int cardGap = getCardGap();
+        for (DisplayPalette dp : displayList) {
+            total += getCardHeight(dp.row()) + cardGap;
+        }
+        return total;
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         MinecraftClient client = MinecraftClient.getInstance();
         TextRenderer tr = client.textRenderer;
-        PaletteData data = viewModel.getPaletteData();
+        PaletteData data = getPaletteData();
         if (data == null) return;
 
         List<PaletteRow> allRows = data.getRows();
@@ -272,7 +369,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         int topBarH = getTopBarHeight();
         int listStartY = y + topBarH + 2;
         int listHeight = height - topBarH - 4;
-        int totalContentHeight = calculateTotalContentHeight(displayList.size());
+        int totalContentHeight = calculateTotalContentHeight(displayList);
         scrollbar.setBounds(x + width - SCROLLBAR_WIDTH - 2, listStartY, SCROLLBAR_WIDTH, listHeight);
         scrollbar.updateMaxScroll(totalContentHeight, listHeight);
 
@@ -284,10 +381,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         int cardX = x + 4;
         int cardW = getCardWidth();
         int slotSize = getSlotSize();
-        int cardH = getCardHeight();
         int cardGap = getCardGap();
-        int totalSlotsW = 9 * slotSize;
-        int slotsStartX = cardX + Math.max(4, (cardW - totalSlotsW) / 2);
         float effectiveScale = ((float) slotSize / 16.0f) * itemScale;
 
         int currentY = listStartY + 3 - scrollY;
@@ -305,6 +399,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
             DisplayPalette dp = displayList.get(i);
             PaletteRow row = dp.row();
             int origIdx = dp.originalIndex();
+            int cardH = getCardHeight(row);
 
             if (currentY + cardH >= listStartY && currentY <= listStartY + listHeight) {
                 boolean isCardHover = (activeModal == null && origIdx == hoveredOriginalRowIndex);
@@ -325,11 +420,19 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                 int btnY = headerY + (headerH - btnH) / 2;
 
                 int btnDeleteX = cardX + cardW - 3 - btnW;
-                int btnLoadX = btnDeleteX - btnGap - btnW;
-                int btnPasteHotbarX = btnLoadX - btnGap - btnW;
-                int btnDupX = btnPasteHotbarX - btnGap - btnW;
+                int btnPlaceWorldX = btnDeleteX - btnGap - btnW;
+                int nextBtnX = btnPlaceWorldX;
 
-                boolean showReorder = (cardW >= 150 && searchField.getText().trim().isEmpty());
+                int btnLoadX = -1;
+                if (!infiniteMode) {
+                    btnLoadX = nextBtnX - btnGap - btnW;
+                    nextBtnX = btnLoadX;
+                }
+                int btnPasteHotbarX = nextBtnX - btnGap - btnW;
+                nextBtnX = btnPasteHotbarX;
+
+                int btnDupX = nextBtnX - btnGap - btnW;
+                boolean showReorder = (cardW >= 170 && searchField.getText().trim().isEmpty());
                 int btnDownX = showReorder ? btnDupX - btnGap - btnW : btnDupX;
                 int btnUpX = showReorder ? btnDownX - btnGap - btnW : btnDownX;
                 int leftmostBtnX = showReorder ? btnUpX : btnDupX;
@@ -354,6 +457,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                 float btnCenterY = btnY + (btnH - 1) / 2.0f;
 
                 boolean hoverLoad = (isCardHover && hoveredLoadBtn);
+                boolean hoverPlaceWorld = (isCardHover && hoveredPlaceWorldBtn);
                 boolean hoverPasteHotbar = (isCardHover && hoveredPasteHotbarBtn);
                 boolean hoverDel = (isCardHover && hoveredDeleteBtn);
                 boolean hoverDup = (isCardHover && hoveredDupBtn);
@@ -380,30 +484,45 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                 RenderHelper.drawBorder(context, btnDupX, btnY, btnW, btnH, hoverDup ? 0xFF38BDF8 : 0x8038BDF8);
                 RenderHelper.drawDuplicateIcon(context, btnDupX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverDup ?  0xFFFFFFFF : 0xFFBAE6FD);
 
+                // place in world button
+                context.fill(btnPlaceWorldX, btnY, btnPlaceWorldX + btnW, btnY + btnH, hoverPlaceWorld ? 0x80581C87 : 0x40581C87);
+                RenderHelper.drawBorder(context, btnPlaceWorldX, btnY, btnW, btnH, hoverPlaceWorld ? 0xFFA855F7 : 0x80A855F7);
+                RenderHelper.drawPlaceWorldIcon(context, btnPlaceWorldX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverPlaceWorld ? 0xFFFFFFFF : 0xFFE9D5FF);
+
                 // paste hotbar button
                 context.fill(btnPasteHotbarX, btnY, btnPasteHotbarX + btnW, btnY + btnH, hoverPasteHotbar ? 0x8078350F : 0x4078350F);
                 RenderHelper.drawBorder(context, btnPasteHotbarX, btnY, btnW, btnH, hoverPasteHotbar ? 0xFFF59E0B : 0x80F59E0B);
                 RenderHelper.drawPasteHotbarIcon(context, btnPasteHotbarX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverPasteHotbar ? 0xFFFFFFFF : 0xFFFDE68A);
 
-                // load button
-                context.fill(btnLoadX, btnY, btnLoadX + btnW, btnY + btnH, hoverLoad ? 0x80065F46 : 0x40065F46);
-                RenderHelper.drawBorder(context, btnLoadX, btnY, btnW, btnH, hoverLoad ? 0xFF34D399 : 0x8034D399);
-                RenderHelper.drawLoadHotbarIcon(context, btnLoadX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverLoad ? 0xFFFFFFFF : 0xFFA7F3D0);
+                if (!infiniteMode) {
+                    // load button
+                    context.fill(btnLoadX, btnY, btnLoadX + btnW, btnY + btnH, hoverLoad ? 0x80065F46 : 0x40065F46);
+                    RenderHelper.drawBorder(context, btnLoadX, btnY, btnW, btnH, hoverLoad ? 0xFF34D399 : 0x8034D399);
+                    RenderHelper.drawLoadHotbarIcon(context, btnLoadX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverLoad ? 0xFFFFFFFF : 0xFFA7F3D0);
+                }
 
                 // delete button
                 context.fill(btnDeleteX, btnY, btnDeleteX + btnW, btnY + btnH, hoverDel ? 0x807F1D1D : 0x407F1D1D);
                 RenderHelper.drawBorder(context, btnDeleteX, btnY, btnW, btnH, hoverDel ? 0xFFEF4444 : 0x80EF4444);
                 RenderHelper.drawDeleteIcon(context, btnDeleteX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverDel ? 0xFFFFFFFF : 0xFFFCA5A5);
 
-                // 9 slot continuous strip
+                // continuous slot strip with wrapping in infinite mode
                 int slotsY = headerY + headerH + 2;
-                for (int s = 0; s < 9; s++) {
-                    int slotX = slotsStartX + (s * slotSize);
+                int slotCount = row.getSlotCount();
+                int slotsPerRow = infiniteMode ? getSlotsPerRow(cardW, slotSize) : slotCount;
+                int slotGap = 1;
+                int slotsStartX = infiniteMode ? (cardX + 4) : (cardX + Math.max(4, (cardW - (slotCount * slotSize)) / 2));
+
+                for (int s = 0; s < slotCount; s++) {
+                    int line = infiniteMode ? (s / slotsPerRow) : 0;
+                    int col = infiniteMode ? (s % slotsPerRow) : s;
+                    int slotX = slotsStartX + (col * slotSize);
+                    int slotY = slotsY + (line * (slotSize + slotGap));
                     boolean isSlotHover = (isCardHover && hoveredSlotIndex == s);
 
                     String itemId = row.getSlot(s);
                     ItemStack stack = RenderHelper.getItemStack(itemId);
-                    RenderHelper.renderSlot(context, tr, stack, slotX, slotsY, slotSize, itemScale,
+                    RenderHelper.renderSlot(context, tr, stack, slotX, slotY, slotSize, itemScale,
                             isSlotHover, 0x1A000000, 0x3338BDF8, 0x22FFFFFF, UITheme.PRIMARY);
                 }
             }
@@ -500,6 +619,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         hoveredOriginalRowIndex = -1;
         hoveredSlotIndex = -1;
         hoveredLoadBtn = false;
+        hoveredPlaceWorldBtn = false;
         hoveredPasteHotbarBtn = false;
         hoveredDeleteBtn = false;
         hoveredDupBtn = false;
@@ -533,10 +653,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         int cardX = x + 4;
         int cardW = getCardWidth();
         int slotSize = getSlotSize();
-        int cardH = getCardHeight();
         int cardGap = getCardGap();
-        int totalSlotsW = 9 * slotSize;
-        int slotsStartX = cardX + Math.max(4, (cardW - totalSlotsW) / 2);
 
         int currentY = listStartY + 3 - scrollY;
 
@@ -544,6 +661,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
             DisplayPalette dp = displayList.get(i);
             PaletteRow row = dp.row();
             int origIdx = dp.originalIndex();
+            int cardH = getCardHeight(row);
 
             if (mouseY >= currentY && mouseY < currentY + cardH && mouseX >= cardX && mouseX <= cardX + cardW) {
                 hoveredOriginalRowIndex = origIdx;
@@ -556,11 +674,19 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                 int btnY = headerY + (headerH - btnH) / 2;
 
                 int btnDeleteX = cardX + cardW - 3 - btnW;
-                int btnLoadX = btnDeleteX - btnGap - btnW;
-                int btnPasteHotbarX = btnLoadX - btnGap - btnW;
-                int btnDupX = btnPasteHotbarX - btnGap - btnW;
+                int btnPlaceWorldX = btnDeleteX - btnGap - btnW;
+                int nextBtnX = btnPlaceWorldX;
 
-                boolean showReorder = (cardW >= 150 && searchField.getText().trim().isEmpty());
+                int btnLoadX = -1;
+                if (!infiniteMode) {
+                    btnLoadX = nextBtnX - btnGap - btnW;
+                    nextBtnX = btnLoadX;
+                }
+                int btnPasteHotbarX = nextBtnX - btnGap - btnW;
+                nextBtnX = btnPasteHotbarX;
+
+                int btnDupX = nextBtnX - btnGap - btnW;
+                boolean showReorder = (cardW >= 170 && searchField.getText().trim().isEmpty());
                 int btnDownX = showReorder ? btnDupX - btnGap - btnW : btnDupX;
                 int btnUpX = showReorder ? btnDownX - btnGap - btnW : btnDownX;
                 int leftmostBtnX = showReorder ? btnUpX : btnDupX;
@@ -572,9 +698,14 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                         activeTooltip = Text.translatable("palettes.itemorganizer.tooltip.delete").getString();
                         return;
                     }
-                    if (mouseX >= btnLoadX && mouseX <= btnLoadX + btnW) {
+                    if (!infiniteMode && mouseX >= btnLoadX && mouseX <= btnLoadX + btnW) {
                         hoveredLoadBtn = true;
                         activeTooltip = Text.translatable("palettes.itemorganizer.tooltip.load_hotbar").getString();
+                        return;
+                    }
+                    if (mouseX >= btnPlaceWorldX && mouseX <= btnPlaceWorldX + btnW) {
+                        hoveredPlaceWorldBtn = true;
+                        activeTooltip = Text.translatable("palettes.itemorganizer.tooltip.place_world").getString();
                         return;
                     }
                     if (mouseX >= btnPasteHotbarX && mouseX <= btnPasteHotbarX + btnW) {
@@ -607,18 +738,48 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                     return;
                 }
 
-                // check 9 slots
+                // check slots
                 int slotsY = headerY + headerH + 2;
-                if (mouseY >= slotsY && mouseY < slotsY + slotSize) {
-                    for (int s = 0; s < 9; s++) {
-                        int slotX = slotsStartX + (s * slotSize);
-                        if (mouseX >= slotX && mouseX < slotX + slotSize) {
-                            hoveredSlotIndex = s;
-                            String itemId = row.getSlot(s);
-                            if (itemId != null) {
-                                hoveredStack = getItemStackFromId(itemId);
+                int slotCount = row.getSlotCount();
+                int slotsPerRow = infiniteMode ? getSlotsPerRow(cardW, slotSize) : slotCount;
+                int slotGap = 1;
+                int slotsStartX = infiniteMode ? (cardX + 4) : (cardX + Math.max(4, (cardW - (slotCount * slotSize)) / 2));
+
+                if (infiniteMode) {
+                    int totalLines = Math.max(1, (slotCount + slotsPerRow - 1) / slotsPerRow);
+                    int totalSlotsHeight = (totalLines * slotSize) + ((totalLines - 1) * slotGap);
+                    if (mouseY >= slotsY && mouseY < slotsY + totalSlotsHeight && mouseX >= slotsStartX) {
+                        int relY = (int) mouseY - slotsY;
+                        int line = relY / (slotSize + slotGap);
+                        int lineRem = relY % (slotSize + slotGap);
+                        if (lineRem < slotSize) {
+                            int relX = (int) mouseX - slotsStartX;
+                            int col = relX / slotSize;
+                            if (col >= 0 && col < slotsPerRow) {
+                                int s = (line * slotsPerRow) + col;
+                                if (s >= 0 && s < slotCount) {
+                                    hoveredSlotIndex = s;
+                                    String itemId = row.getSlot(s);
+                                    if (itemId != null) {
+                                        hoveredStack = getItemStackFromId(itemId);
+                                    }
+                                    return;
+                                }
                             }
-                            return;
+                        }
+                    }
+                } else {
+                    if (mouseY >= slotsY && mouseY < slotsY + slotSize) {
+                        for (int s = 0; s < slotCount; s++) {
+                            int slotX = slotsStartX + (s * slotSize);
+                            if (mouseX >= slotX && mouseX < slotX + slotSize) {
+                                hoveredSlotIndex = s;
+                                String itemId = row.getSlot(s);
+                                if (itemId != null) {
+                                    hoveredStack = getItemStackFromId(itemId);
+                                }
+                                return;
+                            }
                         }
                     }
                 }
@@ -666,11 +827,11 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         }
 
         if (click.button() == 0 && hoveredTopAddBtn) {
-            PaletteData data = viewModel.getPaletteData();
+            PaletteData data = getPaletteData();
             if (data != null) {
-                PaletteRow newRow = new PaletteRow();
+                PaletteRow newRow = new PaletteRow(9);
                 data.addRow(newRow);
-                StorageManager.getInstance().getPaletteRepository().save(data);
+                savePaletteData(data);
                 searchField.setText("");
                 playClickSound();
             }
@@ -683,34 +844,44 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         }
 
         // clicks inside cards
-        PaletteData data = viewModel.getPaletteData();
+        PaletteData data = getPaletteData();
         if (data == null) return false;
         List<PaletteRow> allRows = data.getRows();
 
         if (hoveredOriginalRowIndex >= 0 && hoveredOriginalRowIndex < allRows.size()) {
             PaletteRow row = allRows.get(hoveredOriginalRowIndex);
 
-            if (click.button() == 0 && hoveredLoadBtn) {
+            if (!infiniteMode && click.button() == 0 && hoveredLoadBtn) {
                 loadRowToHotbar(row);
+                return true;
+            }
+
+            if (click.button() == 0 && hoveredPlaceWorldBtn) {
+                placePaletteInWorld(row);
                 return true;
             }
 
             if (click.button() == 0 && hoveredPasteHotbarBtn) {
                 pastingHotbarPaletteId = row.getId();
-                activeModal = ModalDialogComponent.builder()
-                        .parentBounds(x, y, width, height)
-                        .size(Math.min(220, width - 20), 85)
-                        .type(ModalDialogComponent.ModalType.WARNING)
-                        .title(Text.translatable("palettes.itemorganizer.paste_hotbar.title"))
-                        .message(Text.translatable("palettes.itemorganizer.paste_hotbar.warning"))
-                        .confirmButton(Text.translatable("palettes.itemorganizer.paste_hotbar.confirm"), this::executePasteHotbar)
-                        .cancelButton(Text.translatable("button.itemorganizer.cancel"), () -> {
-                            pastingHotbarPaletteId = null;
-                            activeModal = null;
-                        })
-                        .build();
-                playClickSound();
-                return true;
+                if (infiniteMode) {
+                    executePasteHotbar();
+                    return true;
+                } else {
+                    activeModal = ModalDialogComponent.builder()
+                            .parentBounds(x, y, width, height)
+                            .size(Math.min(220, width - 20), 85)
+                            .type(ModalDialogComponent.ModalType.WARNING)
+                            .title(Text.translatable("palettes.itemorganizer.paste_hotbar.title"))
+                            .message(Text.translatable("palettes.itemorganizer.paste_hotbar.warning"))
+                            .confirmButton(Text.translatable("palettes.itemorganizer.paste_hotbar.confirm"), this::executePasteHotbar)
+                            .cancelButton(Text.translatable("button.itemorganizer.cancel"), () -> {
+                                pastingHotbarPaletteId = null;
+                                activeModal = null;
+                            })
+                            .build();
+                    playClickSound();
+                    return true;
+                }
             }
 
             if (click.button() == 0 && hoveredDeleteBtn) {
@@ -733,14 +904,14 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
             if (click.button() == 0 && hoveredDupBtn) {
                 data.duplicateRow(hoveredOriginalRowIndex);
-                StorageManager.getInstance().getPaletteRepository().save(data);
+                savePaletteData(data);
                 playClickSound();
                 return true;
             }
 
             if (click.button() == 0 && hoveredUpBtn) {
                 if (data.moveUp(hoveredOriginalRowIndex)) {
-                    StorageManager.getInstance().getPaletteRepository().save(data);
+                    savePaletteData(data);
                     playClickSound();
                 }
                 return true;
@@ -748,7 +919,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
             if (click.button() == 0 && hoveredDownBtn) {
                 if (data.moveDown(hoveredOriginalRowIndex)) {
-                    StorageManager.getInstance().getPaletteRepository().save(data);
+                    savePaletteData(data);
                     playClickSound();
                 }
                 return true;
@@ -785,7 +956,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
             }
 
             // slot interaction
-            if (hoveredSlotIndex >= 0 && hoveredSlotIndex < 9) {
+            if (hoveredSlotIndex >= 0 && hoveredSlotIndex < row.getSlotCount()) {
                 // right click: clear slot
                 if (click.button() == 1) {
                     String previous = row.getSlot(hoveredSlotIndex);
@@ -795,7 +966,10 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                         );
                     }
                     row.clearSlot(hoveredSlotIndex);
-                    StorageManager.getInstance().getPaletteRepository().save(data);
+                    if (infiniteMode) {
+                        row.updateInfiniteSlots();
+                    }
+                    savePaletteData(data);
                     SoundHelper.playBreak();
                     return true;
                 }
@@ -826,13 +1000,13 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
     private void applyRename() {
         if (renamingPaletteId == null) return;
-        PaletteData data = viewModel.getPaletteData();
+        PaletteData data = getPaletteData();
         if (data != null) {
             for (PaletteRow row : data.getRows()) {
                 if (renamingPaletteId.equals(row.getId())) {
                     String newName = renameField.getText().trim();
                     row.setName(newName.isEmpty() ? null : newName);
-                    StorageManager.getInstance().getPaletteRepository().save(data);
+                    savePaletteData(data);
                     break;
                 }
             }
@@ -844,10 +1018,10 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
     private void executeDeletePalette() {
         if (deletingPaletteId == null) return;
-        PaletteData data = viewModel.getPaletteData();
+        PaletteData data = getPaletteData();
         if (data != null) {
             data.removeRowById(deletingPaletteId);
-            StorageManager.getInstance().getPaletteRepository().save(data);
+            savePaletteData(data);
         }
         deletingPaletteId = null;
         activeModal = null;
@@ -856,7 +1030,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
     private void executePasteHotbar() {
         if (pastingHotbarPaletteId == null) return;
-        PaletteData data = viewModel.getPaletteData();
+        PaletteData data = getPaletteData();
         if (data != null) {
             PaletteRow row = data.findRowById(pastingHotbarPaletteId);
             if (row != null) {
@@ -865,16 +1039,30 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                 );
                 MinecraftClient client = MinecraftClient.getInstance();
                 if (client.player != null) {
-                    for (int s = 0; s < 9; s++) {
-                        ItemStack st = client.player.getInventory().getStack(s);
-                        if (st != null && !st.isEmpty()) {
-                            Identifier id = Registries.ITEM.getId(st.getItem());
-                            row.setSlot(s, id != null ? id.toString() : null);
-                        } else {
-                            row.setSlot(s, null);
+                    if (infiniteMode) {
+                        List<String> hotbarItems = new ArrayList<>();
+                        for (int s = 0; s < 9; s++) {
+                            ItemStack st = client.player.getInventory().getStack(s);
+                            if (st != null && !st.isEmpty()) {
+                                Identifier id = Registries.ITEM.getId(st.getItem());
+                                hotbarItems.add(id != null ? id.toString() : null);
+                            } else {
+                                hotbarItems.add(null);
+                            }
+                        }
+                        row.appendItems(hotbarItems);
+                    } else {
+                        for (int s = 0; s < 9; s++) {
+                            ItemStack st = client.player.getInventory().getStack(s);
+                            if (st != null && !st.isEmpty()) {
+                                Identifier id = Registries.ITEM.getId(st.getItem());
+                                row.setSlot(s, id != null ? id.toString() : null);
+                            } else {
+                                row.setSlot(s, null);
+                            }
                         }
                     }
-                    StorageManager.getInstance().getPaletteRepository().save(data);
+                    savePaletteData(data);
                 }
             }
         }
@@ -907,6 +1095,71 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         SoundHelper.playClick();
     }
 
+    // place palette blocks horizontally in the world starting below the player and teleport player 1 block to the left
+    public void placePaletteInWorld(PaletteRow row) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.player == null || client.world == null || row == null) return;
+
+        BlockPos startPos = client.player.getBlockPos().down();
+        Direction facing = client.player.getHorizontalFacing();
+        MinecraftServer server = client.getServer();
+
+        int slotCount = row.getSlotCount();
+        for (int i = 0; i < slotCount; i++) {
+            String itemId = row.getSlot(i);
+            if (itemId == null || itemId.trim().isEmpty()) continue;
+
+            Identifier id = Identifier.tryParse(itemId.trim());
+            if (id == null) continue;
+
+            Item item = Registries.ITEM.get(id);
+            if (item instanceof BlockItem blockItem) {
+                BlockPos targetPos = startPos.offset(facing, i);
+                BlockState state = blockItem.getBlock().getDefaultState();
+
+                if (server != null) {
+                    RegistryKey<World> key = client.world.getRegistryKey();
+                    server.execute(() -> {
+                        ServerWorld serverWorld = server.getWorld(key);
+                        if (serverWorld != null) {
+                            serverWorld.setBlockState(targetPos, state, Block.NOTIFY_ALL);
+                        }
+                    });
+                } else if (client.getNetworkHandler() != null) {
+                    client.getNetworkHandler().sendChatCommand(
+                            String.format(java.util.Locale.ROOT, "setblock %d %d %d %s",
+                                    targetPos.getX(), targetPos.getY(), targetPos.getZ(), itemId.trim())
+                    );
+                }
+                client.world.setBlockState(targetPos, state, Block.NOTIFY_ALL);
+            }
+        }
+
+        // teleport player 1 block to their left (counter-clockwise relative to facing direction)
+        Direction leftDir = facing.rotateYCounterclockwise();
+        int dx = leftDir.getOffsetX();
+        int dz = leftDir.getOffsetZ();
+        double newX = client.player.getX() + dx;
+        double newY = client.player.getY();
+        double newZ = client.player.getZ() + dz;
+
+        if (server != null) {
+            server.execute(() -> {
+                ServerPlayerEntity serverPlayer = server.getPlayerManager().getPlayer(client.player.getUuid());
+                if (serverPlayer != null) {
+                    serverPlayer.requestTeleport(newX, newY, newZ);
+                }
+            });
+        } else if (client.getNetworkHandler() != null) {
+            client.getNetworkHandler().sendChatCommand(
+                    String.format(java.util.Locale.ROOT, "tp @s ~%d ~ ~%d", dx, dz)
+            );
+        }
+        client.player.setPosition(newX, newY, newZ);
+
+        SoundHelper.playChime();
+    }
+
     @Override
     public boolean mouseReleased(Click click) {
         lastShiftPaletteRow = -1;
@@ -917,7 +1170,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
         DragAndDropManager dragManager = DragAndDropManager.getInstance();
         if (dragManager.isDragging()) {
-            PaletteData data = viewModel.getPaletteData();
+            PaletteData data = getPaletteData();
             if (data != null) {
                 updateHover(click.x(), click.y(), getFilteredPalettes(data.getRows()), data.getRows().size());
                 if (hoveredOriginalRowIndex >= 0 && hoveredSlotIndex >= 0 && hoveredOriginalRowIndex < data.getRows().size()) {
@@ -928,8 +1181,10 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                             new com.itemorganizer.gui.undo.PaletteSlotUndoAction(row.getId(), hoveredSlotIndex, previous)
                     );
                     row.setSlot(hoveredSlotIndex, payload.getItemId());
-
-                    StorageManager.getInstance().getPaletteRepository().save(data);
+                    if (infiniteMode) {
+                        row.updateInfiniteSlots();
+                    }
+                    savePaletteData(data);
                     SoundHelper.playClick();
                     dragManager.consumePayload();
                     return true;
@@ -947,7 +1202,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         }
 
         if (click.button() == 0 && HotbarActionHelper.hasShiftDown(click)) {
-            PaletteData data = viewModel.getPaletteData();
+            PaletteData data = getPaletteData();
             if (data != null) {
                 updateHover(click.x(), click.y(), getFilteredPalettes(data.getRows()), data.getRows().size());
                 if (hoveredOriginalRowIndex >= 0 && hoveredSlotIndex >= 0 && hoveredOriginalRowIndex < data.getRows().size()) {

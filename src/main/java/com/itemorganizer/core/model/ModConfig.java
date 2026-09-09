@@ -12,6 +12,7 @@ public class ModConfig {
     private float hotbarItemScale = 1.0f;   // hotbar item render scale (0.5 to 1.5)
     private float paletteScale = 1.0f;      // palette size scale (0.5 to 2.0)
     private float paletteItemScale = 1.0f;  // palette item render scale (0.5 to 1.5)
+    private float paletteButtonScale = 1.0f; // palette action buttons scale (0.5 to 2.0)
     private String keyOpenClose = "key.keyboard.o"; // toggle key
     private String keyQuickAppend = "key.keyboard.a"; // quick append key
     private String keyUndo = "key.keyboard.z"; // undo shortcut key
@@ -106,6 +107,15 @@ public class ModConfig {
 
     public void setPaletteItemScale(float paletteItemScale) {
         this.paletteItemScale = Math.max(0.50f, Math.min(1.50f, paletteItemScale));
+    }
+
+    public float getPaletteButtonScale() {
+        if (paletteButtonScale < 0.10f) paletteButtonScale = 1.0f;
+        return paletteButtonScale;
+    }
+
+    public void setPaletteButtonScale(float paletteButtonScale) {
+        this.paletteButtonScale = Math.max(0.50f, Math.min(2.00f, paletteButtonScale));
     }
 
     public float getItemScale() {

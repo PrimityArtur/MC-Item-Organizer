@@ -142,6 +142,13 @@ public class ProfileAndConfigTest {
         assertEquals(0.50f, config.getPaletteItemScale(), 0.001f);
         config.setPaletteItemScale(3.50f);
         assertEquals(1.50f, config.getPaletteItemScale(), 0.001f);
+
+        // palette button scale clamping (0.50 to 2.00, default 1.00)
+        assertEquals(1.00f, config.getPaletteButtonScale(), 0.001f);
+        config.setPaletteButtonScale(0.20f);
+        assertEquals(0.50f, config.getPaletteButtonScale(), 0.001f);
+        config.setPaletteButtonScale(3.50f);
+        assertEquals(2.00f, config.getPaletteButtonScale(), 0.001f);
     }
 
     @Test
@@ -792,9 +799,9 @@ public class ProfileAndConfigTest {
         // full row undo snapshot
         com.itemorganizer.gui.undo.PaletteFullUndoAction fullAction = new com.itemorganizer.gui.undo.PaletteFullUndoAction(row);
         assertEquals(row.getId(), fullAction.getPaletteId());
-        assertEquals("minecraft:stone", fullAction.getPreviousSlots()[0]);
-        assertEquals("minecraft:dirt", fullAction.getPreviousSlots()[1]);
-        assertNull(fullAction.getPreviousSlots()[2]);
+        assertEquals("minecraft:stone", fullAction.getPreviousSlots().get(0));
+        assertEquals("minecraft:dirt", fullAction.getPreviousSlots().get(1));
+        assertNull(fullAction.getPreviousSlots().get(2));
 
         // slot undo snapshot
         com.itemorganizer.gui.undo.PaletteSlotUndoAction slotAction = new com.itemorganizer.gui.undo.PaletteSlotUndoAction(row.getId(), 0, "minecraft:stone");

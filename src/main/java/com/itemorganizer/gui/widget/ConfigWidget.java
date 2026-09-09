@@ -62,6 +62,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
     private SliderComponent hotbarItemScaleSlider;
     private SliderComponent paletteScaleSlider;
     private SliderComponent paletteItemScaleSlider;
+    private SliderComponent paletteButtonScaleSlider;
 
     // key listening state
     private boolean listeningForKey = false;
@@ -220,6 +221,12 @@ public class ConfigWidget implements Drawable, Element, Selectable {
                 v -> Math.round(v * 100.0) + "% (" + String.format("%.2f", v) + "x)");
         paletteItemScaleSlider.setColors(0x40000000, 0x4D38BDF8, 0x25FFFFFF, 0xFF38BDF8);
 
+        paletteButtonScaleSlider = new SliderComponent(null, 0.50, 2.00,
+                () -> (double) viewModel.getConfig().getPaletteButtonScale(),
+                v -> viewModel.updateConfig(c -> c.setPaletteButtonScale(Math.round(v.floatValue() * 100.0f) / 100.0f)),
+                v -> Math.round(v * 100.0) + "% (" + String.format("%.2f", v) + "x)");
+        paletteButtonScaleSlider.setColors(0x40000000, 0x4D38BDF8, 0x25FFFFFF, 0xFF38BDF8);
+
         allSliders.clear();
         allSliders.add(redSlider);
         allSliders.add(greenSlider);
@@ -234,6 +241,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         allSliders.add(hotbarItemScaleSlider);
         allSliders.add(paletteScaleSlider);
         allSliders.add(paletteItemScaleSlider);
+        allSliders.add(paletteButtonScaleSlider);
     }
 
     public void setBounds(int x, int y, int width, int height) {
@@ -354,9 +362,88 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         return (lines.size() * lineSpacing) + 8;
     }
 
+    private void renderBlockCard(DrawContext context, TextRenderer tr, int cardX, int blockY, int cardW, int blockH, Text title, float textScale) {
+        int headerH = Math.max(14, Math.round(14 * textScale));
+        context.fill(cardX, blockY, cardX + cardW, blockY + blockH, 0x1A0A0E17);
+        RenderHelper.drawBorder(context, cardX, blockY, cardW, blockH, 0x2638BDF8);
+        context.fill(cardX, blockY, cardX + cardW, blockY + headerH, 0x2A1E293B);
+        context.fill(cardX, blockY + headerH, cardX + cardW, blockY + headerH + 1, 0x2638BDF8);
+        TextScaleHelper.drawScaledText(context, tr, title, cardX + 6, blockY + 3, 0xFF38BDF8, true, textScale);
+    }
+
+    private int getBlock1Height(float textScale, int maxContentW) {
+        int guideH = getShortcutGuideHeight(textScale, maxContentW);
+        if (guideH <= 0) return 0;
+        int headerH = Math.max(14, Math.round(14 * textScale));
+        return headerH + 6 + guideH;
+    }
+
+    private int getBlock2Height(float textScale, int cardW) {
+        int headerH = Math.max(14, Math.round(14 * textScale));
+        int labelGap = Math.max(10, Math.round(8 * textScale) + 2);
+        int sliderH = Math.max(12, Math.round(12 * Math.max(1.0f, textScale)));
+        int rgbSliderH = 11;
+        int swatchSize = 14;
+        int chipW = 16;
+        int chipH = 14;
+
+        int presetStartX = (x + 14) + swatchSize + 4 + 54 + 6;
+        boolean presetsInline = (presetStartX + (PRESETS.length * (chipW + 3)) <= (x + 6) + cardW - 6);
+        int presetRowH = presetsInline ? 0 : chipH + 4;
+
+        int bgH = 12 + labelGap + swatchSize + 4 + presetRowH + (3 * (rgbSliderH + 3)) + 6;
+        int transpH = 12 + labelGap + sliderH + 6;
+        int blurH = 12 + labelGap + sliderH + 6;
+        int splitH = 12 + labelGap + sliderH + 6;
+        int textH = 12 + labelGap + sliderH + 6;
+
+        return headerH + 6 + bgH + transpH + blurH + splitH + textH + 4;
+    }
+
+    private int getBlock3Height(float textScale) {
+        int headerH = Math.max(14, Math.round(14 * textScale));
+        int labelGap = Math.max(10, Math.round(8 * textScale) + 2);
+        int sliderH = Math.max(12, Math.round(12 * Math.max(1.0f, textScale)));
+        int itemH = 12 + labelGap + sliderH + 6;
+        return headerH + 6 + (2 * itemH) + 4;
+    }
+
+    private int getBlock4Height(float textScale) {
+        int headerH = Math.max(14, Math.round(14 * textScale));
+        int labelGap = Math.max(10, Math.round(8 * textScale) + 2);
+        int sliderH = Math.max(12, Math.round(12 * Math.max(1.0f, textScale)));
+        int itemH = 12 + labelGap + sliderH + 6;
+        return headerH + 6 + (2 * itemH) + 4;
+    }
+
+    private int getBlock5Height(float textScale) {
+        int headerH = Math.max(14, Math.round(14 * textScale));
+        int labelGap = Math.max(10, Math.round(8 * textScale) + 2);
+        int sliderH = Math.max(12, Math.round(12 * Math.max(1.0f, textScale)));
+        int itemH = 12 + labelGap + sliderH + 6;
+        return headerH + 6 + (3 * itemH) + 4;
+    }
+
+    private int getBlock6Height(float textScale) {
+        int headerH = Math.max(14, Math.round(14 * textScale));
+        int labelGap = Math.max(10, Math.round(8 * textScale) + 2);
+        int keyBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
+        int itemH = 12 + labelGap + keyBtnH + 6;
+        int resetBtnH = keyBtnH + 6;
+        return headerH + 6 + (3 * itemH) + resetBtnH + 4;
+    }
+
     private int calculateTotalHeight(float textScale) {
-        int maxContentW = width - SCROLLBAR_WIDTH - 24;
-        return getShortcutGuideHeight(textScale, maxContentW) + Math.round(520 * Math.max(1.0f, textScale));
+        int cardW = width - SCROLLBAR_WIDTH - 16;
+        int contentW = cardW - 16;
+        int b1 = getBlock1Height(textScale, contentW);
+        int b2 = getBlock2Height(textScale, cardW);
+        int b3 = getBlock3Height(textScale);
+        int b4 = getBlock4Height(textScale);
+        int b5 = getBlock5Height(textScale);
+        int b6 = getBlock6Height(textScale);
+        int gap = 8;
+        return (b1 > 0 ? b1 + gap : 0) + b2 + gap + b3 + gap + b4 + gap + b5 + gap + b6 + 16;
     }
 
     @Override
@@ -368,375 +455,384 @@ public class ConfigWidget implements Drawable, Element, Selectable {
 
         int listStartY = y + 8;
         int listHeight = height - 16;
-        int contentX = x + 10;
-        int maxContentW = width - SCROLLBAR_WIDTH - 24;
         scrollbar.updateMaxScroll(calculateTotalHeight(textScale), listHeight);
 
         context.enableScissor(x + 4, listStartY, x + width - 4, listStartY + listHeight);
 
         int scroll = (int) scrollbar.getScrollOffset();
-        int sliderW = Math.min(180, maxContentW);
+        int cardX = x + 6;
+        int cardW = width - SCROLLBAR_WIDTH - 16;
+        int contentX = cardX + 8;
+        int contentW = cardW - 16;
+        int sliderW = Math.min(contentW, 180);
         int sliderH = Math.max(12, Math.round(12 * Math.max(1.0f, textScale)));
         int labelGap = Math.max(10, Math.round(8 * textScale) + 2);
         int secGap = 6;
+        int headerH = Math.max(14, Math.round(14 * textScale));
+        int blockGap = 8;
 
-        // shortcut guide
-        float guideScale = Math.max(0.70f, Math.min(1.0f, textScale * 0.85f));
-        int lineSpacing = Math.max(10, Math.round(11 * guideScale));
-        List<String> guideLines = buildGuideLines(tr, cfg, maxContentW, guideScale);
+        int b1H = getBlock1Height(textScale, contentW);
+        int b2H = getBlock2Height(textScale, cardW);
+        int b3H = getBlock3Height(textScale);
+        int b4H = getBlock4Height(textScale);
+        int b5H = getBlock5Height(textScale);
+        int b6H = getBlock6Height(textScale);
 
-        int guideStartY = listStartY + 4 - scroll;
-        for (int i = 0; i < guideLines.size(); i++) {
-            int lineY = guideStartY + (i * lineSpacing);
-            if (lineY + lineSpacing >= listStartY && lineY <= listStartY + listHeight) {
-                TextScaleHelper.drawScaledText(
-                        context, tr, guideLines.get(i), contentX, lineY, 0xFFCCCCCC, false, guideScale
-                );
+        int b1Y = listStartY + 4 - scroll;
+        int b2Y = b1Y + (b1H > 0 ? b1H + blockGap : 0);
+        int b3Y = b2Y + b2H + blockGap;
+        int b4Y = b3Y + b3H + blockGap;
+        int b5Y = b4Y + b4H + blockGap;
+        int b6Y = b5Y + b5H + blockGap;
+
+        // BLOCK 1: Shortcuts guide
+        if (b1H > 0 && b1Y + b1H >= listStartY && b1Y <= listStartY + listHeight) {
+            renderBlockCard(context, tr, cardX, b1Y, cardW, b1H, Text.translatable("config.itemorganizer.group.guide"), textScale);
+            float guideScale = Math.max(0.70f, Math.min(1.0f, textScale * 0.85f));
+            int lineSpacing = Math.max(10, Math.round(11 * guideScale));
+            List<String> guideLines = buildGuideLines(tr, cfg, contentW, guideScale);
+            int guideStartY = b1Y + headerH + 4;
+            for (int i = 0; i < guideLines.size(); i++) {
+                int lineY = guideStartY + (i * lineSpacing);
+                if (lineY + lineSpacing >= listStartY && lineY <= listStartY + listHeight) {
+                    TextScaleHelper.drawScaledText(context, tr, guideLines.get(i), contentX, lineY, 0xFFCCCCCC, false, guideScale);
+                }
             }
         }
 
-        int guideTotalHeight = guideLines.isEmpty() ? 0 : (guideLines.size() * lineSpacing + 8);
+        // BLOCK 2: General (Color, Transparency, Blur, Panel Split, Text Scale)
+        if (b2Y + b2H >= listStartY && b2Y <= listStartY + listHeight) {
+            renderBlockCard(context, tr, cardX, b2Y, cardW, b2H, Text.translatable("config.itemorganizer.group.general"), textScale);
+            int curY = b2Y + headerH + 4;
 
-        int currentColor = cfg.getBackgroundColor() & 0x00FFFFFF;
-        int currentR = (currentColor >> 16) & 0xFF;
-        int currentG = (currentColor >> 8) & 0xFF;
-        int currentB = currentColor & 0xFF;
+            int currentColor = cfg.getBackgroundColor() & 0x00FFFFFF;
+            if (!hexColorField.isFocused() && hexErrorMessage.isEmpty()) {
+                String expectedHex = String.format("#%06X", currentColor);
+                if (!expectedHex.equalsIgnoreCase(hexColorField.getText())) {
+                    hexColorField.setText(expectedHex);
+                }
+            }
 
-        // keep hex text in sync when not focused
-        if (!hexColorField.isFocused() && hexErrorMessage.isEmpty()) {
-            String expectedHex = String.format("#%06X", currentColor);
-            if (!expectedHex.equalsIgnoreCase(hexColorField.getText())) {
-                hexColorField.setText(expectedHex);
+            if (curY + 12 >= listStartY && curY <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.bg_color"), contentX, curY, 0xFF38BDF8, true, textScale);
+            }
+
+            int swatchX = contentX;
+            int swatchY = curY + labelGap;
+            int swatchSize = 14;
+            int chipW = 16;
+            int chipH = 14;
+            int presetStartX = swatchX + swatchSize + 4 + hexColorField.getWidth() + 6;
+            boolean presetsInline = (presetStartX + (PRESETS.length * (chipW + 3)) <= cardX + cardW - 6);
+
+            if (swatchY + swatchSize >= listStartY && swatchY <= listStartY + listHeight) {
+                int currentRgb = currentColor | 0xFF000000;
+                context.fill(swatchX, swatchY, swatchX + swatchSize, swatchY + swatchSize, currentRgb);
+                RenderHelper.drawBorder(context, swatchX, swatchY, swatchSize, swatchSize, 0x40FFFFFF);
+
+                hexColorField.setY(swatchY);
+                hexColorField.setX(swatchX + swatchSize + 4);
+                hexColorField.renderWidget(context, mouseX, mouseY, delta);
+
+                if (!hexErrorMessage.isEmpty()) {
+                    TextScaleHelper.drawScaledText(context, tr, hexErrorMessage, hexColorField.getX() + hexColorField.getWidth() + 4, swatchY + 3, 0xFFEF4444, false, textScale);
+                }
+            }
+
+            for (int i = 0; i < PRESETS.length; i++) {
+                PresetColor p = PRESETS[i];
+                int px = presetsInline ? presetStartX + i * (chipW + 3) : contentX + i * (chipW + 4);
+                int py = presetsInline ? swatchY : swatchY + swatchSize + 4;
+
+                if (py + chipH >= listStartY && py <= listStartY + listHeight) {
+                    boolean hoverP = mouseX >= px && mouseX <= px + chipW && mouseY >= py && mouseY <= py + chipH;
+                    int bg = p.color | 0xFF000000;
+                    context.fill(px, py, px + chipW, py + chipH, bg);
+                    RenderHelper.drawBorder(context, px, py, chipW, chipH, hoverP ? 0xFF38BDF8 : 0x25FFFFFF);
+                }
+            }
+
+            int rgbStartY = presetsInline ? swatchY + swatchSize + 4 : swatchY + swatchSize + 4 + chipH + 4;
+            int rgbSliderH = 11;
+
+            int sliderRedY = rgbStartY;
+            if (sliderRedY + rgbSliderH >= listStartY && sliderRedY <= listStartY + listHeight) {
+                redSlider.setBounds(contentX, sliderRedY, sliderW, rgbSliderH);
+                redSlider.render(context, tr, mouseX, mouseY, textScale);
+            }
+
+            int sliderGreenY = sliderRedY + rgbSliderH + 3;
+            if (sliderGreenY + rgbSliderH >= listStartY && sliderGreenY <= listStartY + listHeight) {
+                greenSlider.setBounds(contentX, sliderGreenY, sliderW, rgbSliderH);
+                greenSlider.render(context, tr, mouseX, mouseY, textScale);
+            }
+
+            int sliderBlueY = sliderGreenY + rgbSliderH + 3;
+            if (sliderBlueY + rgbSliderH >= listStartY && sliderBlueY <= listStartY + listHeight) {
+                blueSlider.setBounds(contentX, sliderBlueY, sliderW, rgbSliderH);
+                blueSlider.render(context, tr, mouseX, mouseY, textScale);
+            }
+
+            // transparency slider
+            int sec2Y = sliderBlueY + rgbSliderH + secGap;
+            if (sec2Y + 12 >= listStartY && sec2Y <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.transparency"), contentX, sec2Y, 0xFF38BDF8, true, textScale);
+            }
+            int slider1Y = sec2Y + labelGap;
+            if (slider1Y + sliderH >= listStartY && slider1Y <= listStartY + listHeight) {
+                transparencySlider.setBounds(contentX, slider1Y, sliderW, sliderH);
+                transparencySlider.render(context, tr, mouseX, mouseY, textScale);
+            }
+
+            // blur slider
+            int secBlurY = slider1Y + sliderH + secGap;
+            if (secBlurY + 12 >= listStartY && secBlurY <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.blur"), contentX, secBlurY, 0xFF38BDF8, true, textScale);
+            }
+            int sliderBlurY = secBlurY + labelGap;
+            if (sliderBlurY + sliderH >= listStartY && sliderBlurY <= listStartY + listHeight) {
+                blurSlider.setBounds(contentX, sliderBlurY, sliderW, sliderH);
+                blurSlider.render(context, tr, mouseX, mouseY, textScale);
+            }
+
+            // panel split ratio slider
+            int secSplitY = sliderBlurY + sliderH + secGap;
+            if (secSplitY + 12 >= listStartY && secSplitY <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.panel_split"), contentX, secSplitY, 0xFF38BDF8, true, textScale);
+            }
+            int sliderSplitY = secSplitY + labelGap;
+            if (sliderSplitY + sliderH >= listStartY && sliderSplitY <= listStartY + listHeight) {
+                splitRatioSlider.setBounds(contentX, sliderSplitY, sliderW, sliderH);
+                splitRatioSlider.render(context, tr, mouseX, mouseY, textScale);
+            }
+
+            // text scale slider
+            int secTextY = sliderSplitY + sliderH + secGap;
+            if (secTextY + 12 >= listStartY && secTextY <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.text_scale"), contentX, secTextY, 0xFF38BDF8, true, textScale);
+            }
+            int sliderTextY = secTextY + labelGap;
+            if (sliderTextY + sliderH >= listStartY && sliderTextY <= listStartY + listHeight) {
+                textScaleSlider.setBounds(contentX, sliderTextY, sliderW, sliderH);
+                textScaleSlider.render(context, tr, mouseX, mouseY, textScale);
             }
         }
 
-        // background color
-        int sec1Y = guideStartY + guideTotalHeight;
-        if (sec1Y + 12 >= listStartY && sec1Y <= listStartY + listHeight) {
-            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.bg_color"), contentX, sec1Y, 0xFF38BDF8, true, textScale);
-        }
+        // BLOCK 3: Organized / Unorganized / By Version (Grid Zoom, Item Scale)
+        if (b3Y + b3H >= listStartY && b3Y <= listStartY + listHeight) {
+            renderBlockCard(context, tr, cardX, b3Y, cardW, b3H, Text.translatable("config.itemorganizer.group.grid_views"), textScale);
+            int curY = b3Y + headerH + 4;
 
-        int swatchX = contentX;
-        int swatchY = sec1Y + labelGap;
-        int swatchSize = 14;
-        int chipW = 16;
-        int chipH = 14;
-        int presetStartX = swatchX + swatchSize + 4 + hexColorField.getWidth() + 6;
-        boolean presetsInline = (presetStartX + (PRESETS.length * (chipW + 3)) <= x + width - SCROLLBAR_WIDTH - 6);
+            // grid zoom slider
+            if (curY + 12 >= listStartY && curY <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.grid_zoom"), contentX, curY, 0xFF38BDF8, true, textScale);
+            }
+            int sliderZoomY = curY + labelGap;
+            if (sliderZoomY + sliderH >= listStartY && sliderZoomY <= listStartY + listHeight) {
+                scaleSlider.setBounds(contentX, sliderZoomY, sliderW, sliderH);
+                scaleSlider.render(context, tr, mouseX, mouseY, textScale);
+            }
 
-        if (swatchY + swatchSize >= listStartY && swatchY <= listStartY + listHeight) {
-            int currentRgb = currentColor | 0xFF000000;
-            context.fill(swatchX, swatchY, swatchX + swatchSize, swatchY + swatchSize, currentRgb);
-            RenderHelper.drawBorder(context, swatchX, swatchY, swatchSize, swatchSize, 0x40FFFFFF);
-
-            hexColorField.setY(swatchY);
-            hexColorField.setX(swatchX + swatchSize + 4);
-            hexColorField.renderWidget(context, mouseX, mouseY, delta);
-
-            if (!hexErrorMessage.isEmpty()) {
-                TextScaleHelper.drawScaledText(context, tr, hexErrorMessage, hexColorField.getX() + hexColorField.getWidth() + 4, swatchY + 3, 0xFFEF4444, false, textScale);
+            // item scale slider
+            int secItemY = sliderZoomY + sliderH + secGap;
+            if (secItemY + 12 >= listStartY && secItemY <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.item_scale"), contentX, secItemY, 0xFF38BDF8, true, textScale);
+            }
+            int sliderItemY = secItemY + labelGap;
+            if (sliderItemY + sliderH >= listStartY && sliderItemY <= listStartY + listHeight) {
+                itemScaleSlider.setBounds(contentX, sliderItemY, sliderW, sliderH);
+                itemScaleSlider.render(context, tr, mouseX, mouseY, textScale);
             }
         }
 
-        // color preset chips
-        for (int i = 0; i < PRESETS.length; i++) {
-            PresetColor p = PRESETS[i];
-            int px = presetsInline ? presetStartX + i * (chipW + 3) : contentX + i * (chipW + 4);
-            int py = presetsInline ? swatchY : swatchY + swatchSize + 4;
+        // BLOCK 4: Hotbar (Hotbar Scale, Hotbar Item Scale)
+        if (b4Y + b4H >= listStartY && b4Y <= listStartY + listHeight) {
+            renderBlockCard(context, tr, cardX, b4Y, cardW, b4H, Text.translatable("config.itemorganizer.group.hotbar"), textScale);
+            int curY = b4Y + headerH + 4;
 
-            if (py + chipH >= listStartY && py <= listStartY + listHeight) {
-                boolean hoverP = mouseX >= px && mouseX <= px + chipW && mouseY >= py && mouseY <= py + chipH;
-                int bg = p.color | 0xFF000000;
-                context.fill(px, py, px + chipW, py + chipH, bg);
-                RenderHelper.drawBorder(context, px, py, chipW, chipH, hoverP ? 0xFF38BDF8 : 0x25FFFFFF);
+            // hotbar scale slider
+            if (curY + 12 >= listStartY && curY <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.hotbar_scale"), contentX, curY, 0xFF38BDF8, true, textScale);
+            }
+            int sliderHotbarY = curY + labelGap;
+            if (sliderHotbarY + sliderH >= listStartY && sliderHotbarY <= listStartY + listHeight) {
+                hotbarScaleSlider.setBounds(contentX, sliderHotbarY, sliderW, sliderH);
+                hotbarScaleSlider.render(context, tr, mouseX, mouseY, textScale);
+            }
+
+            // hotbar item scale slider
+            int secHotbarItemY = sliderHotbarY + sliderH + secGap;
+            if (secHotbarItemY + 12 >= listStartY && secHotbarItemY <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.hotbar_item_scale"), contentX, secHotbarItemY, 0xFF38BDF8, true, textScale);
+            }
+            int sliderHotbarItemY = secHotbarItemY + labelGap;
+            if (sliderHotbarItemY + sliderH >= listStartY && sliderHotbarItemY <= listStartY + listHeight) {
+                hotbarItemScaleSlider.setBounds(contentX, sliderHotbarItemY, sliderW, sliderH);
+                hotbarItemScaleSlider.render(context, tr, mouseX, mouseY, textScale);
             }
         }
 
-        // rgb sliders
-        int rgbStartY = presetsInline ? swatchY + swatchSize + 4 : swatchY + swatchSize + 4 + chipH + 4;
-        int rgbSliderH = 11;
+        // BLOCK 5: Palette (Palette Scale, Palette Item Scale)
+        if (b5Y + b5H >= listStartY && b5Y <= listStartY + listHeight) {
+            renderBlockCard(context, tr, cardX, b5Y, cardW, b5H, Text.translatable("config.itemorganizer.group.palette"), textScale);
+            int curY = b5Y + headerH + 4;
 
-        int sliderRedY = rgbStartY;
-        if (sliderRedY + rgbSliderH >= listStartY && sliderRedY <= listStartY + listHeight) {
-            redSlider.setBounds(contentX, sliderRedY, sliderW, rgbSliderH);
-            redSlider.render(context, tr, mouseX, mouseY, textScale);
-        }
-
-        int sliderGreenY = sliderRedY + rgbSliderH + 3;
-        if (sliderGreenY + rgbSliderH >= listStartY && sliderGreenY <= listStartY + listHeight) {
-            greenSlider.setBounds(contentX, sliderGreenY, sliderW, rgbSliderH);
-            greenSlider.render(context, tr, mouseX, mouseY, textScale);
-        }
-
-        int sliderBlueY = sliderGreenY + rgbSliderH + 3;
-        if (sliderBlueY + rgbSliderH >= listStartY && sliderBlueY <= listStartY + listHeight) {
-            blueSlider.setBounds(contentX, sliderBlueY, sliderW, rgbSliderH);
-            blueSlider.render(context, tr, mouseX, mouseY, textScale);
-        }
-
-        // transparency slider
-        int sec2Y = sliderBlueY + rgbSliderH + secGap;
-        if (sec2Y + 12 >= listStartY && sec2Y <= listStartY + listHeight) {
-            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.transparency"), contentX, sec2Y, 0xFF38BDF8, true, textScale);
-        }
-
-        int slider1X = contentX;
-        int slider1Y = sec2Y + labelGap;
-        if (slider1Y + sliderH >= listStartY && slider1Y <= listStartY + listHeight) {
-            transparencySlider.setBounds(slider1X, slider1Y, sliderW, sliderH);
-            transparencySlider.render(context, tr, mouseX, mouseY, textScale);
-        }
-
-        // blur slider
-        int secBlurY = slider1Y + sliderH + secGap;
-        if (secBlurY + 12 >= listStartY && secBlurY <= listStartY + listHeight) {
-            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.blur"), contentX, secBlurY, 0xFF38BDF8, true, textScale);
-        }
-
-        int sliderBlurX = contentX;
-        int sliderBlurY = secBlurY + labelGap;
-        if (sliderBlurY + sliderH >= listStartY && sliderBlurY <= listStartY + listHeight) {
-            blurSlider.setBounds(sliderBlurX, sliderBlurY, sliderW, sliderH);
-            blurSlider.render(context, tr, mouseX, mouseY, textScale);
-        }
-
-        // grid zoom slider
-        int sec3Y = sliderBlurY + sliderH + secGap;
-        if (sec3Y + 12 >= listStartY && sec3Y <= listStartY + listHeight) {
-            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.grid_zoom"), contentX, sec3Y, 0xFF38BDF8, true, textScale);
-        }
-
-        int slider2X = contentX;
-        int slider2Y = sec3Y + labelGap;
-        if (slider2Y + sliderH >= listStartY && slider2Y <= listStartY + listHeight) {
-            scaleSlider.setBounds(slider2X, slider2Y, sliderW, sliderH);
-            scaleSlider.render(context, tr, mouseX, mouseY, textScale);
-        }
-
-        // item scale slider
-        int sec4Y = slider2Y + sliderH + secGap;
-        if (sec4Y + 12 >= listStartY && sec4Y <= listStartY + listHeight) {
-            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.item_scale"), contentX, sec4Y, 0xFF38BDF8, true, textScale);
-        }
-
-        int slider3X = contentX;
-        int slider3Y = sec4Y + labelGap;
-        if (slider3Y + sliderH >= listStartY && slider3Y <= listStartY + listHeight) {
-            itemScaleSlider.setBounds(slider3X, slider3Y, sliderW, sliderH);
-            itemScaleSlider.render(context, tr, mouseX, mouseY, textScale);
-        }
-
-        // text scale slider
-        int sec5Y = slider3Y + sliderH + secGap;
-        if (sec5Y + 12 >= listStartY && sec5Y <= listStartY + listHeight) {
-            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.text_scale"), contentX, sec5Y, 0xFF38BDF8, true, textScale);
-        }
-
-        int slider4X = contentX;
-        int slider4Y = sec5Y + labelGap;
-        if (slider4Y + sliderH >= listStartY && slider4Y <= listStartY + listHeight) {
-            textScaleSlider.setBounds(slider4X, slider4Y, sliderW, sliderH);
-            textScaleSlider.render(context, tr, mouseX, mouseY, textScale);
-        }
-
-        // panel split ratio slider
-        int sec6Y = slider4Y + sliderH + secGap;
-        if (sec6Y + 12 >= listStartY && sec6Y <= listStartY + listHeight) {
-            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.panel_split"), contentX, sec6Y, 0xFF38BDF8, true, textScale);
-        }
-
-        int slider5X = contentX;
-        int slider5Y = sec6Y + labelGap;
-        if (slider5Y + sliderH >= listStartY && slider5Y <= listStartY + listHeight) {
-            splitRatioSlider.setBounds(slider5X, slider5Y, sliderW, sliderH);
-            splitRatioSlider.render(context, tr, mouseX, mouseY, textScale);
-        }
-
-        // hotbar scale slider
-        int sec7Y = slider5Y + sliderH + secGap;
-        if (sec7Y + 12 >= listStartY && sec7Y <= listStartY + listHeight) {
-            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.hotbar_scale"), contentX, sec7Y, 0xFF38BDF8, true, textScale);
-        }
-
-        int slider6X = contentX;
-        int slider6Y = sec7Y + labelGap;
-        if (slider6Y + sliderH >= listStartY && slider6Y <= listStartY + listHeight) {
-            hotbarScaleSlider.setBounds(slider6X, slider6Y, sliderW, sliderH);
-            hotbarScaleSlider.render(context, tr, mouseX, mouseY, textScale);
-        }
-
-        // hotbar item scale slider
-        int sec7bY = slider6Y + sliderH + secGap;
-        if (sec7bY + 12 >= listStartY && sec7bY <= listStartY + listHeight) {
-            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.hotbar_item_scale"), contentX, sec7bY, 0xFF38BDF8, true, textScale);
-        }
-
-        int slider6bX = contentX;
-        int slider6bY = sec7bY + labelGap;
-        if (slider6bY + sliderH >= listStartY && slider6bY <= listStartY + listHeight) {
-            hotbarItemScaleSlider.setBounds(slider6bX, slider6bY, sliderW, sliderH);
-            hotbarItemScaleSlider.render(context, tr, mouseX, mouseY, textScale);
-        }
-
-        // palette scale slider
-        int sec8Y = slider6bY + sliderH + secGap;
-        if (sec8Y + 12 >= listStartY && sec8Y <= listStartY + listHeight) {
-            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.palette_scale"), contentX, sec8Y, 0xFF38BDF8, true, textScale);
-        }
-
-        int slider7X = contentX;
-        int slider7Y = sec8Y + labelGap;
-        if (slider7Y + sliderH >= listStartY && slider7Y <= listStartY + listHeight) {
-            paletteScaleSlider.setBounds(slider7X, slider7Y, sliderW, sliderH);
-            paletteScaleSlider.render(context, tr, mouseX, mouseY, textScale);
-        }
-
-        // palette item scale slider
-        int sec8bY = slider7Y + sliderH + secGap;
-        if (sec8bY + 12 >= listStartY && sec8bY <= listStartY + listHeight) {
-            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.palette_item_scale"), contentX, sec8bY, 0xFF38BDF8, true, textScale);
-        }
-
-        int slider7bX = contentX;
-        int slider7bY = sec8bY + labelGap;
-        if (slider7bY + sliderH >= listStartY && slider7bY <= listStartY + listHeight) {
-            paletteItemScaleSlider.setBounds(slider7bX, slider7bY, sliderW, sliderH);
-            paletteItemScaleSlider.render(context, tr, mouseX, mouseY, textScale);
-        }
-
-        // open key binding
-        int sec9Y = slider7bY + sliderH + secGap;
-        if (sec9Y + 12 >= listStartY && sec9Y <= listStartY + listHeight) {
-            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.open_key"), contentX, sec9Y, 0xFF38BDF8, true, textScale);
-        }
-
-        int keyBtnX = contentX;
-        int keyBtnY = sec9Y + labelGap;
-        int keyBtnW = Math.min(180, maxContentW);
-        int keyBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
-
-        if (keyBtnY + keyBtnH >= listStartY && keyBtnY <= listStartY + listHeight) {
-            boolean hoverKeyBtn = (activeModal == null && mouseX >= keyBtnX && mouseX <= keyBtnX + keyBtnW && mouseY >= keyBtnY && mouseY <= keyBtnY + keyBtnH);
-            Text keyLabel;
-            int keyBg, keyHoverBg, keyBorder, keyHoverBorder, keyTextColor, keyHoverTextColor;
-
-            if (listeningForKey) {
-                keyLabel = Text.translatable("config.itemorganizer.press_key");
-                keyBg = UITheme.WARNING_BG;
-                keyHoverBg = UITheme.WARNING_HOVER_BG;
-                keyBorder = UITheme.WARNING_BORDER;
-                keyHoverBorder = UITheme.WARNING_BORDER;
-                keyTextColor = UITheme.WARNING;
-                keyHoverTextColor = UITheme.TEXT_WHITE;
-            } else {
-                KeyBinding binding = ItemOrganizerClient.getOpenKeyBinding();
-                Text keyText = (binding != null) ? binding.getBoundKeyLocalizedText() : Text.literal("O");
-                keyLabel = Text.translatable("config.itemorganizer.key_label", keyText.getString());
-                keyBg = UITheme.BG_SURFACE_HOVER;
-                keyHoverBg = UITheme.PRIMARY_BG;
-                keyBorder = UITheme.BORDER_MUTED;
-                keyHoverBorder = UITheme.PRIMARY;
-                keyTextColor = UITheme.TEXT_SECONDARY;
-                keyHoverTextColor = UITheme.TEXT_WHITE;
+            // palette scale slider
+            if (curY + 12 >= listStartY && curY <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.palette_scale"), contentX, curY, 0xFF38BDF8, true, textScale);
+            }
+            int sliderPaletteY = curY + labelGap;
+            if (sliderPaletteY + sliderH >= listStartY && sliderPaletteY <= listStartY + listHeight) {
+                paletteScaleSlider.setBounds(contentX, sliderPaletteY, sliderW, sliderH);
+                paletteScaleSlider.render(context, tr, mouseX, mouseY, textScale);
             }
 
-            RenderHelper.drawButton(context, tr, keyBtnX, keyBtnY, keyBtnW, keyBtnH, keyLabel, hoverKeyBtn,
-                    keyBg, keyHoverBg, keyBorder, keyHoverBorder, keyTextColor, keyHoverTextColor, textScale);
-        }
-
-        // quick append key binding
-        int sec10Y = keyBtnY + keyBtnH + secGap;
-        if (sec10Y + 12 >= listStartY && sec10Y <= listStartY + listHeight) {
-            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.quick_append_key"), contentX, sec10Y, UITheme.PRIMARY, true, textScale);
-        }
-
-        int quickKeyBtnX = contentX;
-        int quickKeyBtnY = sec10Y + labelGap;
-        int quickKeyBtnW = Math.min(180, maxContentW);
-        int quickKeyBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
-
-        if (quickKeyBtnY + quickKeyBtnH >= listStartY && quickKeyBtnY <= listStartY + listHeight) {
-            boolean hoverQuickKey = (activeModal == null && mouseX >= quickKeyBtnX && mouseX <= quickKeyBtnX + quickKeyBtnW && mouseY >= quickKeyBtnY && mouseY <= quickKeyBtnY + quickKeyBtnH);
-            Text qkLabel;
-            int qkBg, qkHoverBg, qkBorder, qkHoverBorder, qkTextColor, qkHoverTextColor;
-
-            if (listeningForQuickAppendKey) {
-                qkLabel = Text.translatable("config.itemorganizer.press_key");
-                qkBg = UITheme.WARNING_BG;
-                qkHoverBg = UITheme.WARNING_HOVER_BG;
-                qkBorder = UITheme.WARNING_BORDER;
-                qkHoverBorder = UITheme.WARNING_BORDER;
-                qkTextColor = UITheme.WARNING;
-                qkHoverTextColor = UITheme.TEXT_WHITE;
-            } else {
-                String boundKey = cfg.getKeyQuickAppend();
-                InputUtil.Key k = InputUtil.fromTranslationKey(boundKey);
-                String keyName = (k != null) ? k.getLocalizedText().getString() : "A";
-                qkLabel = Text.translatable("config.itemorganizer.key_label", keyName);
-                qkBg = UITheme.BG_SURFACE_HOVER;
-                qkHoverBg = UITheme.PRIMARY_BG;
-                qkBorder = UITheme.BORDER_MUTED;
-                qkHoverBorder = UITheme.PRIMARY;
-                qkTextColor = UITheme.TEXT_SECONDARY;
-                qkHoverTextColor = UITheme.TEXT_WHITE;
+            // palette item scale slider
+            int secPaletteItemY = sliderPaletteY + sliderH + secGap;
+            if (secPaletteItemY + 12 >= listStartY && secPaletteItemY <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.palette_item_scale"), contentX, secPaletteItemY, 0xFF38BDF8, true, textScale);
+            }
+            int sliderPaletteItemY = secPaletteItemY + labelGap;
+            if (sliderPaletteItemY + sliderH >= listStartY && sliderPaletteItemY <= listStartY + listHeight) {
+                paletteItemScaleSlider.setBounds(contentX, sliderPaletteItemY, sliderW, sliderH);
+                paletteItemScaleSlider.render(context, tr, mouseX, mouseY, textScale);
             }
 
-            RenderHelper.drawButton(context, tr, quickKeyBtnX, quickKeyBtnY, quickKeyBtnW, quickKeyBtnH, qkLabel, hoverQuickKey,
-                    qkBg, qkHoverBg, qkBorder, qkHoverBorder, qkTextColor, qkHoverTextColor, textScale);
+            // palette button scale slider
+            int secPaletteButtonY = sliderPaletteItemY + sliderH + secGap;
+            if (secPaletteButtonY + 12 >= listStartY && secPaletteButtonY <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.palette_button_scale"), contentX, secPaletteButtonY, 0xFF38BDF8, true, textScale);
+            }
+            int sliderPaletteButtonY = secPaletteButtonY + labelGap;
+            if (sliderPaletteButtonY + sliderH >= listStartY && sliderPaletteButtonY <= listStartY + listHeight) {
+                paletteButtonScaleSlider.setBounds(contentX, sliderPaletteButtonY, sliderW, sliderH);
+                paletteButtonScaleSlider.render(context, tr, mouseX, mouseY, textScale);
+            }
         }
 
-        // undo key binding
-        int sec11Y = quickKeyBtnY + quickKeyBtnH + secGap;
-        if (sec11Y + 12 >= listStartY && sec11Y <= listStartY + listHeight) {
-            TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.undo_key"), contentX, sec11Y, UITheme.PRIMARY, true, textScale);
-        }
+        // BLOCK 6: Keybindings and Actions
+        if (b6Y + b6H >= listStartY && b6Y <= listStartY + listHeight) {
+            renderBlockCard(context, tr, cardX, b6Y, cardW, b6H, Text.translatable("config.itemorganizer.group.keybindings"), textScale);
+            int curY = b6Y + headerH + 4;
+            int keyBtnW = Math.min(180, contentW);
+            int keyBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
 
-        int undoKeyBtnX = contentX;
-        int undoKeyBtnY = sec11Y + labelGap;
-        int undoKeyBtnW = Math.min(180, maxContentW);
-        int undoKeyBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
+            // open key binding
+            if (curY + 12 >= listStartY && curY <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.open_key"), contentX, curY, 0xFF38BDF8, true, textScale);
+            }
+            int keyBtnY = curY + labelGap;
+            if (keyBtnY + keyBtnH >= listStartY && keyBtnY <= listStartY + listHeight) {
+                boolean hoverKeyBtn = (activeModal == null && mouseX >= contentX && mouseX <= contentX + keyBtnW && mouseY >= keyBtnY && mouseY <= keyBtnY + keyBtnH);
+                Text keyLabel;
+                int keyBg, keyHoverBg, keyBorder, keyHoverBorder, keyTextColor, keyHoverTextColor;
 
-        if (undoKeyBtnY + undoKeyBtnH >= listStartY && undoKeyBtnY <= listStartY + listHeight) {
-            boolean hoverUndoKey = (activeModal == null && mouseX >= undoKeyBtnX && mouseX <= undoKeyBtnX + undoKeyBtnW && mouseY >= undoKeyBtnY && mouseY <= undoKeyBtnY + undoKeyBtnH);
-            Text undoLabel;
-            int undoBg, undoHoverBg, undoBorder, undoHoverBorder, undoTextColor, undoHoverTextColor;
+                if (listeningForKey) {
+                    keyLabel = Text.translatable("config.itemorganizer.press_key");
+                    keyBg = UITheme.WARNING_BG;
+                    keyHoverBg = UITheme.WARNING_HOVER_BG;
+                    keyBorder = UITheme.WARNING_BORDER;
+                    keyHoverBorder = UITheme.WARNING_BORDER;
+                    keyTextColor = UITheme.WARNING;
+                    keyHoverTextColor = UITheme.TEXT_WHITE;
+                } else {
+                    KeyBinding binding = ItemOrganizerClient.getOpenKeyBinding();
+                    Text keyText = (binding != null) ? binding.getBoundKeyLocalizedText() : Text.literal("O");
+                    keyLabel = Text.translatable("config.itemorganizer.key_label", keyText.getString());
+                    keyBg = UITheme.BG_SURFACE_HOVER;
+                    keyHoverBg = UITheme.PRIMARY_BG;
+                    keyBorder = UITheme.BORDER_MUTED;
+                    keyHoverBorder = UITheme.PRIMARY;
+                    keyTextColor = UITheme.TEXT_SECONDARY;
+                    keyHoverTextColor = UITheme.TEXT_WHITE;
+                }
 
-            if (listeningForUndoKey) {
-                undoLabel = Text.translatable("config.itemorganizer.press_key");
-                undoBg = UITheme.WARNING_BG;
-                undoHoverBg = UITheme.WARNING_HOVER_BG;
-                undoBorder = UITheme.WARNING_BORDER;
-                undoHoverBorder = UITheme.WARNING_BORDER;
-                undoTextColor = UITheme.WARNING;
-                undoHoverTextColor = UITheme.TEXT_WHITE;
-            } else {
-                String boundKey = cfg.getKeyUndo();
-                InputUtil.Key k = InputUtil.fromTranslationKey(boundKey);
-                String keyName = (k != null) ? k.getLocalizedText().getString().toUpperCase() : "Z";
-                undoLabel = Text.translatable("config.itemorganizer.key_label_ctrl", keyName);
-                undoBg = UITheme.BG_SURFACE_HOVER;
-                undoHoverBg = UITheme.PRIMARY_BG;
-                undoBorder = UITheme.BORDER_MUTED;
-                undoHoverBorder = UITheme.PRIMARY;
-                undoTextColor = UITheme.TEXT_SECONDARY;
-                undoHoverTextColor = UITheme.TEXT_WHITE;
+                RenderHelper.drawButton(context, tr, contentX, keyBtnY, keyBtnW, keyBtnH, keyLabel, hoverKeyBtn,
+                        keyBg, keyHoverBg, keyBorder, keyHoverBorder, keyTextColor, keyHoverTextColor, textScale);
             }
 
-            RenderHelper.drawButton(context, tr, undoKeyBtnX, undoKeyBtnY, undoKeyBtnW, undoKeyBtnH, undoLabel, hoverUndoKey,
-                    undoBg, undoHoverBg, undoBorder, undoHoverBorder, undoTextColor, undoHoverTextColor, textScale);
-        }
+            // quick append key binding
+            int sec10Y = keyBtnY + keyBtnH + secGap;
+            if (sec10Y + 12 >= listStartY && sec10Y <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.quick_append_key"), contentX, sec10Y, UITheme.PRIMARY, true, textScale);
+            }
+            int quickKeyBtnY = sec10Y + labelGap;
+            if (quickKeyBtnY + keyBtnH >= listStartY && quickKeyBtnY <= listStartY + listHeight) {
+                boolean hoverQuickKey = (activeModal == null && mouseX >= contentX && mouseX <= contentX + keyBtnW && mouseY >= quickKeyBtnY && mouseY <= quickKeyBtnY + keyBtnH);
+                Text qkLabel;
+                int qkBg, qkHoverBg, qkBorder, qkHoverBorder, qkTextColor, qkHoverTextColor;
 
-        // reset defaults button
-        int resetBtnY = undoKeyBtnY + undoKeyBtnH + secGap + 2;
-        int resetBtnW = Math.min(180, maxContentW);
-        int resetBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
+                if (listeningForQuickAppendKey) {
+                    qkLabel = Text.translatable("config.itemorganizer.press_key");
+                    qkBg = UITheme.WARNING_BG;
+                    qkHoverBg = UITheme.WARNING_HOVER_BG;
+                    qkBorder = UITheme.WARNING_BORDER;
+                    qkHoverBorder = UITheme.WARNING_BORDER;
+                    qkTextColor = UITheme.WARNING;
+                    qkHoverTextColor = UITheme.TEXT_WHITE;
+                } else {
+                    String boundKey = cfg.getKeyQuickAppend();
+                    InputUtil.Key k = InputUtil.fromTranslationKey(boundKey);
+                    String keyName = (k != null) ? k.getLocalizedText().getString() : "A";
+                    qkLabel = Text.translatable("config.itemorganizer.key_label", keyName);
+                    qkBg = UITheme.BG_SURFACE_HOVER;
+                    qkHoverBg = UITheme.PRIMARY_BG;
+                    qkBorder = UITheme.BORDER_MUTED;
+                    qkHoverBorder = UITheme.PRIMARY;
+                    qkTextColor = UITheme.TEXT_SECONDARY;
+                    qkHoverTextColor = UITheme.TEXT_WHITE;
+                }
 
-        if (resetBtnY + resetBtnH >= listStartY && resetBtnY <= listStartY + listHeight) {
-            boolean hoverReset = (activeModal == null && mouseX >= keyBtnX && mouseX <= keyBtnX + resetBtnW && mouseY >= resetBtnY && mouseY <= resetBtnY + resetBtnH);
-            RenderHelper.drawButton(context, tr, keyBtnX, resetBtnY, resetBtnW, resetBtnH,
-                    Text.translatable("config.itemorganizer.reset_defaults"), hoverReset,
-                    UITheme.DANGER_BG, UITheme.DANGER_HOVER_BG, UITheme.DANGER_BORDER_MUTED, UITheme.DANGER,
-                    0xFFFCA5A5, UITheme.TEXT_WHITE, textScale);
+                RenderHelper.drawButton(context, tr, contentX, quickKeyBtnY, keyBtnW, keyBtnH, qkLabel, hoverQuickKey,
+                        qkBg, qkHoverBg, qkBorder, qkHoverBorder, qkTextColor, qkHoverTextColor, textScale);
+            }
+
+            // undo key binding
+            int sec11Y = quickKeyBtnY + keyBtnH + secGap;
+            if (sec11Y + 12 >= listStartY && sec11Y <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.undo_key"), contentX, sec11Y, UITheme.PRIMARY, true, textScale);
+            }
+            int undoKeyBtnY = sec11Y + labelGap;
+            if (undoKeyBtnY + keyBtnH >= listStartY && undoKeyBtnY <= listStartY + listHeight) {
+                boolean hoverUndoKey = (activeModal == null && mouseX >= contentX && mouseX <= contentX + keyBtnW && mouseY >= undoKeyBtnY && mouseY <= undoKeyBtnY + keyBtnH);
+                Text undoLabel;
+                int undoBg, undoHoverBg, undoBorder, undoHoverBorder, undoTextColor, undoHoverTextColor;
+
+                if (listeningForUndoKey) {
+                    undoLabel = Text.translatable("config.itemorganizer.press_key");
+                    undoBg = UITheme.WARNING_BG;
+                    undoHoverBg = UITheme.WARNING_HOVER_BG;
+                    undoBorder = UITheme.WARNING_BORDER;
+                    undoHoverBorder = UITheme.WARNING_BORDER;
+                    undoTextColor = UITheme.WARNING;
+                    undoHoverTextColor = UITheme.TEXT_WHITE;
+                } else {
+                    String boundKey = cfg.getKeyUndo();
+                    InputUtil.Key k = InputUtil.fromTranslationKey(boundKey);
+                    String keyName = (k != null) ? k.getLocalizedText().getString().toUpperCase() : "Z";
+                    undoLabel = Text.translatable("config.itemorganizer.key_label_ctrl", keyName);
+                    undoBg = UITheme.BG_SURFACE_HOVER;
+                    undoHoverBg = UITheme.PRIMARY_BG;
+                    undoBorder = UITheme.BORDER_MUTED;
+                    undoHoverBorder = UITheme.PRIMARY;
+                    undoTextColor = UITheme.TEXT_SECONDARY;
+                    undoHoverTextColor = UITheme.TEXT_WHITE;
+                }
+
+                RenderHelper.drawButton(context, tr, contentX, undoKeyBtnY, keyBtnW, keyBtnH, undoLabel, hoverUndoKey,
+                        undoBg, undoHoverBg, undoBorder, undoHoverBorder, undoTextColor, undoHoverTextColor, textScale);
+            }
+
+            // reset defaults button
+            int resetBtnY = undoKeyBtnY + keyBtnH + secGap + 2;
+            int resetBtnH = keyBtnH;
+            if (resetBtnY + resetBtnH >= listStartY && resetBtnY <= listStartY + listHeight) {
+                boolean hoverReset = (activeModal == null && mouseX >= contentX && mouseX <= contentX + keyBtnW && mouseY >= resetBtnY && mouseY <= resetBtnY + resetBtnH);
+                RenderHelper.drawButton(context, tr, contentX, resetBtnY, keyBtnW, resetBtnH,
+                        Text.translatable("config.itemorganizer.reset_defaults"), hoverReset,
+                        UITheme.DANGER_BG, UITheme.DANGER_HOVER_BG, UITheme.DANGER_BORDER_MUTED, UITheme.DANGER,
+                        0xFFFCA5A5, UITheme.TEXT_WHITE, textScale);
+            }
         }
 
         context.disableScissor();
@@ -784,19 +880,35 @@ public class ConfigWidget implements Drawable, Element, Selectable {
 
         float textScale = viewModel.getConfig().getTextScale();
         int scroll = (int) scrollbar.getScrollOffset();
-        int contentX = x + 10;
-        int maxContentW = width - SCROLLBAR_WIDTH - 24;
-        int sliderW = Math.min(180, maxContentW);
+        int cardX = x + 6;
+        int cardW = width - SCROLLBAR_WIDTH - 16;
+        int contentX = cardX + 8;
+        int contentW = cardW - 16;
+        int sliderW = Math.min(contentW, 180);
         int sliderH = Math.max(12, Math.round(12 * Math.max(1.0f, textScale)));
         int labelGap = Math.max(10, Math.round(8 * textScale) + 2);
         int secGap = 6;
+        int headerH = Math.max(14, Math.round(14 * textScale));
+        int blockGap = 8;
 
-        int guideTotalHeight = getShortcutGuideHeight(textScale, maxContentW);
+        int b1H = getBlock1Height(textScale, contentW);
+        int b2H = getBlock2Height(textScale, cardW);
+        int b3H = getBlock3Height(textScale);
+        int b4H = getBlock4Height(textScale);
+        int b5H = getBlock5Height(textScale);
+        int b6H = getBlock6Height(textScale);
 
-        // hex input field
-        int sec1Y = listStartY + 4 - scroll + guideTotalHeight;
+        int b1Y = listStartY + 4 - scroll;
+        int b2Y = b1Y + (b1H > 0 ? b1H + blockGap : 0);
+        int b3Y = b2Y + b2H + blockGap;
+        int b4Y = b3Y + b3H + blockGap;
+        int b5Y = b4Y + b4H + blockGap;
+        int b6Y = b5Y + b5H + blockGap;
+
+        // Block 2: hex input and color presets
+        int b2ContentY = b2Y + headerH + 4;
         int swatchX = contentX;
-        int swatchY = sec1Y + labelGap;
+        int swatchY = b2ContentY + labelGap;
         int swatchSize = 14;
         hexColorField.setY(swatchY);
         hexColorField.setX(swatchX + swatchSize + 4);
@@ -804,11 +916,10 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             return true;
         }
 
-        // color presets
         int chipW = 16;
         int chipH = 14;
         int presetStartX = swatchX + swatchSize + 4 + hexColorField.getWidth() + 6;
-        boolean presetsInline = (presetStartX + (PRESETS.length * (chipW + 3)) <= x + width - SCROLLBAR_WIDTH - 6);
+        boolean presetsInline = (presetStartX + (PRESETS.length * (chipW + 3)) <= cardX + cardW - 6);
         for (int i = 0; i < PRESETS.length; i++) {
             PresetColor p = PRESETS[i];
             int px = presetsInline ? presetStartX + i * (chipW + 3) : contentX + i * (chipW + 4);
@@ -823,20 +934,20 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             }
         }
 
-        // sliders
+        // sliders across all blocks
         for (SliderComponent s : allSliders) {
             if (s.mouseClicked(click)) {
                 return true;
             }
         }
 
-        // open/close key
-        int sec9Y = paletteItemScaleSlider.getY() + paletteItemScaleSlider.getHeight() + secGap;
-        int keyBtnX = contentX;
-        int keyBtnY = sec9Y + labelGap;
-        int keyBtnW = Math.min(180, maxContentW);
+        // Block 6 buttons
+        int b6ContentY = b6Y + headerH + 4;
+        int keyBtnW = Math.min(180, contentW);
         int keyBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
-        if (mouseX >= keyBtnX && mouseX <= keyBtnX + keyBtnW && mouseY >= keyBtnY && mouseY <= keyBtnY + keyBtnH) {
+
+        int keyBtnY = b6ContentY + labelGap;
+        if (mouseX >= contentX && mouseX <= contentX + keyBtnW && mouseY >= keyBtnY && mouseY <= keyBtnY + keyBtnH) {
             listeningForKey = !listeningForKey;
             listeningForQuickAppendKey = false;
             listeningForUndoKey = false;
@@ -844,13 +955,8 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             return true;
         }
 
-        // quick append key
-        int sec10Y = keyBtnY + keyBtnH + secGap;
-        int quickKeyBtnX = contentX;
-        int quickKeyBtnY = sec10Y + labelGap;
-        int quickKeyBtnW = Math.min(180, maxContentW);
-        int quickKeyBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
-        if (mouseX >= quickKeyBtnX && mouseX <= quickKeyBtnX + quickKeyBtnW && mouseY >= quickKeyBtnY && mouseY <= quickKeyBtnY + quickKeyBtnH) {
+        int quickKeyBtnY = keyBtnY + keyBtnH + secGap + labelGap;
+        if (mouseX >= contentX && mouseX <= contentX + keyBtnW && mouseY >= quickKeyBtnY && mouseY <= quickKeyBtnY + keyBtnH) {
             listeningForQuickAppendKey = !listeningForQuickAppendKey;
             listeningForKey = false;
             listeningForUndoKey = false;
@@ -858,13 +964,8 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             return true;
         }
 
-        // undo key
-        int sec11Y = quickKeyBtnY + quickKeyBtnH + secGap;
-        int undoKeyBtnX = contentX;
-        int undoKeyBtnY = sec11Y + labelGap;
-        int undoKeyBtnW = Math.min(180, maxContentW);
-        int undoKeyBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
-        if (mouseX >= undoKeyBtnX && mouseX <= undoKeyBtnX + undoKeyBtnW && mouseY >= undoKeyBtnY && mouseY <= undoKeyBtnY + undoKeyBtnH) {
+        int undoKeyBtnY = quickKeyBtnY + keyBtnH + secGap + labelGap;
+        if (mouseX >= contentX && mouseX <= contentX + keyBtnW && mouseY >= undoKeyBtnY && mouseY <= undoKeyBtnY + keyBtnH) {
             listeningForUndoKey = !listeningForUndoKey;
             listeningForKey = false;
             listeningForQuickAppendKey = false;
@@ -872,11 +973,9 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             return true;
         }
 
-        // reset defaults button
-        int resetBtnY = undoKeyBtnY + undoKeyBtnH + secGap + 2;
-        int resetBtnW = Math.min(180, maxContentW);
-        int resetBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
-        if (mouseX >= keyBtnX && mouseX <= keyBtnX + resetBtnW && mouseY >= resetBtnY && mouseY <= resetBtnY + resetBtnH) {
+        int resetBtnY = undoKeyBtnY + keyBtnH + secGap + 2;
+        int resetBtnH = keyBtnH;
+        if (mouseX >= contentX && mouseX <= contentX + keyBtnW && mouseY >= resetBtnY && mouseY <= resetBtnY + resetBtnH) {
             activeModal = ModalDialogComponent.builder()
                     .parentBounds(x, y, width, height)
                     .size(Math.min(240, width - 20), 96)
@@ -923,6 +1022,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             c.setHotbarItemScale(1.00f);
             c.setPaletteScale(1.00f);
             c.setPaletteItemScale(1.00f);
+            c.setPaletteButtonScale(1.00f);
             c.setKeyOpenClose("key.keyboard.o");
             c.setKeyQuickAppend("key.keyboard.a");
             c.setKeyUndo("key.keyboard.z");
@@ -1073,5 +1173,13 @@ public class ConfigWidget implements Drawable, Element, Selectable {
 
     public boolean isEditingOrSearching() {
         return activeModal != null || (hexColorField != null && hexColorField.isFocused()) || listeningForKey || listeningForQuickAppendKey || listeningForUndoKey;
+    }
+
+    public double getScrollOffset() {
+        return scrollbar.getScrollOffset();
+    }
+
+    public void setScrollOffset(double offset) {
+        scrollbar.setScrollOffset(offset);
     }
 }

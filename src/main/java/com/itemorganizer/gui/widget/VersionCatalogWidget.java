@@ -318,4 +318,12 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
     @Override
     public void appendNarrations(NarrationMessageBuilder builder) {
     }
+
+    public double getScrollOffset() {
+        return scrollbar.getScrollOffset();
+    }
+
+    public void setScrollOffset(double offset) {
+        scrollbar.setScrollOffset(offset);
+    }
 }

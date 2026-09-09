@@ -585,4 +585,12 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
     public int getSelectedRow() {
         return selectedRow;
     }
+
+    public double getScrollOffset() {
+        return scrollbar.getScrollOffset();
+    }
+
+    public void setScrollOffset(double offset) {
+        scrollbar.setScrollOffset(offset);
+    }
 }

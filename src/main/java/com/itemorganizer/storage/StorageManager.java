@@ -16,6 +16,7 @@ public class StorageManager {
     private final ConfigRepository configRepository;
     private final ProfileRepository profileRepository;
     private final PaletteRepository paletteRepository;
+    private final PaletteRepository infinitePaletteRepository;
     private final VersionCatalogRepository versionCatalogRepository;
 
     private StorageManager() {
@@ -23,6 +24,7 @@ public class StorageManager {
         this.configRepository = new ConfigRepository(baseDir);
         this.profileRepository = new ProfileRepository(baseDir);
         this.paletteRepository = new PaletteRepository(baseDir);
+        this.infinitePaletteRepository = new PaletteRepository(baseDir, "palette_inf.json");
         this.versionCatalogRepository = new VersionCatalogRepository(baseDir);
     }
 
@@ -42,6 +44,7 @@ public class StorageManager {
             configRepository.load();
             profileRepository.init();
             paletteRepository.load();
+            infinitePaletteRepository.load();
             versionCatalogRepository.load();
 
             // initialize and ensure category order file
@@ -72,6 +75,10 @@ public class StorageManager {
 
     public PaletteRepository getPaletteRepository() {
         return paletteRepository;
+    }
+
+    public PaletteRepository getInfinitePaletteRepository() {
+        return infinitePaletteRepository;
     }
 
     public VersionCatalogRepository getVersionCatalogRepository() {

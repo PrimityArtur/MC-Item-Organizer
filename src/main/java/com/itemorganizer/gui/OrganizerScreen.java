@@ -27,6 +27,7 @@ public class OrganizerScreen extends Screen {
     private com.itemorganizer.gui.widget.ProfileManagerWidget profileManagerWidget;
     private com.itemorganizer.gui.widget.ConfigWidget configWidget;
     private com.itemorganizer.gui.widget.PaletteListWidget paletteListWidget;
+    private com.itemorganizer.gui.widget.PaletteListWidget infinitePaletteListWidget;
     private com.itemorganizer.gui.widget.PaletteSearchFilterWidget paletteSearchFilterWidget;
     private com.itemorganizer.gui.widget.UnorganizedGridWidget unorganizedGridWidget;
     private com.itemorganizer.gui.widget.VersionCatalogWidget versionCatalogWidget;
@@ -81,11 +82,46 @@ public class OrganizerScreen extends Screen {
 
     @Override
     public void removed() {
+        saveScrollPositions();
         super.removed();
         if (originalVanillaBlur != -1 && client != null && client.options != null) {
             setOptionValue(client.options.getMenuBackgroundBlurriness(), originalVanillaBlur);
             originalVanillaBlur = -1;
         }
+    }
+
+    public void saveScrollPositions() {
+        if (orderedGridWidget != null) viewModel.setScrollOffset(OrganizerViewModel.AREA_ORGANIZED, orderedGridWidget.getScrollOffset());
+        if (profileManagerWidget != null) viewModel.setScrollOffset(OrganizerViewModel.AREA_PROFILES, profileManagerWidget.getScrollOffset());
+        if (configWidget != null) viewModel.setScrollOffset(OrganizerViewModel.AREA_CONFIG, configWidget.getScrollOffset());
+        if (blockedGridWidget != null) viewModel.setScrollOffset(OrganizerViewModel.AREA_BLOCKER, blockedGridWidget.getScrollOffset());
+        if (paletteListWidget != null) {
+            viewModel.setScrollOffset(OrganizerViewModel.AREA_PALETTES, paletteListWidget.getScrollOffset());
+            viewModel.setPaletteSearchQuery(paletteListWidget.getSearchText());
+        }
+        if (infinitePaletteListWidget != null) {
+            viewModel.setScrollOffset(OrganizerViewModel.AREA_INF_PALETTE, infinitePaletteListWidget.getScrollOffset());
+            viewModel.setInfinitePaletteSearchQuery(infinitePaletteListWidget.getSearchText());
+        }
+        if (unorganizedGridWidget != null) viewModel.setScrollOffset(OrganizerViewModel.AREA_UNORGANIZED, unorganizedGridWidget.getScrollOffset());
+        if (versionCatalogWidget != null) viewModel.setScrollOffset(OrganizerViewModel.AREA_VERSION, versionCatalogWidget.getScrollOffset());
+    }
+
+    public void restoreScrollPositions() {
+        if (orderedGridWidget != null) orderedGridWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_ORGANIZED));
+        if (profileManagerWidget != null) profileManagerWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_PROFILES));
+        if (configWidget != null) configWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_CONFIG));
+        if (blockedGridWidget != null) blockedGridWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_BLOCKER));
+        if (paletteListWidget != null) {
+            paletteListWidget.setSearchText(viewModel.getPaletteSearchQuery());
+            paletteListWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_PALETTES));
+        }
+        if (infinitePaletteListWidget != null) {
+            infinitePaletteListWidget.setSearchText(viewModel.getInfinitePaletteSearchQuery());
+            infinitePaletteListWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_INF_PALETTE));
+        }
+        if (unorganizedGridWidget != null) unorganizedGridWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_UNORGANIZED));
+        if (versionCatalogWidget != null) versionCatalogWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_VERSION));
     }
 
     public void applyBlurSetting() {
@@ -136,25 +172,41 @@ public class OrganizerScreen extends Screen {
         TabButtonWidget tabOrdenado = new TabButtonWidget(
                 0, 0, 10, 16,
                 LeftTab.ORDENADO.getText(),
-                btn -> viewModel.setActiveLeftTab(LeftTab.ORDENADO),
+                btn -> {
+                    saveScrollPositions();
+                    viewModel.setActiveLeftTab(LeftTab.ORDENADO);
+                    restoreScrollPositions();
+                },
                 () -> viewModel.getActiveLeftTab() == LeftTab.ORDENADO
         );
         TabButtonWidget tabPerfiles = new TabButtonWidget(
                 0, 0, 10, 16,
                 LeftTab.PERFILES.getText(),
-                btn -> viewModel.setActiveLeftTab(LeftTab.PERFILES),
+                btn -> {
+                    saveScrollPositions();
+                    viewModel.setActiveLeftTab(LeftTab.PERFILES);
+                    restoreScrollPositions();
+                },
                 () -> viewModel.getActiveLeftTab() == LeftTab.PERFILES
         );
         TabButtonWidget tabConfig = new TabButtonWidget(
                 0, 0, 10, 16,
                 LeftTab.CONFIG.getText(),
-                btn -> viewModel.setActiveLeftTab(LeftTab.CONFIG),
+                btn -> {
+                    saveScrollPositions();
+                    viewModel.setActiveLeftTab(LeftTab.CONFIG);
+                    restoreScrollPositions();
+                },
                 () -> viewModel.getActiveLeftTab() == LeftTab.CONFIG
         );
         TabButtonWidget tabBlocker = new TabButtonWidget(
                 0, 0, 10, 16,
                 Text.translatable("tab.itemorganizer.blocker"),
-                btn -> viewModel.toggleBlocker(),
+                btn -> {
+                    saveScrollPositions();
+                    viewModel.toggleBlocker();
+                    restoreScrollPositions();
+                },
                 viewModel::isBlockerActive,
                 true
         );
@@ -168,22 +220,45 @@ public class OrganizerScreen extends Screen {
         TabButtonWidget tabPaletas = new TabButtonWidget(
                 0, 0, 10, 16,
                 RightTab.PALETAS.getText(),
-                btn -> viewModel.setActiveRightTab(RightTab.PALETAS),
+                btn -> {
+                    saveScrollPositions();
+                    viewModel.setActiveRightTab(RightTab.PALETAS);
+                    restoreScrollPositions();
+                },
                 () -> viewModel.getActiveRightTab() == RightTab.PALETAS
+        );
+        TabButtonWidget tabInfPaletas = new TabButtonWidget(
+                0, 0, 10, 16,
+                RightTab.INF_PALETAS.getText(),
+                btn -> {
+                    saveScrollPositions();
+                    viewModel.setActiveRightTab(RightTab.INF_PALETAS);
+                    restoreScrollPositions();
+                },
+                () -> viewModel.getActiveRightTab() == RightTab.INF_PALETAS
         );
         TabButtonWidget tabPorOrganizar = new TabButtonWidget(
                 0, 0, 10, 16,
                 RightTab.POR_ORGANIZAR.getText(),
-                btn -> viewModel.setActiveRightTab(RightTab.POR_ORGANIZAR),
+                btn -> {
+                    saveScrollPositions();
+                    viewModel.setActiveRightTab(RightTab.POR_ORGANIZAR);
+                    restoreScrollPositions();
+                },
                 () -> viewModel.getActiveRightTab() == RightTab.POR_ORGANIZAR
         );
         TabButtonWidget tabPorVersion = new TabButtonWidget(
                 0, 0, 10, 16,
                 RightTab.POR_VERSION.getText(),
-                btn -> viewModel.setActiveRightTab(RightTab.POR_VERSION),
+                btn -> {
+                    saveScrollPositions();
+                    viewModel.setActiveRightTab(RightTab.POR_VERSION);
+                    restoreScrollPositions();
+                },
                 () -> viewModel.getActiveRightTab() == RightTab.POR_VERSION
         );
         rightTabs.add(tabPaletas);
+        rightTabs.add(tabInfPaletas);
         rightTabs.add(tabPorOrganizar);
         rightTabs.add(tabPorVersion);
         rightTabs.forEach(this::addDrawableChild);
@@ -210,8 +285,11 @@ public class OrganizerScreen extends Screen {
         paletteListWidget = new com.itemorganizer.gui.widget.PaletteListWidget(
                 viewModel, 0, 0, 10, 10
         );
-        paletteSearchFilterWidget = new com.itemorganizer.gui.widget.PaletteSearchFilterWidget(0, 0);
+        paletteSearchFilterWidget = new com.itemorganizer.gui.widget.PaletteSearchFilterWidget(0, 0, viewModel.getPaletteFilterRow());
         paletteListWidget.setSearchFilterWidget(paletteSearchFilterWidget);
+        infinitePaletteListWidget = new com.itemorganizer.gui.widget.PaletteListWidget(
+                viewModel, 0, 0, 10, 10, true
+        );
         unorganizedGridWidget = new com.itemorganizer.gui.widget.UnorganizedGridWidget(
                 viewModel, 0, 0, 10, 10
         );
@@ -220,6 +298,7 @@ public class OrganizerScreen extends Screen {
         );
 
         updateLayout();
+        restoreScrollPositions();
     }
 
     public void updateLayout() {
@@ -318,6 +397,7 @@ public class OrganizerScreen extends Screen {
         rightContentY = rightPanelY + tabHeight + tabGap;
         rightContentHeight = rightPanelHeight - tabHeight - tabGap;
         if (paletteListWidget != null) paletteListWidget.setBounds(rightPanelX, rightContentY, rightPanelWidth, rightContentHeight);
+        if (infinitePaletteListWidget != null) infinitePaletteListWidget.setBounds(rightPanelX, rightContentY, rightPanelWidth, rightContentHeight);
         if (unorganizedGridWidget != null) unorganizedGridWidget.setBounds(rightPanelX, rightContentY, rightPanelWidth, rightContentHeight);
         if (versionCatalogWidget != null) versionCatalogWidget.setBounds(rightPanelX, rightContentY, rightPanelWidth, rightContentHeight);
     }
@@ -388,6 +468,8 @@ public class OrganizerScreen extends Screen {
         RightTab tab = viewModel.getActiveRightTab();
         if (tab == RightTab.PALETAS && paletteListWidget != null) {
             paletteListWidget.render(context, mouseX, mouseY, delta);
+        } else if (tab == RightTab.INF_PALETAS && infinitePaletteListWidget != null) {
+            infinitePaletteListWidget.render(context, mouseX, mouseY, delta);
         } else if (tab == RightTab.POR_ORGANIZAR && unorganizedGridWidget != null) {
             unorganizedGridWidget.render(context, mouseX, mouseY, delta);
         } else if (tab == RightTab.POR_VERSION && versionCatalogWidget != null) {
@@ -426,12 +508,16 @@ public class OrganizerScreen extends Screen {
 
             if (click.button() == 0 && click.y() >= toolbarY && click.y() <= toolbarY + toolbarH) {
                 if (click.x() >= sub1X && click.x() <= sub1X + sub1W) {
+                    saveScrollPositions();
                     viewModel.setActiveOrdenadoSubTab(OrdenadoSubTab.ORGANIZADO);
+                    restoreScrollPositions();
                     playClickSound();
                     return true;
                 }
                 if (click.x() >= sub2X && click.x() <= sub2X + sub2W) {
+                    saveScrollPositions();
                     viewModel.setActiveOrdenadoSubTab(OrdenadoSubTab.BLOQUEADO);
+                    restoreScrollPositions();
                     playClickSound();
                     return true;
                 }
@@ -509,6 +595,11 @@ public class OrganizerScreen extends Screen {
                 return true;
             }
         }
+        if (rightTab == RightTab.INF_PALETAS) {
+            if (infinitePaletteListWidget != null && infinitePaletteListWidget.mouseClicked(click, bl)) {
+                return true;
+            }
+        }
         if (rightTab == RightTab.POR_ORGANIZAR && unorganizedGridWidget != null && unorganizedGridWidget.mouseClicked(click, bl)) {
             return true;
         }
@@ -557,6 +648,9 @@ public class OrganizerScreen extends Screen {
             if (click.x() >= rightPanelX && click.x() <= rightPanelX + rightPanelWidth) {
                 RightTab rightTab = viewModel.getActiveRightTab();
                 if (rightTab == RightTab.PALETAS && paletteListWidget != null && paletteListWidget.mouseReleased(click)) {
+                    return true;
+                }
+                if (rightTab == RightTab.INF_PALETAS && infinitePaletteListWidget != null && infinitePaletteListWidget.mouseReleased(click)) {
                     return true;
                 }
                 if (rightTab == RightTab.POR_ORGANIZAR && unorganizedGridWidget != null && unorganizedGridWidget.mouseReleased(click)) {
@@ -609,6 +703,9 @@ public class OrganizerScreen extends Screen {
         if (rightTab == RightTab.PALETAS && paletteListWidget != null && paletteListWidget.mouseReleased(click)) {
             return true;
         }
+        if (rightTab == RightTab.INF_PALETAS && infinitePaletteListWidget != null && infinitePaletteListWidget.mouseReleased(click)) {
+            return true;
+        }
         if (rightTab == RightTab.POR_ORGANIZAR && unorganizedGridWidget != null && unorganizedGridWidget.mouseReleased(click)) {
             return true;
         }
@@ -644,6 +741,9 @@ public class OrganizerScreen extends Screen {
         if (rightTab == RightTab.PALETAS && paletteListWidget != null && paletteListWidget.mouseDragged(click, deltaX, deltaY)) {
             return true;
         }
+        if (rightTab == RightTab.INF_PALETAS && infinitePaletteListWidget != null && infinitePaletteListWidget.mouseDragged(click, deltaX, deltaY)) {
+            return true;
+        }
         if (rightTab == RightTab.POR_ORGANIZAR && unorganizedGridWidget != null && unorganizedGridWidget.mouseDragged(click, deltaX, deltaY)) {
             return true;
         }
@@ -677,6 +777,9 @@ public class OrganizerScreen extends Screen {
 
         RightTab rightTab = viewModel.getActiveRightTab();
         if (rightTab == RightTab.PALETAS && paletteListWidget != null && paletteListWidget.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) {
+            return true;
+        }
+        if (rightTab == RightTab.INF_PALETAS && infinitePaletteListWidget != null && infinitePaletteListWidget.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) {
             return true;
         }
         if (rightTab == RightTab.POR_ORGANIZAR && unorganizedGridWidget != null && unorganizedGridWidget.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) {
@@ -720,6 +823,9 @@ public class OrganizerScreen extends Screen {
 
         RightTab rightTab = viewModel.getActiveRightTab();
         if (rightTab == RightTab.PALETAS && paletteListWidget != null && paletteListWidget.keyPressed(input)) {
+            return true;
+        }
+        if (rightTab == RightTab.INF_PALETAS && infinitePaletteListWidget != null && infinitePaletteListWidget.keyPressed(input)) {
             return true;
         }
         if (rightTab == RightTab.POR_ORGANIZAR && unorganizedGridWidget != null && unorganizedGridWidget.keyPressed(input)) {
@@ -838,6 +944,9 @@ public class OrganizerScreen extends Screen {
         if (rightTab == RightTab.PALETAS && paletteListWidget != null && paletteListWidget.charTyped(input)) {
             return true;
         }
+        if (rightTab == RightTab.INF_PALETAS && infinitePaletteListWidget != null && infinitePaletteListWidget.charTyped(input)) {
+            return true;
+        }
 
         return super.charTyped(input);
     }
@@ -851,6 +960,9 @@ public class OrganizerScreen extends Screen {
         if (activeModal != null) return true;
         if (viewModel.getActiveRightTab() == RightTab.PALETAS && paletteListWidget != null) {
             if (paletteListWidget.isEditingOrSearching()) return true;
+        }
+        if (viewModel.getActiveRightTab() == RightTab.INF_PALETAS && infinitePaletteListWidget != null) {
+            if (infinitePaletteListWidget.isEditingOrSearching()) return true;
         }
         if (viewModel.getActiveLeftTab() == LeftTab.PERFILES && profileManagerWidget != null) {
             if (profileManagerWidget.isEditingOrSearching()) return true;

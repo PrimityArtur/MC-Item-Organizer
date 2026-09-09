@@ -271,4 +271,20 @@ public final class RenderHelper {
 
         context.getMatrices().popMatrix();
     }
+
+    // vector icon: place palette in world
+    public static void drawPlaceWorldIcon(DrawContext context, float cx, float cy, float scale, int color) {
+        context.getMatrices().pushMatrix();
+        context.getMatrices().translate(cx, cy);
+        context.getMatrices().scale(scale, scale);
+
+        context.fill(0, -3, 1, -2, color);
+        context.fill(-2, -2, 3, -1, color);
+        context.fill(-3, -1, 4, 0, color);
+        context.fill(-3, 0, 0, 3, color);
+        context.fill(1, 0, 4, 3, color);
+        context.fill(-1, 3, 2, 4, color);
+
+        context.getMatrices().popMatrix();
+    }
 }

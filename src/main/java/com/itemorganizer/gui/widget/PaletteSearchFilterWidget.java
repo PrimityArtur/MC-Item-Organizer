@@ -24,7 +24,7 @@ import java.util.Objects;
 public class PaletteSearchFilterWidget implements Drawable, Element, Selectable {
     public static final int SLOT_COUNT = 9;
 
-    private final PaletteRow filterPalette = new PaletteRow();
+    private final PaletteRow filterPalette;
     private int x;
     private int y;
     private float scale = 1.0f;
@@ -34,8 +34,13 @@ public class PaletteSearchFilterWidget implements Drawable, Element, Selectable 
     private boolean hoveredClearBtn = false;
 
     public PaletteSearchFilterWidget(int x, int y) {
+        this(x, y, new PaletteRow());
+    }
+
+    public PaletteSearchFilterWidget(int x, int y, PaletteRow filterPalette) {
         this.x = x;
         this.y = y;
+        this.filterPalette = (filterPalette != null) ? filterPalette : new PaletteRow();
     }
 
     public void setBounds(int x, int y, float scale, float itemScale, float textScale) {

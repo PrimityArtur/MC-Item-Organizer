@@ -574,4 +574,12 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
     public boolean isEditingOrSearching() {
         return activeModal != null;
     }
+
+    public double getScrollOffset() {
+        return scrollbar.getScrollOffset();
+    }
+
+    public void setScrollOffset(double offset) {
+        scrollbar.setScrollOffset(offset);
+    }
 }

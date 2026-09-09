@@ -22,11 +22,21 @@ import java.util.Set;
 
 // central viewmodel holding state and coordinating tabs
 public class OrganizerViewModel {
+    public static final String AREA_ORGANIZED = "organized";
+    public static final String AREA_PROFILES = "profiles";
+    public static final String AREA_CONFIG = "config";
+    public static final String AREA_BLOCKER = "blocker";
+    public static final String AREA_PALETTES = "palettes";
+    public static final String AREA_INF_PALETTE = "inf_palette";
+    public static final String AREA_UNORGANIZED = "unorganized";
+    public static final String AREA_VERSION = "by version";
+
     private final StorageManager storageManager;
 
     private ModConfig config;
     private ProfileData activeProfile;
     private PaletteData paletteData;
+    private PaletteData infinitePaletteData;
     private VersionCatalog versionCatalog;
 
     private LeftTab activeLeftTab = LeftTab.ORDENADO;
@@ -37,9 +47,20 @@ public class OrganizerViewModel {
     private final List<String> unorganizedItems = new ArrayList<>();
     private final List<Runnable> changeListeners = new ArrayList<>();
 
+    private final java.util.Map<String, Double> sessionScrollOffsets = new java.util.HashMap<>();
+    private String paletteSearchQuery = "";
+    private String infinitePaletteSearchQuery = "";
+    private final com.itemorganizer.core.model.PaletteRow paletteFilterRow = new com.itemorganizer.core.model.PaletteRow();
+
     public OrganizerViewModel() {
-        this.storageManager = StorageManager.getInstance();
-        loadInitialData();
+        this(StorageManager.getInstance(), true);
+    }
+
+    public OrganizerViewModel(StorageManager storageManager, boolean loadData) {
+        this.storageManager = storageManager;
+        if (loadData && storageManager != null) {
+            loadInitialData();
+        }
     }
 
     public void loadInitialData() {
@@ -55,6 +76,7 @@ public class OrganizerViewModel {
             storageManager.getConfigRepository().save(config);
         }
         this.paletteData = storageManager.getPaletteRepository().getData();
+        this.infinitePaletteData = storageManager.getInfinitePaletteRepository().getData();
         this.versionCatalog = storageManager.getVersionCatalogRepository().getCatalog();
         recomputeUnorganizedItems();
     }
@@ -253,6 +275,38 @@ public class OrganizerViewModel {
             storageManager.getConfigRepository().save(config);
             notifyChanges();
         }
+    }
+
+    public double getScrollOffset(String area) {
+        return sessionScrollOffsets.getOrDefault(area, 0.0);
+    }
+
+    public void setScrollOffset(String area, double offset) {
+        sessionScrollOffsets.put(area, Math.max(0.0, offset));
+    }
+
+    public String getPaletteSearchQuery() {
+        return paletteSearchQuery;
+    }
+
+    public void setPaletteSearchQuery(String query) {
+        this.paletteSearchQuery = (query != null) ? query : "";
+    }
+
+    public com.itemorganizer.core.model.PaletteRow getPaletteFilterRow() {
+        return paletteFilterRow;
+    }
+
+    public PaletteData getInfinitePaletteData() {
+        return infinitePaletteData;
+    }
+
+    public String getInfinitePaletteSearchQuery() {
+        return infinitePaletteSearchQuery;
+    }
+
+    public void setInfinitePaletteSearchQuery(String query) {
+        this.infinitePaletteSearchQuery = (query != null) ? query : "";
     }
 }
 

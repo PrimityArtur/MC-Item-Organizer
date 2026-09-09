@@ -12,7 +12,11 @@ public class PaletteRepository {
     private PaletteData cachedData;
 
     public PaletteRepository(Path baseDir) {
-        this.paletteFile = baseDir.resolve("paletas.json");
+        this(baseDir, "paletas.json");
+    }
+
+    public PaletteRepository(Path baseDir, String fileName) {
+        this.paletteFile = baseDir.resolve(fileName);
     }
 
     public PaletteData load() {
