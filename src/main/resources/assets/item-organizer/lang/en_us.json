@@ -80,6 +80,7 @@
   "palettes.itemorganizer.filter_palette.empty_slot": "Drop item to filter",
   "palettes.itemorganizer.tooltip.sort_column_color": "Sort by Column Color",
   "palettes.itemorganizer.tooltip.sort_column_color_active": "Column Color Sort Active (Click to disable)",
+  "palettes.itemorganizer.palette_placed": "Palette placed in world",
 
   "config.itemorganizer.group.guide": "Shortcuts Guide",
   "config.itemorganizer.group.general": "General",

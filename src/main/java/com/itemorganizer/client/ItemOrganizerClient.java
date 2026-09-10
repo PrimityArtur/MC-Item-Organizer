@@ -20,6 +20,9 @@ public class ItemOrganizerClient implements ClientModInitializer {
     public void onInitializeClient() {
         ItemOrganizer.LOGGER.info("Initializing ItemOrganizer Client...");
 
+        // register placement listeners and chat suppression
+        com.itemorganizer.gui.util.PalettePlacementManager.init();
+
         // register open keybinding ('O' by default)
         KeyBinding.Category category = KeyBinding.Category.create(net.minecraft.util.Identifier.of(ItemOrganizer.MOD_ID, "keys"));
         openKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(

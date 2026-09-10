@@ -1175,66 +1175,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     // place palette blocks horizontally in the world starting below the player and teleport player 1 block to the left
     public void placePaletteInWorld(PaletteRow row) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.player == null || client.world == null || row == null) return;
-
-        BlockPos startPos = client.player.getBlockPos().down();
-        Direction facing = client.player.getHorizontalFacing();
-        MinecraftServer server = client.getServer();
-
-        int slotCount = row.getSlotCount();
-        for (int i = 0; i < slotCount; i++) {
-            String itemId = row.getSlot(i);
-            if (itemId == null || itemId.trim().isEmpty()) continue;
-
-            Identifier id = Identifier.tryParse(itemId.trim());
-            if (id == null) continue;
-
-            Item item = Registries.ITEM.get(id);
-            if (item instanceof BlockItem blockItem) {
-                BlockPos targetPos = startPos.offset(facing, i);
-                BlockState state = blockItem.getBlock().getDefaultState();
-
-                if (server != null) {
-                    RegistryKey<World> key = client.world.getRegistryKey();
-                    server.execute(() -> {
-                        ServerWorld serverWorld = server.getWorld(key);
-                        if (serverWorld != null) {
-                            serverWorld.setBlockState(targetPos, state, Block.NOTIFY_ALL);
-                        }
-                    });
-                } else if (client.getNetworkHandler() != null) {
-                    client.getNetworkHandler().sendChatCommand(
-                            String.format(java.util.Locale.ROOT, "setblock %d %d %d %s",
-                                    targetPos.getX(), targetPos.getY(), targetPos.getZ(), itemId.trim())
-                    );
-                }
-                client.world.setBlockState(targetPos, state, Block.NOTIFY_ALL);
-            }
-        }
-
-        // teleport player 1 block to their left (counter-clockwise relative to facing direction)
-        Direction leftDir = facing.rotateYCounterclockwise();
-        int dx = leftDir.getOffsetX();
-        int dz = leftDir.getOffsetZ();
-        double newX = client.player.getX() + dx;
-        double newY = client.player.getY();
-        double newZ = client.player.getZ() + dz;
-
-        if (server != null) {
-            server.execute(() -> {
-                ServerPlayerEntity serverPlayer = server.getPlayerManager().getPlayer(client.player.getUuid());
-                if (serverPlayer != null) {
-                    serverPlayer.requestTeleport(newX, newY, newZ);
-                }
-            });
-        } else if (client.getNetworkHandler() != null) {
-            client.getNetworkHandler().sendChatCommand(
-                    String.format(java.util.Locale.ROOT, "tp @s ~%d ~ ~%d", dx, dz)
-            );
-        }
-        client.player.setPosition(newX, newY, newZ);
-
-        SoundHelper.playChime();
+        com.itemorganizer.gui.util.PalettePlacementManager.getInstance().placePalette(client, row);
     }
 
     @Override
