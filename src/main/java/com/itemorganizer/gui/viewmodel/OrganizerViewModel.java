@@ -30,6 +30,7 @@ public class OrganizerViewModel {
     public static final String AREA_INF_PALETTE = "inf_palette";
     public static final String AREA_UNORGANIZED = "unorganized";
     public static final String AREA_VERSION = "by version";
+    public static final String AREA_CREATE_PALETTE = "create_palette";
 
     private final StorageManager storageManager;
 
@@ -51,6 +52,11 @@ public class OrganizerViewModel {
     private String paletteSearchQuery = "";
     private String infinitePaletteSearchQuery = "";
     private final com.itemorganizer.core.model.PaletteRow paletteFilterRow = new com.itemorganizer.core.model.PaletteRow();
+    private final com.itemorganizer.gui.palette.CreatePaletteState createPaletteState = new com.itemorganizer.gui.palette.CreatePaletteState();
+
+    public com.itemorganizer.gui.palette.CreatePaletteState getCreatePaletteState() {
+        return createPaletteState;
+    }
 
     public OrganizerViewModel() {
         this(StorageManager.getInstance(), true);

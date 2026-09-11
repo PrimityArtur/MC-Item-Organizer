@@ -149,6 +149,27 @@ public class ProfileAndConfigTest {
         assertEquals(0.50f, config.getPaletteButtonScale(), 0.001f);
         config.setPaletteButtonScale(3.50f);
         assertEquals(2.00f, config.getPaletteButtonScale(), 0.001f);
+
+        // create palette scale clamping (0.50 to 2.00, default 1.00)
+        assertEquals(1.00f, config.getCreatePaletteScale(), 0.001f);
+        config.setCreatePaletteScale(0.20f);
+        assertEquals(0.50f, config.getCreatePaletteScale(), 0.001f);
+        config.setCreatePaletteScale(3.50f);
+        assertEquals(2.00f, config.getCreatePaletteScale(), 0.001f);
+
+        // create palette item scale clamping (0.50 to 1.50, default 1.00)
+        assertEquals(1.00f, config.getCreatePaletteItemScale(), 0.001f);
+        config.setCreatePaletteItemScale(0.20f);
+        assertEquals(0.50f, config.getCreatePaletteItemScale(), 0.001f);
+        config.setCreatePaletteItemScale(3.50f);
+        assertEquals(1.50f, config.getCreatePaletteItemScale(), 0.001f);
+
+        // create palette button scale clamping (0.50 to 2.00, default 1.00)
+        assertEquals(1.00f, config.getCreatePaletteButtonScale(), 0.001f);
+        config.setCreatePaletteButtonScale(0.20f);
+        assertEquals(0.50f, config.getCreatePaletteButtonScale(), 0.001f);
+        config.setCreatePaletteButtonScale(3.50f);
+        assertEquals(2.00f, config.getCreatePaletteButtonScale(), 0.001f);
     }
 
     @Test
@@ -450,7 +471,7 @@ public class ProfileAndConfigTest {
 
     @Test
     void testColorSortingWithinSameCategory() {
-        java.util.Comparator<String> cmp = com.itemorganizer.gui.util.ItemColorHelper.getColorComparator();
+        java.util.Comparator<String> cmp = com.itemorganizer.gui.util.ItemColorHelper.getCategoryColorComparator();
 
         // inside carpets (cat 13): white_carpet before red_carpet
         assertTrue(cmp.compare("minecraft:white_carpet", "minecraft:red_carpet") < 0);
@@ -483,6 +504,83 @@ public class ProfileAndConfigTest {
 
         assertEquals(3, profile.findPositionOf("minecraft:red_carpet").get().getX());
         assertEquals(0, profile.findPositionOf("minecraft:red_carpet").get().getY());
+    }
+
+    @Test
+    void testPureColorGradientSorting() {
+        java.util.Comparator<String> cmp = com.itemorganizer.gui.util.ItemColorHelper.getColorComparator();
+
+        // neutrals transition: blanco -> gris -> negro
+        assertTrue(cmp.compare("minecraft:white_concrete", "minecraft:gray_concrete") < 0);
+        assertTrue(cmp.compare("minecraft:gray_concrete", "minecraft:black_concrete") < 0);
+
+        // dark blocks like black_terracotta sort into neutrals, before chromatics
+        float[] blackTerracottaHsv = com.itemorganizer.gui.util.ItemColorHelper.rgbToHsv(
+                com.itemorganizer.gui.util.ItemColorHelper.getItemColor("minecraft:black_terracotta")
+        );
+        assertTrue(com.itemorganizer.gui.util.ItemColorHelper.isNeutral(blackTerracottaHsv));
+        assertTrue(cmp.compare("minecraft:black_concrete", "minecraft:red_concrete") < 0);
+
+        // chromatics: roja -> naranja -> amarillo -> lima -> verde -> cyan -> azul -> purpura -> magenta -> rosa
+        assertTrue(cmp.compare("minecraft:red_concrete", "minecraft:orange_concrete") < 0);
+        assertTrue(cmp.compare("minecraft:orange_concrete", "minecraft:yellow_concrete") < 0);
+        assertTrue(cmp.compare("minecraft:yellow_concrete", "minecraft:lime_concrete") < 0);
+        assertTrue(cmp.compare("minecraft:lime_concrete", "minecraft:green_concrete") < 0);
+        assertTrue(cmp.compare("minecraft:green_concrete", "minecraft:cyan_concrete") < 0);
+        assertTrue(cmp.compare("minecraft:cyan_concrete", "minecraft:blue_concrete") < 0);
+        assertTrue(cmp.compare("minecraft:blue_concrete", "minecraft:purple_concrete") < 0);
+        assertTrue(cmp.compare("minecraft:purple_concrete", "minecraft:magenta_concrete") < 0);
+        assertTrue(cmp.compare("minecraft:magenta_concrete", "minecraft:pink_concrete") < 0);
+
+        // wool continuous sequence
+        assertTrue(cmp.compare("minecraft:white_wool", "minecraft:light_gray_wool") < 0);
+        assertTrue(cmp.compare("minecraft:light_gray_wool", "minecraft:gray_wool") < 0);
+        assertTrue(cmp.compare("minecraft:gray_wool", "minecraft:black_wool") < 0);
+        assertTrue(cmp.compare("minecraft:black_wool", "minecraft:red_wool") < 0);
+        assertTrue(cmp.compare("minecraft:red_wool", "minecraft:brown_wool") < 0);
+        assertTrue(cmp.compare("minecraft:brown_wool", "minecraft:orange_wool") < 0);
+        assertTrue(cmp.compare("minecraft:orange_wool", "minecraft:yellow_wool") < 0);
+        assertTrue(cmp.compare("minecraft:yellow_wool", "minecraft:lime_wool") < 0);
+        assertTrue(cmp.compare("minecraft:lime_wool", "minecraft:green_wool") < 0);
+        assertTrue(cmp.compare("minecraft:green_wool", "minecraft:cyan_wool") < 0);
+        assertTrue(cmp.compare("minecraft:cyan_wool", "minecraft:light_blue_wool") < 0);
+        assertTrue(cmp.compare("minecraft:light_blue_wool", "minecraft:blue_wool") < 0);
+        assertTrue(cmp.compare("minecraft:blue_wool", "minecraft:purple_wool") < 0);
+        assertTrue(cmp.compare("minecraft:purple_wool", "minecraft:magenta_wool") < 0);
+        assertTrue(cmp.compare("minecraft:magenta_wool", "minecraft:pink_wool") < 0);
+    }
+
+    @Test
+    void testCategoryGroupedColorGradient() {
+        java.util.Comparator<String> cmp = com.itemorganizer.gui.util.ItemColorHelper.getColorComparator();
+
+        ProfileData multiCatProfile = new ProfileData("multi_cat_gradient");
+        // full blocks
+        multiCatProfile.setItemAt("minecraft:red_wool", 0, 0);
+        multiCatProfile.setItemAt("minecraft:white_wool", 1, 0);
+        multiCatProfile.setItemAt("minecraft:orange_wool", 2, 0);
+        // carpets
+        multiCatProfile.setItemAt("minecraft:red_carpet", 3, 0);
+        multiCatProfile.setItemAt("minecraft:white_carpet", 4, 0);
+        multiCatProfile.setItemAt("minecraft:orange_carpet", 5, 0);
+
+        multiCatProfile.sortItems(cmp, 3);
+
+        // full blocks group first, ordered by gradient (white -> red -> orange)
+        assertEquals(0, multiCatProfile.findPositionOf("minecraft:white_wool").get().getX());
+        assertEquals(0, multiCatProfile.findPositionOf("minecraft:white_wool").get().getY());
+        assertEquals(1, multiCatProfile.findPositionOf("minecraft:red_wool").get().getX());
+        assertEquals(0, multiCatProfile.findPositionOf("minecraft:red_wool").get().getY());
+        assertEquals(2, multiCatProfile.findPositionOf("minecraft:orange_wool").get().getX());
+        assertEquals(0, multiCatProfile.findPositionOf("minecraft:orange_wool").get().getY());
+
+        // carpets group second, ordered by the same gradient (white -> red -> orange)
+        assertEquals(0, multiCatProfile.findPositionOf("minecraft:white_carpet").get().getX());
+        assertEquals(1, multiCatProfile.findPositionOf("minecraft:white_carpet").get().getY());
+        assertEquals(1, multiCatProfile.findPositionOf("minecraft:red_carpet").get().getX());
+        assertEquals(1, multiCatProfile.findPositionOf("minecraft:red_carpet").get().getY());
+        assertEquals(2, multiCatProfile.findPositionOf("minecraft:orange_carpet").get().getX());
+        assertEquals(1, multiCatProfile.findPositionOf("minecraft:orange_carpet").get().getY());
     }
 
     @Test

@@ -14,6 +14,7 @@
 
   "subtab.itemorganizer.organized": "Organizado",
   "subtab.itemorganizer.blocked": "Bloqueado",
+  "subtab.itemorganizer.create_palette": "Crear Paleta",
 
   "button.itemorganizer.gradient": "Degradado",
   "tooltip.itemorganizer.gradient": "Ordenar por degradado de color (arcoíris)",
@@ -114,6 +115,10 @@
   "config.itemorganizer.palette_scale": "Escala Hotbar Paletas",
   "config.itemorganizer.palette_item_scale": "Escala Ítems Paletas",
   "config.itemorganizer.palette_button_scale": "Escala Botones Paleta",
+  "config.itemorganizer.group.create_palette": "Crear Paleta",
+  "config.itemorganizer.create_palette_scale": "Escala Hotbar / Paleta",
+  "config.itemorganizer.create_palette_item_scale": "Escala Ítems",
+  "config.itemorganizer.create_palette_button_scale": "Escala Botones",
   "config.itemorganizer.open_key": "Abrir Interfaz",
   "config.itemorganizer.quick_append_key": "Inserción Rápida",
   "config.itemorganizer.undo_key": "Acceso Deshacer",
@@ -130,5 +135,9 @@
 
   "blocked.itemorganizer.empty_title": "🔒 No hay ítems bloqueados",
   "blocked.itemorganizer.empty_line1": "Haz doble clic derecho en cualquier ítem",
-  "blocked.itemorganizer.empty_line2": "de 'Por Organizar' u 'Organizado' para bloquearlo."
+  "blocked.itemorganizer.empty_line2": "de 'Por Organizar' u 'Organizado' para bloquearlo.",
+
+  "palette.itemorganizer.toggle.ores": "Minerales",
+  "palette.itemorganizer.toggle.glazed": "Esmaltado",
+  "palette.itemorganizer.toggle.lights": "Luces"
 }

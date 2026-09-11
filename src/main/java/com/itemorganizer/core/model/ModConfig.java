@@ -13,6 +13,9 @@ public class ModConfig {
     private float paletteScale = 1.0f;      // palette size scale (0.5 to 2.0)
     private float paletteItemScale = 1.0f;  // palette item render scale (0.5 to 1.5)
     private float paletteButtonScale = 1.0f; // palette action buttons scale (0.5 to 2.0)
+    private float createPaletteScale = 1.0f;       // create palette size scale (0.5 to 2.0)
+    private float createPaletteItemScale = 1.0f;   // create palette item render scale (0.5 to 1.5)
+    private float createPaletteButtonScale = 1.0f; // create palette button scale (0.5 to 2.0)
     private String keyOpenClose = "key.keyboard.o"; // toggle key
     private String keyQuickAppend = "key.keyboard.a"; // quick append key
     private String keyUndo = "key.keyboard.z"; // undo shortcut key
@@ -118,6 +121,33 @@ public class ModConfig {
 
     public void setPaletteButtonScale(float paletteButtonScale) {
         this.paletteButtonScale = Math.max(0.50f, Math.min(2.00f, paletteButtonScale));
+    }
+
+    public float getCreatePaletteScale() {
+        if (createPaletteScale < 0.10f) createPaletteScale = 1.0f;
+        return createPaletteScale;
+    }
+
+    public void setCreatePaletteScale(float createPaletteScale) {
+        this.createPaletteScale = Math.max(0.50f, Math.min(2.00f, createPaletteScale));
+    }
+
+    public float getCreatePaletteItemScale() {
+        if (createPaletteItemScale < 0.10f) createPaletteItemScale = 1.0f;
+        return createPaletteItemScale;
+    }
+
+    public void setCreatePaletteItemScale(float createPaletteItemScale) {
+        this.createPaletteItemScale = Math.max(0.50f, Math.min(1.50f, createPaletteItemScale));
+    }
+
+    public float getCreatePaletteButtonScale() {
+        if (createPaletteButtonScale < 0.10f) createPaletteButtonScale = 1.0f;
+        return createPaletteButtonScale;
+    }
+
+    public void setCreatePaletteButtonScale(float createPaletteButtonScale) {
+        this.createPaletteButtonScale = Math.max(0.50f, Math.min(2.00f, createPaletteButtonScale));
     }
 
     public float getItemScale() {

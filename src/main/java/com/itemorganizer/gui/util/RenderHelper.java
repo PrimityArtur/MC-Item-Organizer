@@ -141,7 +141,7 @@ public final class RenderHelper {
 
         drawCard(context, x, y, width, height, bg, border);
         if (label != null && tr != null) {
-            TextScaleHelper.drawCenteredScaledText(context, tr, label, x + width / 2, y + (height - Math.round(8 * textScale)) / 2, text, textScale);
+            TextScaleHelper.drawVerticallyCenteredScaledText(context, tr, label, x + width / 2, y + height / 2, text, false, textScale);
         }
     }
 

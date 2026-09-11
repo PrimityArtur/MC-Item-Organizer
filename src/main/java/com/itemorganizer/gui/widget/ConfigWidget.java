@@ -63,6 +63,9 @@ public class ConfigWidget implements Drawable, Element, Selectable {
     private SliderComponent paletteScaleSlider;
     private SliderComponent paletteItemScaleSlider;
     private SliderComponent paletteButtonScaleSlider;
+    private SliderComponent createPaletteScaleSlider;
+    private SliderComponent createPaletteItemScaleSlider;
+    private SliderComponent createPaletteButtonScaleSlider;
 
     // key listening state
     private boolean listeningForKey = false;
@@ -228,6 +231,24 @@ public class ConfigWidget implements Drawable, Element, Selectable {
                 v -> Math.round(v * 100.0) + "% (" + String.format("%.2f", v) + "x)");
         paletteButtonScaleSlider.setColors(0x40000000, 0x4D38BDF8, 0x25FFFFFF, 0xFF38BDF8);
 
+        createPaletteScaleSlider = new SliderComponent(null, 0.50, 2.00,
+                () -> (double) viewModel.getConfig().getCreatePaletteScale(),
+                v -> viewModel.updateConfig(c -> c.setCreatePaletteScale(Math.round(v.floatValue() * 100.0f) / 100.0f)),
+                v -> Math.round(v * 100.0) + "% (" + String.format("%.2f", v) + "x)");
+        createPaletteScaleSlider.setColors(0x40000000, 0x4D38BDF8, 0x25FFFFFF, 0xFF38BDF8);
+
+        createPaletteItemScaleSlider = new SliderComponent(null, 0.50, 1.50,
+                () -> (double) viewModel.getConfig().getCreatePaletteItemScale(),
+                v -> viewModel.updateConfig(c -> c.setCreatePaletteItemScale(Math.round(v.floatValue() * 100.0f) / 100.0f)),
+                v -> Math.round(v * 100.0) + "% (" + String.format("%.2f", v) + "x)");
+        createPaletteItemScaleSlider.setColors(0x40000000, 0x4D38BDF8, 0x25FFFFFF, 0xFF38BDF8);
+
+        createPaletteButtonScaleSlider = new SliderComponent(null, 0.50, 2.00,
+                () -> (double) viewModel.getConfig().getCreatePaletteButtonScale(),
+                v -> viewModel.updateConfig(c -> c.setCreatePaletteButtonScale(Math.round(v.floatValue() * 100.0f) / 100.0f)),
+                v -> Math.round(v * 100.0) + "% (" + String.format("%.2f", v) + "x)");
+        createPaletteButtonScaleSlider.setColors(0x40000000, 0x4D38BDF8, 0x25FFFFFF, 0xFF38BDF8);
+
         allSliders.clear();
         allSliders.add(redSlider);
         allSliders.add(greenSlider);
@@ -243,6 +264,9 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         allSliders.add(paletteScaleSlider);
         allSliders.add(paletteItemScaleSlider);
         allSliders.add(paletteButtonScaleSlider);
+        allSliders.add(createPaletteScaleSlider);
+        allSliders.add(createPaletteItemScaleSlider);
+        allSliders.add(createPaletteButtonScaleSlider);
     }
 
     public void setBounds(int x, int y, int width, int height) {
@@ -425,6 +449,14 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         return headerH + 6 + (3 * itemH) + 4;
     }
 
+    private int getBlockCreatePaletteHeight(float textScale) {
+        int headerH = Math.max(14, Math.round(14 * textScale));
+        int labelGap = Math.max(10, Math.round(8 * textScale) + 2);
+        int sliderH = Math.max(12, Math.round(12 * Math.max(1.0f, textScale)));
+        int itemH = 12 + labelGap + sliderH + 6;
+        return headerH + 6 + (3 * itemH) + 4;
+    }
+
     private int getBlock6Height(float textScale) {
         int headerH = Math.max(14, Math.round(14 * textScale));
         int labelGap = Math.max(10, Math.round(8 * textScale) + 2);
@@ -442,9 +474,10 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int b3 = getBlock3Height(textScale);
         int b4 = getBlock4Height(textScale);
         int b5 = getBlock5Height(textScale);
+        int bCreatePal = getBlockCreatePaletteHeight(textScale);
         int b6 = getBlock6Height(textScale);
         int gap = 8;
-        return (b1 > 0 ? b1 + gap : 0) + b2 + gap + b3 + gap + b4 + gap + b5 + gap + b6 + 16;
+        return (b1 > 0 ? b1 + gap : 0) + b2 + gap + b3 + gap + b4 + gap + b5 + gap + bCreatePal + gap + b6 + 16;
     }
 
     @Override
@@ -477,6 +510,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int b3H = getBlock3Height(textScale);
         int b4H = getBlock4Height(textScale);
         int b5H = getBlock5Height(textScale);
+        int bCreatePalH = getBlockCreatePaletteHeight(textScale);
         int b6H = getBlock6Height(textScale);
 
         int b1Y = listStartY + 4 - scroll;
@@ -484,7 +518,8 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int b3Y = b2Y + b2H + blockGap;
         int b4Y = b3Y + b3H + blockGap;
         int b5Y = b4Y + b4H + blockGap;
-        int b6Y = b5Y + b5H + blockGap;
+        int bCreatePalY = b5Y + b5H + blockGap;
+        int b6Y = bCreatePalY + bCreatePalH + blockGap;
 
         // BLOCK 1: Shortcuts guide
         if (b1H > 0 && b1Y + b1H >= listStartY && b1Y <= listStartY + listHeight) {
@@ -708,6 +743,44 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             if (sliderPaletteButtonY + sliderH >= listStartY && sliderPaletteButtonY <= listStartY + listHeight) {
                 paletteButtonScaleSlider.setBounds(contentX, sliderPaletteButtonY, sliderW, sliderH);
                 paletteButtonScaleSlider.render(context, tr, mouseX, mouseY, textScale);
+            }
+        }
+
+        // BLOCK: Create Palette (Create Palette Scale, Create Palette Item Scale, Create Palette Button Scale)
+        if (bCreatePalY + bCreatePalH >= listStartY && bCreatePalY <= listStartY + listHeight) {
+            renderBlockCard(context, tr, cardX, bCreatePalY, cardW, bCreatePalH, Text.translatable("config.itemorganizer.group.create_palette"), textScale);
+            int curY = bCreatePalY + headerH + 4;
+
+            // create palette scale slider
+            if (curY + 12 >= listStartY && curY <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.create_palette_scale"), contentX, curY, 0xFF38BDF8, true, textScale);
+            }
+            int sliderScaleY = curY + labelGap;
+            if (sliderScaleY + sliderH >= listStartY && sliderScaleY <= listStartY + listHeight) {
+                createPaletteScaleSlider.setBounds(contentX, sliderScaleY, sliderW, sliderH);
+                createPaletteScaleSlider.render(context, tr, mouseX, mouseY, textScale);
+            }
+
+            // create palette item scale slider
+            int secItemY = sliderScaleY + sliderH + secGap;
+            if (secItemY + 12 >= listStartY && secItemY <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.create_palette_item_scale"), contentX, secItemY, 0xFF38BDF8, true, textScale);
+            }
+            int sliderItemY = secItemY + labelGap;
+            if (sliderItemY + sliderH >= listStartY && sliderItemY <= listStartY + listHeight) {
+                createPaletteItemScaleSlider.setBounds(contentX, sliderItemY, sliderW, sliderH);
+                createPaletteItemScaleSlider.render(context, tr, mouseX, mouseY, textScale);
+            }
+
+            // create palette button scale slider
+            int secButtonY = sliderItemY + sliderH + secGap;
+            if (secButtonY + 12 >= listStartY && secButtonY <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.create_palette_button_scale"), contentX, secButtonY, 0xFF38BDF8, true, textScale);
+            }
+            int sliderButtonY = secButtonY + labelGap;
+            if (sliderButtonY + sliderH >= listStartY && sliderButtonY <= listStartY + listHeight) {
+                createPaletteButtonScaleSlider.setBounds(contentX, sliderButtonY, sliderW, sliderH);
+                createPaletteButtonScaleSlider.render(context, tr, mouseX, mouseY, textScale);
             }
         }
 
@@ -1079,6 +1152,9 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             c.setPaletteScale(1.00f);
             c.setPaletteItemScale(1.00f);
             c.setPaletteButtonScale(1.00f);
+            c.setCreatePaletteScale(1.00f);
+            c.setCreatePaletteItemScale(1.00f);
+            c.setCreatePaletteButtonScale(1.00f);
             c.setKeyOpenClose("key.keyboard.o");
             c.setKeyQuickAppend("key.keyboard.a");
             c.setKeyUndo("key.keyboard.z");

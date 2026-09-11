@@ -5,8 +5,8 @@
 </p>
 
 <p align="center">
-  <strong>The visual inventory, palette manager, and builder workspace for Minecraft Fabric.</strong><br>
-  Replace the clutter of the creative inventory with customizable layouts, chromatic color gradients, and hotbar building palettes.
+  <strong>Visual inventory, palette manager, and builder workspace for Minecraft Fabric.</strong><br>
+  Customizable layouts, chromatic color gradients, and hotbar building palettes.
 </p>
 
 <p align="center">
@@ -24,79 +24,39 @@
 
 ## 📖 What the Mod Does
 
-**Item Organizer** is a client-side mod engineered to overhaul the traditional Minecraft creative inventory into a high-productivity builder interface. It provides granular item control, layout customization, color-gradient sorting, and advanced palette management to drastically accelerate your building workflow. In Survival mode, it can also be used as a convenient item catalog and visual lookup interface.
+**Item Organizer** is a client-side Fabric mod that replaces the creative inventory with an organized builder workspace. It features custom grid layouts, texture-based color sorting, and hotbar palette management. In Survival mode, it serves as a visual item catalog and reference guide.
 
 ### 🌟 Core Features & Panels
 
-* 📋 **Ordered Panel (Organized Grid)**:
-  * **Organized**: Position blocks and items precisely where you want them in a customizable grid with flexible columns.
-  * **Blocked Items**: Filter out and hide blocks you don't need so they never clutter your building workspace.
-  * **Gradient Sort (Degradado)**: Automatically arrange all items across your grid by chromatic color gradients (hue, saturation, brightness) analyzed from their textures.
-  * **Compact**: Instantly remove gaps and collapse empty slots forward.
-
-* 📦 **Unorganized Panel**:
-  * Displays every available Minecraft item that has not yet been placed in your Ordered layout or hidden in your Blocked list.
-
-* 📁 **Profiles Panel**:
-  * Create, load, rename, duplicate, and delete multiple independent profiles for different build themes, projects, or material types.
-
-* 🎨 **Palettes Panel (9-Slot Hotbar Palettes)**:
-  * Save frequently used combinations of 9 blocks into dedicated palette cards.
-  * **Search & Filter Bar**:
-    * **Text Search**: Filter palettes by item name, palette title, or palette number index.
-    * **Column Color Sort Toggle**: Visually sorts all palette rows by their column color gradients without modifying your saved JSON files.
-    * **`+ New` Button**: Instantly creates a new palette at the top (index 0) of the list.
-  * **Palette Actions**:
-    * ⬆️ / ⬇️ **Move**: Reorder palettes up and down in your collection.
-    * 📑 **Duplicate**: Clone any palette card with one click.
-    * 📥 **Paste Hotbar to Palette**: Copy your current player hotbar into the palette's 9 slots.
-    * 📤 **Load Palette to Hotbar**: Instantly equip all 9 blocks into your hotbar.
-    * 🌍 **Place Palette in World**: Places all palette blocks in the world horizontally right where you are looking, forcing in-place placement without requiring extra support blocks underneath (torches, crops, doors, plants, and gravity blocks stay cleanly in place like in Axiom, without FAWE or polluting undo history).
-    * 🗑️ **Delete**: Remove palettes (with full undo support).
-  * **Slot-Based Search Filter**:
-    * Place blocks into the search slots next to your hotbar to find matching palettes, ranked automatically by:
-      1. **Exact slot match**: Matching items in the exact same slot index.
-      2. **Item presence**: Palettes containing the item anywhere in the row.
-      3. **Color similarity**: Palettes containing blocks with matching color shades.
-
-* ♾️ **Infinite Palette Panel**:
-  * Extended multi-slot palettes that wrap across rows for massive color swatches or project collections.
-  * Paste hotbar items sequentially after the last placed block in the palette.
-  * Compatible with the slot-based search filter.
-
-* ⏳ **By Version Panel**:
-  * Explore and retrieve blocks chronologically grouped by their official Minecraft release versions.
-
-* 🛡️ **Blocker Mode**:
-  * Dedicated toggle button to lock the grid, preventing accidental item blocking, unblocking, or layout reorganization while you focus on building (state persists across game restarts).
-
-* ⚙️ **Config Panel**:
-  * Complete interactive keybindings guide and UI scaling options: background blur, grid zoom, item slot size, palette scale, and text scaling.
-
-* 🔄 **Full Undo & Redo System**:
-  * Robust `Ctrl + Z` (Undo) and `Ctrl + Y` (Redo) support across all panels: grid dragging, item blocking, color sorting, compacting, palette creation, deletion, and slot filter edits.
+* 📋 **Ordered Panel**: Organize blocks in a grid with adjustable columns, hide unwanted items via the Blocked list, sort by texture color gradients (hue, saturation, brightness), and compact empty slots.
+* 📦 **Unorganized Panel**: Displays all items not yet placed in the Ordered grid or added to the Blocked list.
+* 📁 **Profiles Panel**: Create, load, rename, duplicate, and delete layout profiles for different projects or themes.
+* 🎨 **Palettes Panel**: Save 9-slot block combinations to hotbar cards to move, duplicate, load into/copy from your hotbar, or place horizontally in the world.
+* 🔍 **Palette Search & Sorting**: Search palettes by text or index, add new palettes instantly (`+ New`), and sort columns by color gradient without modifying saved JSON files.
+* 🎯 **Slot-Based Search Filter**: Place items into search slots to filter palettes by exact slot position, row presence, or color similarity.
+* ♾️ **Infinite Palette Panel**: Multi-row palettes for large block collections, supporting sequential hotbar pasting and slot search filtering.
+* ⏳ **By Version Panel**: Browse items chronologically by Minecraft release version.
+* 🛡️ **Blocker Mode**: Locks the grid to prevent accidental item moving, blocking, or layout changes while building.
+* ⚙️ **Config Panel**: In-game keybinding reference and interface scaling (background blur, grid zoom, slot size, palette scale, and text scale).
+* 🔄 **Undo & Redo System**: Full `Ctrl + Z` (Undo) and `Ctrl + Y` (Redo) support across all panels and layout edits.
 
 ---
 
 ## 💡 Why You Should Use This Mod
 
-* 🎯 **Build Faster Without Inventory Fatigue**: Stop repeatedly searching through creative tabs or looking through chests for blocks. Keep your go-to palettes one click away.
-* 🌈 **Flawless Color Transitions & Gradients**: Dynamically extracts texture colors to suggest matching palettes and smooth gradients, helping you achieve seamless block gradients with zero guesswork.
-* 🏗️ **Forced In-Place World Placement**: Test your palette directly in-game by placing it in the world with pure in-place forcing. No additional support blocks are generated underneath, keeping your build area completely clean.
-* 🔀 **Flexible Drag, Drop & Pick-and-Place**: Move items with fluid drag-and-drop or click once to pick up an item on your cursor and click again to place it anywhere.
-* 🔒 **Layout Safety**: Protect your curated layouts with Blocker Mode and universal multi-level Undo/Redo (`Ctrl+Z` / `Ctrl+Y`).
-* ⚡ **Zero Server Setup Needed**: Works completely on the client side; connect to vanilla, Fabric, Paper, or Purpur servers without requiring any server plugins.
+* 🎯 **Faster Workflow**: Keep frequently used palettes one click away instead of manually searching creative tabs or chests.
+* 🌈 **Texture-Based Gradients**: Automatically extracts block colors to generate smooth palette transitions without manual testing.
+* 🏗️ **Direct World Placement**: Place palette rows directly in-game without placing support blocks underneath.
+* 🔀 **Flexible Controls**: Move items using drag-and-drop or single-click carry-and-place.
+* 🔒 **Safe Editing**: Protect layouts with grid locking (Blocker Mode) and multi-level Undo/Redo (`Ctrl + Z` / `Ctrl + Y`).
 
 ---
 
-## ⚠️ Critical Information Before Downloading
+## ⚠️ Information Before Downloading
 
-* 🖥️ **Client-Side Only**: This mod is 100% client-side. It does not need to be installed on servers. In multiplayer servers, placement uses vanilla commands without requiring server-side mods.
-* 🧩 **Required Dependencies**:
-  * [Fabric Loader](https://fabricmc.net/) 
-  * [Fabric API](https://modrinth.com/mod/fabric-api)
-* 🎮 **Default Keybinding**: Press **`O`** to open the Item Organizer screen. You can customize this key in `Options > Controls > Key Binds` or in the mod's **Config** panel.
-* 🛡️ **Safe World Placement**: Placing palettes in multiplayer uses native `/setblock` commands with automated chat suppression to prevent spam and does not tamper with external WorldEdit/FAWE undo histories.
+* 🖥️ **Client-Side Only**: Does not need to be installed on servers; works on multiplayer networks.
+* 🧩 **Dependencies**: Requires [Fabric Loader](https://fabricmc.net/) and [Fabric API](https://modrinth.com/mod/fabric-api).
+* 🎮 **Default Keybind**: Press **`O`** to open the interface (rebindable in `Options > Controls > Key Binds` or in the Config panel).
 
 ---
 
@@ -109,24 +69,22 @@
 | **`Ctrl + Y`** / **`Ctrl + Shift + Z`** | **Redo** last undone action |
 | **`Left Click`** | Click UI buttons, drag & drop items, or click to carry item on cursor and click again to place |
 | **`Shift + Left Click`** | **Item Panels**: Send item directly to hotbar<br>**Hotbar**: Remove item from hotbar |
-| **`Hotbar Keys (1 - 9)`** | Quick-assign hovered item directly into that hotbar slot |
+| **`Hotbar Keys (1 - 9)`** | Assign hovered item directly into that hotbar slot |
 | **`Right Click`** | Select an item in the **Ordered** grid |
 | **`Arrow Keys`** | Move the selected item around the Ordered grid |
 | **`Right Click + DEL / Backspace`** | Remove selected item from Ordered grid (returns to Unorganized) |
 | **`Double Right Click`** | **Ordered / Unorganized**: Send item to **Blocked** list<br>**Blocked**: Unblock item |
-| **`A`** | Quick-append hovered item into the **Ordered** grid |
+| **`A`** | Append hovered item into the **Ordered** grid |
 | **`Escape`** | Close current modal or exit Item Organizer screen |
-
-*All shortcuts and controls can be reviewed in the in-game **Config** tab.*
 
 ---
 
 ## 📥 Installation
 
-1. Make sure you have **Minecraft Fabric** installed for version **1.21.10** or **1.21.11**.
-2. Download and place the latest **[Fabric API](https://modrinth.com/mod/fabric-api)** in your `.minecraft/mods` folder.
-3. Download **Item Organizer** from Modrinth and place the `.jar` in your `.minecraft/mods` folder.
-4. Launch Minecraft, join any singleplayer world or multiplayer server, and press **`O`**!
+1. Install **Minecraft Fabric**.
+2. Download and place the latest **[Fabric API](https://modrinth.com/mod/fabric-api)** into your `.minecraft/mods` folder.
+3. Download **Item Organizer** from Modrinth and place the `.jar` into your `.minecraft/mods` folder.
+4. Launch the game, join a world or server, and press **`O`**.
 
 ---
 

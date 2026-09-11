@@ -183,16 +183,20 @@ public class PalettePlacementManager {
     public void placePalette(MinecraftClient client, PaletteRow row) {
         if (client == null || client.player == null || client.world == null || row == null) return;
 
-        BlockPos startPos = client.player.getBlockPos().down();
         Direction facing = client.player.getHorizontalFacing();
+        BlockPos startPos = client.player.getBlockPos().offset(facing, 1);
         MinecraftServer server = client.getServer();
+
+        double origX = client.player.getX();
+        double origY = client.player.getY();
+        double origZ = client.player.getZ();
 
         Direction leftDir = facing.rotateYCounterclockwise();
         int dx = leftDir.getOffsetX();
         int dz = leftDir.getOffsetZ();
-        double newX = client.player.getX() + dx;
-        double newY = client.player.getY();
-        double newZ = client.player.getZ() + dz;
+        double newX = origX + dx;
+        double newY = origY;
+        double newZ = origZ + dz;
 
         int slotCount = row.getSlotCount();
         startSuppression(4000);
@@ -224,9 +228,11 @@ public class PalettePlacementManager {
                         }
                     }
                 }
-                ServerPlayerEntity serverPlayer = server.getPlayerManager().getPlayer(client.player.getUuid());
-                if (serverPlayer != null) {
-                    serverPlayer.requestTeleport(newX, newY, newZ);
+                if (!isPlayerMoving(client, origX, origY, origZ)) {
+                    ServerPlayerEntity serverPlayer = server.getPlayerManager().getPlayer(client.player.getUuid());
+                    if (serverPlayer != null) {
+                        serverPlayer.requestTeleport(newX, newY, newZ);
+                    }
                 }
             });
 
@@ -250,7 +256,9 @@ public class PalettePlacementManager {
                     }
                 }
             }
-            client.player.setPosition(newX, newY, newZ);
+            if (!isPlayerMoving(client, origX, origY, origZ)) {
+                client.player.setPosition(newX, newY, newZ);
+            }
             client.player.sendMessage(Text.translatable("palettes.itemorganizer.palette_placed"), true);
             SoundHelper.playChime();
             return;
@@ -287,14 +295,16 @@ public class PalettePlacementManager {
             });
         }
 
-        // teleport player at the end of placement queue
+        // teleport player at the end of placement queue only if stationary
         actionQueue.add(() -> {
-            if (client.getNetworkHandler() != null) {
-                client.getNetworkHandler().sendChatCommand(
-                        String.format(Locale.ROOT, "tp @s ~%d ~ ~%d", dx, dz)
-                );
+            if (!isPlayerMoving(client, origX, origY, origZ)) {
+                if (client.getNetworkHandler() != null) {
+                    client.getNetworkHandler().sendChatCommand(
+                            String.format(Locale.ROOT, "tp @s ~%d ~ ~%d", dx, dz)
+                    );
+                }
+                client.player.setPosition(newX, newY, newZ);
             }
-            client.player.setPosition(newX, newY, newZ);
         });
     }
 
@@ -334,6 +344,33 @@ public class PalettePlacementManager {
                     String.format(Locale.ROOT, "setblock %d %d %d %s strict",
                             pos.getX(), pos.getY(), pos.getZ(), itemId)
             );
+        }
+    }
+
+    public static boolean isPlayerMoving(MinecraftClient client, double origX, double origY, double origZ) {
+        if (client == null || client.player == null) return false;
+        try {
+            if (client.player.getVelocity().horizontalLengthSquared() > 0.005) {
+                return true;
+            }
+            if (client.player.input != null) {
+                if (client.player.input.playerInput != null) {
+                    var pi = client.player.input.playerInput;
+                    if (pi.forward() || pi.backward() || pi.left() || pi.right() || pi.jump()) {
+                        return true;
+                    }
+                }
+                var mv = client.player.input.getMovementInput();
+                if (mv != null && (mv.x != 0.0f || mv.y != 0.0f)) {
+                    return true;
+                }
+            }
+            double ddx = client.player.getX() - origX;
+            double ddy = client.player.getY() - origY;
+            double ddz = client.player.getZ() - origZ;
+            return (ddx * ddx + ddy * ddy + ddz * ddz) > 0.25;
+        } catch (Throwable ignored) {
+            return false;
         }
     }
 }

@@ -102,4 +102,38 @@ public class PalettePlacementTest {
         assertNull(PalettePlacementManager.getBlockStateForPlacement("   "));
         assertNull(PalettePlacementManager.getBlockStateForPlacement("invalid:item_that_does_not_exist"));
     }
+
+    @Test
+    void testPlacementPositionInFrontOfPlayer() {
+        net.minecraft.util.math.BlockPos playerPos = new net.minecraft.util.math.BlockPos(10, 64, 20);
+
+        // facing North (Z - 1)
+        net.minecraft.util.math.BlockPos northPos = playerPos.offset(net.minecraft.util.math.Direction.NORTH, 1);
+        assertEquals(10, northPos.getX());
+        assertEquals(64, northPos.getY());
+        assertEquals(19, northPos.getZ());
+
+        // facing South (Z + 1)
+        net.minecraft.util.math.BlockPos southPos = playerPos.offset(net.minecraft.util.math.Direction.SOUTH, 1);
+        assertEquals(10, southPos.getX());
+        assertEquals(64, southPos.getY());
+        assertEquals(21, southPos.getZ());
+
+        // facing East (X + 1)
+        net.minecraft.util.math.BlockPos eastPos = playerPos.offset(net.minecraft.util.math.Direction.EAST, 1);
+        assertEquals(11, eastPos.getX());
+        assertEquals(64, eastPos.getY());
+        assertEquals(20, eastPos.getZ());
+
+        // facing West (X - 1)
+        net.minecraft.util.math.BlockPos westPos = playerPos.offset(net.minecraft.util.math.Direction.WEST, 1);
+        assertEquals(9, westPos.getX());
+        assertEquals(64, westPos.getY());
+        assertEquals(20, westPos.getZ());
+    }
+
+    @Test
+    void testIsPlayerMovingNullSafety() {
+        assertFalse(PalettePlacementManager.isPlayerMoving(null, 0.0, 0.0, 0.0));
+    }
 }

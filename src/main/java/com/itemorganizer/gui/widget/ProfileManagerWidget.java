@@ -35,7 +35,6 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
     public static final int ROW_GAP = 3;
     public static final int BTN_DELETE_W = 18;
     public static final int BTN_RENAME_W = 18;
-    public static final int BTN_LOAD_W = 44;
     public static final int BTN_H = 16;
 
     private final OrganizerViewModel viewModel;
@@ -234,18 +233,8 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
                 RenderHelper.drawEditIcon(context, renBtnX + BTN_RENAME_W / 2.0f, btnY + btnH / 2.0f, textScale, UITheme.TEXT_HINT);
             }
 
-            // load button
-            int loadBtnX = renBtnX - BTN_LOAD_W - 3;
-            boolean hoverLoad = !modalActive && !isActive && mouseX >= loadBtnX && mouseX <= loadBtnX + BTN_LOAD_W && mouseY >= btnY && mouseY <= btnY + btnH;
-            if (!isActive) {
-                RenderHelper.drawButton(context, tr, loadBtnX, btnY, BTN_LOAD_W, btnH,
-                        Text.translatable("profiles.itemorganizer.load"), hoverLoad,
-                        UITheme.SUCCESS_BG, UITheme.SUCCESS_HOVER_BG, UITheme.SUCCESS_BORDER_MUTED, UITheme.SUCCESS,
-                        0xFFA7F3D0, UITheme.TEXT_WHITE, textScale);
-                if (hoverLoad) hoveredTooltip = Text.translatable("profiles.itemorganizer.tooltip.load");
-            } else {
-                RenderHelper.drawCard(context, loadBtnX, btnY, BTN_LOAD_W, btnH, 0x1A10B981, 0x4034D399);
-                TextScaleHelper.drawVerticallyCenteredScaledText(context, tr, Text.translatable("profiles.itemorganizer.loaded"), loadBtnX + BTN_LOAD_W / 2, btnY + btnH / 2, 0x8034D399, textScale);
+            if (hoverRow && !hoverDel && !hoverRen && !isActive) {
+                hoveredTooltip = Text.translatable("profiles.itemorganizer.tooltip.load");
             }
         }
 
@@ -431,11 +420,12 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
                 return true;
             }
 
-            // load
-            int loadBtnX = renBtnX - BTN_LOAD_W - 3;
-            if (!isActive && mouseX >= loadBtnX && mouseX <= loadBtnX + BTN_LOAD_W && mouseY >= btnY && mouseY <= btnY + BTN_H) {
-                viewModel.loadProfileByName(profileName);
-                playClickSound();
+            // click profile card to load
+            if (mouseX >= rowStartX && mouseX <= rowStartX + rowW && mouseY >= rowY && mouseY <= rowY + rowHeight) {
+                if (!isActive) {
+                    viewModel.loadProfileByName(profileName);
+                    playClickSound();
+                }
                 return true;
             }
         }

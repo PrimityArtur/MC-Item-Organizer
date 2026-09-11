@@ -14,6 +14,7 @@ import com.itemorganizer.gui.widget.HotbarWidget;
 import com.itemorganizer.gui.widget.TabButtonWidget;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
@@ -24,6 +25,7 @@ public class OrganizerScreen extends Screen {
     private HotbarWidget hotbarWidget;
     private com.itemorganizer.gui.widget.OrderedGridWidget orderedGridWidget;
     private com.itemorganizer.gui.widget.BlockedGridWidget blockedGridWidget;
+    private com.itemorganizer.gui.widget.CreatePaletteWidget createPaletteWidget;
     private com.itemorganizer.gui.widget.ProfileManagerWidget profileManagerWidget;
     private com.itemorganizer.gui.widget.ConfigWidget configWidget;
     private com.itemorganizer.gui.widget.PaletteListWidget paletteListWidget;
@@ -96,6 +98,7 @@ public class OrganizerScreen extends Screen {
         if (profileManagerWidget != null) viewModel.setScrollOffset(OrganizerViewModel.AREA_PROFILES, profileManagerWidget.getScrollOffset());
         if (configWidget != null) viewModel.setScrollOffset(OrganizerViewModel.AREA_CONFIG, configWidget.getScrollOffset());
         if (blockedGridWidget != null) viewModel.setScrollOffset(OrganizerViewModel.AREA_BLOCKER, blockedGridWidget.getScrollOffset());
+        if (createPaletteWidget != null) viewModel.setScrollOffset(OrganizerViewModel.AREA_CREATE_PALETTE, createPaletteWidget.getScrollOffset());
         if (paletteListWidget != null) {
             viewModel.setScrollOffset(OrganizerViewModel.AREA_PALETTES, paletteListWidget.getScrollOffset());
             viewModel.setPaletteSearchQuery(paletteListWidget.getSearchText());
@@ -113,6 +116,7 @@ public class OrganizerScreen extends Screen {
         if (profileManagerWidget != null) profileManagerWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_PROFILES));
         if (configWidget != null) configWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_CONFIG));
         if (blockedGridWidget != null) blockedGridWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_BLOCKER));
+        if (createPaletteWidget != null) createPaletteWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_CREATE_PALETTE));
         if (paletteListWidget != null) {
             paletteListWidget.setSearchText(viewModel.getPaletteSearchQuery());
             paletteListWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_PALETTES));
@@ -281,6 +285,9 @@ public class OrganizerScreen extends Screen {
         configWidget = new com.itemorganizer.gui.widget.ConfigWidget(
                 viewModel, 0, 0, 10, 10
         );
+        createPaletteWidget = new com.itemorganizer.gui.widget.CreatePaletteWidget(
+                viewModel, 0, 0, 10, 10
+        );
 
         // right content widgets
         paletteListWidget = new com.itemorganizer.gui.widget.PaletteListWidget(
@@ -393,6 +400,7 @@ public class OrganizerScreen extends Screen {
             orderedGridWidget.reflowIfNeeded();
         }
         if (blockedGridWidget != null) blockedGridWidget.setBounds(leftPanelX, leftContentY, leftPanelWidth, leftContentHeight);
+        if (createPaletteWidget != null) createPaletteWidget.setBounds(leftPanelX, leftContentY, leftPanelWidth, leftContentHeight);
         if (profileManagerWidget != null) profileManagerWidget.setBounds(leftPanelX, leftContentY, leftPanelWidth, leftContentHeight);
         if (configWidget != null) configWidget.setBounds(leftPanelX, leftContentY, leftPanelWidth, leftContentHeight);
 
@@ -453,6 +461,8 @@ public class OrganizerScreen extends Screen {
         if (tab == LeftTab.ORDENADO) {
             if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.BLOQUEADO) {
                 if (blockedGridWidget != null) blockedGridWidget.render(context, mouseX, mouseY, delta);
+            } else if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.CREAR_PALETA) {
+                if (createPaletteWidget != null) createPaletteWidget.render(context, mouseX, mouseY, delta);
             } else {
                 if (orderedGridWidget != null) orderedGridWidget.render(context, mouseX, mouseY, delta);
             }
@@ -498,15 +508,27 @@ public class OrganizerScreen extends Screen {
         LeftTab leftTab = viewModel.getActiveLeftTab();
         if (leftTab == LeftTab.ORDENADO) {
             float textScale = viewModel.getConfig().getTextScale();
+            float subTabScale = Math.min(0.68f, textScale * 0.78f);
+            TextRenderer tr = this.textRenderer;
+
+            Text sub1Text = Text.literal("▦ ").append(OrdenadoSubTab.ORGANIZADO.getText());
+            int blockedCount = (viewModel.getActiveProfile() != null) ? viewModel.getActiveProfile().getBlockedItems().size() : 0;
+            Text sub2Text = (blockedCount > 0)
+                    ? Text.literal("🔒 ").append(OrdenadoSubTab.BLOQUEADO.getText()).append(" (" + blockedCount + ")")
+                    : Text.literal("🔒 ").append(OrdenadoSubTab.BLOQUEADO.getText());
+            Text sub3Text = Text.literal("🎨 ").append(OrdenadoSubTab.CREAR_PALETA.getText());
+
             int tabHeight = Math.max(16, Math.round(16 * textScale));
             int toolbarY = leftPanelY + tabHeight + 3;
             int toolbarH = 11;
             int gap = 3;
-            int sub1W = Math.min(58, Math.max(46, (leftPanelWidth - 20) / 5));
-            int sub2W = Math.min(68, Math.max(52, (leftPanelWidth - 20) / 5));
+            int sub1W = Math.max(46, Math.round(tr.getWidth(sub1Text) * subTabScale) + 8);
+            int sub2W = Math.max(52, Math.round(tr.getWidth(sub2Text) * subTabScale) + 8);
+            int sub3W = Math.max(54, Math.round(tr.getWidth(sub3Text) * subTabScale) + 8);
 
             int sub1X = leftPanelX;
             int sub2X = sub1X + sub1W + gap;
+            int sub3X = sub2X + sub2W + gap;
 
             if (click.button() == 0 && click.y() >= toolbarY && click.y() <= toolbarY + toolbarH) {
                 if (click.x() >= sub1X && click.x() <= sub1X + sub1W) {
@@ -523,11 +545,18 @@ public class OrganizerScreen extends Screen {
                     playClickSound();
                     return true;
                 }
+                if (click.x() >= sub3X && click.x() <= sub3X + sub3W) {
+                    saveScrollPositions();
+                    viewModel.setActiveOrdenadoSubTab(OrdenadoSubTab.CREAR_PALETA);
+                    restoreScrollPositions();
+                    playClickSound();
+                    return true;
+                }
 
                 if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.ORGANIZADO) {
-                    int remainingW = (leftPanelX + leftPanelWidth) - (sub2X + sub2W + gap * 2);
-                    int btnW = Math.min(78, Math.max(48, (remainingW - gap) / 2));
-                    int btn1X = sub2X + sub2W + gap * 2;
+                    int remainingW = (leftPanelX + leftPanelWidth) - (sub3X + sub3W + gap * 2);
+                    int btnW = Math.min(78, Math.max(44, (remainingW - gap) / 2));
+                    int btn1X = sub3X + sub3W + gap * 2;
                     int btn2X = btn1X + btnW + gap;
 
                     if (click.x() >= btn1X && click.x() <= btn1X + btnW) {
@@ -573,6 +602,10 @@ public class OrganizerScreen extends Screen {
         if (leftTab == LeftTab.ORDENADO) {
             if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.BLOQUEADO) {
                 if (blockedGridWidget != null && blockedGridWidget.mouseClicked(click, bl)) {
+                    return true;
+                }
+            } else if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.CREAR_PALETA) {
+                if (createPaletteWidget != null && createPaletteWidget.mouseClicked(click)) {
                     return true;
                 }
             } else {
@@ -686,6 +719,8 @@ public class OrganizerScreen extends Screen {
                 if (leftTab == LeftTab.ORDENADO) {
                     if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.BLOQUEADO) {
                         if (blockedGridWidget != null && blockedGridWidget.mouseReleased(click)) return true;
+                    } else if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.CREAR_PALETA) {
+                        if (createPaletteWidget != null && createPaletteWidget.mouseReleased(click)) return true;
                     } else {
                         if (orderedGridWidget != null && orderedGridWidget.mouseReleased(click)) return true;
                     }
@@ -707,6 +742,8 @@ public class OrganizerScreen extends Screen {
         if (leftTab == LeftTab.ORDENADO) {
             if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.BLOQUEADO) {
                 if (blockedGridWidget != null && blockedGridWidget.mouseReleased(click)) return true;
+            } else if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.CREAR_PALETA) {
+                if (createPaletteWidget != null && createPaletteWidget.mouseReleased(click)) return true;
             } else {
                 if (orderedGridWidget != null && orderedGridWidget.mouseReleased(click)) return true;
             }
@@ -747,6 +784,8 @@ public class OrganizerScreen extends Screen {
         if (leftTab == LeftTab.ORDENADO) {
             if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.BLOQUEADO) {
                 if (blockedGridWidget != null && blockedGridWidget.mouseDragged(click, deltaX, deltaY)) return true;
+            } else if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.CREAR_PALETA) {
+                if (createPaletteWidget != null && createPaletteWidget.mouseDragged(click, deltaX, deltaY)) return true;
             } else {
                 if (orderedGridWidget != null && orderedGridWidget.mouseDragged(click, deltaX, deltaY)) return true;
             }
@@ -785,6 +824,8 @@ public class OrganizerScreen extends Screen {
         if (leftTab == LeftTab.ORDENADO) {
             if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.BLOQUEADO) {
                 if (blockedGridWidget != null && blockedGridWidget.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) return true;
+            } else if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.CREAR_PALETA) {
+                if (createPaletteWidget != null && createPaletteWidget.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) return true;
             } else {
                 if (orderedGridWidget != null && orderedGridWidget.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) return true;
             }
@@ -831,6 +872,8 @@ public class OrganizerScreen extends Screen {
         if (leftTab == LeftTab.ORDENADO) {
             if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.BLOQUEADO) {
                 if (blockedGridWidget != null && blockedGridWidget.keyPressed(input)) return true;
+            } else if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.CREAR_PALETA) {
+                if (createPaletteWidget != null && createPaletteWidget.keyPressed(input)) return true;
             } else {
                 if (orderedGridWidget != null && orderedGridWidget.keyPressed(input)) return true;
             }
@@ -1018,13 +1061,22 @@ public class OrganizerScreen extends Screen {
 
     private void renderOrdenadoToolbar(DrawContext context, net.minecraft.client.font.TextRenderer tr, int mouseX, int mouseY) {
         float textScale = viewModel.getConfig().getTextScale();
+        float subTabScale = Math.min(0.68f, textScale * 0.78f);
         int tabHeight = Math.max(16, Math.round(16 * textScale));
         int toolbarY = leftPanelY + tabHeight + 3;
         int toolbarH = 11;
         int gap = 3;
 
-        int sub1W = Math.min(58, Math.max(46, (leftPanelWidth - 20) / 5));
-        int sub2W = Math.min(68, Math.max(52, (leftPanelWidth - 20) / 5));
+        Text sub1Text = Text.literal("▦ ").append(OrdenadoSubTab.ORGANIZADO.getText());
+        int blockedCount = (viewModel.getActiveProfile() != null) ? viewModel.getActiveProfile().getBlockedItems().size() : 0;
+        Text sub2Text = (blockedCount > 0)
+                ? Text.literal("🔒 ").append(OrdenadoSubTab.BLOQUEADO.getText()).append(" (" + blockedCount + ")")
+                : Text.literal("🔒 ").append(OrdenadoSubTab.BLOQUEADO.getText());
+        Text sub3Text = Text.literal("🎨 ").append(OrdenadoSubTab.CREAR_PALETA.getText());
+
+        int sub1W = Math.max(46, Math.round(tr.getWidth(sub1Text) * subTabScale) + 8);
+        int sub2W = Math.max(52, Math.round(tr.getWidth(sub2Text) * subTabScale) + 8);
+        int sub3W = Math.max(54, Math.round(tr.getWidth(sub3Text) * subTabScale) + 8);
 
         // subtab 1: organized
         int sub1X = leftPanelX;
@@ -1034,15 +1086,10 @@ public class OrganizerScreen extends Screen {
         int borderSub1 = isSub1Active ? UITheme.PRIMARY : (hoverSub1 ? UITheme.BORDER_HOVER : UITheme.BORDER_SUBTLE);
         int textSub1 = isSub1Active ? UITheme.PRIMARY : (hoverSub1 ? UITheme.TEXT_WHITE : UITheme.TEXT_SECONDARY);
 
-        Text sub1Text = Text.literal("▦ ").append(OrdenadoSubTab.ORGANIZADO.getText());
         RenderHelper.drawButton(context, tr, sub1X, toolbarY, sub1W, toolbarH, sub1Text, hoverSub1,
-                bgSub1, bgSub1, borderSub1, borderSub1, textSub1, textSub1, Math.min(0.70f, textScale * 0.80f));
+                bgSub1, bgSub1, borderSub1, borderSub1, textSub1, textSub1, subTabScale);
 
         // subtab 2: blocked
-        int blockedCount = (viewModel.getActiveProfile() != null) ? viewModel.getActiveProfile().getBlockedItems().size() : 0;
-        Text sub2Text = (blockedCount > 0)
-                ? Text.literal("🔒 ").append(OrdenadoSubTab.BLOQUEADO.getText()).append(" (" + blockedCount + ")")
-                : Text.literal("🔒 ").append(OrdenadoSubTab.BLOQUEADO.getText());
         int sub2X = sub1X + sub1W + gap;
         boolean isSub2Active = (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.BLOQUEADO);
         boolean hoverSub2 = (activeModal == null && mouseX >= sub2X && mouseX <= sub2X + sub2W && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
@@ -1051,13 +1098,24 @@ public class OrganizerScreen extends Screen {
         int textSub2 = isSub2Active ? UITheme.PRIMARY : (hoverSub2 ? UITheme.TEXT_WHITE : UITheme.TEXT_SECONDARY);
 
         RenderHelper.drawButton(context, tr, sub2X, toolbarY, sub2W, toolbarH, sub2Text, hoverSub2,
-                bgSub2, bgSub2, borderSub2, borderSub2, textSub2, textSub2, Math.min(0.68f, textScale * 0.78f));
+                bgSub2, bgSub2, borderSub2, borderSub2, textSub2, textSub2, subTabScale);
+
+        // subtab 3: crear paleta
+        int sub3X = sub2X + sub2W + gap;
+        boolean isSub3Active = (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.CREAR_PALETA);
+        boolean hoverSub3 = (activeModal == null && mouseX >= sub3X && mouseX <= sub3X + sub3W && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
+        int bgSub3 = isSub3Active ? UITheme.PRIMARY_BG : (hoverSub3 ? UITheme.BG_HOVER : UITheme.BG_SURFACE_HOVER);
+        int borderSub3 = isSub3Active ? UITheme.PRIMARY : (hoverSub3 ? UITheme.BORDER_HOVER : UITheme.BORDER_SUBTLE);
+        int textSub3 = isSub3Active ? UITheme.PRIMARY : (hoverSub3 ? UITheme.TEXT_WHITE : UITheme.TEXT_SECONDARY);
+
+        RenderHelper.drawButton(context, tr, sub3X, toolbarY, sub3W, toolbarH, sub3Text, hoverSub3,
+                bgSub3, bgSub3, borderSub3, borderSub3, textSub3, textSub3, subTabScale);
 
         if (isSub1Active) {
             // action buttons
-            int remainingW = (leftPanelX + leftPanelWidth) - (sub2X + sub2W + gap * 2);
-            int btnW = Math.min(78, Math.max(48, (remainingW - gap) / 2));
-            int btn1X = sub2X + sub2W + gap * 2;
+            int remainingW = (leftPanelX + leftPanelWidth) - (sub3X + sub3W + gap * 2);
+            int btnW = Math.min(78, Math.max(44, (remainingW - gap) / 2));
+            int btn1X = sub3X + sub3W + gap * 2;
 
             // gradient sort button
             boolean hover1 = (activeModal == null && mouseX >= btn1X && mouseX <= btn1X + btnW && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
@@ -1079,9 +1137,9 @@ public class OrganizerScreen extends Screen {
             if (hover2) {
                 activeToolbarTooltip = Text.translatable("tooltip.itemorganizer.compact").getString();
             }
-        } else {
+        } else if (isSub2Active) {
             // hint for unlocking
-            int tipX = sub2X + sub2W * 2 + gap;
+            int tipX = sub3X + sub3W + gap * 2;
             TextScaleHelper.drawVerticallyCenteredScaledText(
                     context, tr, Text.translatable("tip.itemorganizer.unlock_hint"), tipX, toolbarY + toolbarH / 2, UITheme.TEXT_MUTED, false, Math.min(0.70f, textScale * 0.78f)
             );
