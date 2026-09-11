@@ -435,7 +435,9 @@ public class VersionCatalogRepository {
 
     private static void add_1_21_5(Map<String, List<String>> map) {
         map.put("1.21.5", Arrays.asList(
-                "minecraft:wildflowers", "minecraft:leaf_litter", "minecraft:test_instance_block", "minecraft:test_block",
+                "minecraft:wildflowers", "minecraft:leaf_litter", "minecraft:test_instance_block",
+                "minecraft:test_block[mode=start]", "minecraft:test_block[mode=log]",
+                "minecraft:test_block[mode=fail]", "minecraft:test_block[mode=accept]",
                 "minecraft:bush", "minecraft:firefly_bush", "minecraft:cactus_flower", "minecraft:short_dry_grass",
                 "minecraft:tall_dry_grass"
         ));

@@ -3,20 +3,23 @@ package com.itemorganizer.gui.widget;
 import com.itemorganizer.gui.dragdrop.DragAndDropManager;
 import com.itemorganizer.gui.dragdrop.DragPayload;
 import com.itemorganizer.gui.dragdrop.DragSource;
+import com.itemorganizer.gui.theme.UITheme;
+import com.itemorganizer.gui.util.HotbarActionHelper;
 import com.itemorganizer.gui.util.RenderHelper;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Drawable;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.Selectable;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.input.KeyInput;
-import net.minecraft.client.sound.PositionedSoundInstance;
+import com.itemorganizer.gui.util.SoundHelper;
+import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
-import net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket;
 import net.minecraft.registry.Registries;
-import net.minecraft.sound.SoundEvents;
+import org.lwjgl.glfw.GLFW;
 
 // bottom widget rendering the player hotbar slots
 public class HotbarWidget implements Drawable, Element, Selectable {
@@ -28,8 +31,10 @@ public class HotbarWidget implements Drawable, Element, Selectable {
     private int x;
     private int y;
     private float scale = 1.0f;
+    private float itemScale = 1.0f;
     private float textScale = 1.0f;
     private int hoveredSlot = -1;
+    private int lastShiftSlot = -1;
 
     public HotbarWidget(int x, int y) {
         this.x = x;
@@ -42,9 +47,14 @@ public class HotbarWidget implements Drawable, Element, Selectable {
     }
 
     public void setBounds(int x, int y, float scale, float textScale) {
+        setBounds(x, y, scale, 1.0f, textScale);
+    }
+
+    public void setBounds(int x, int y, float scale, float itemScale, float textScale) {
         this.x = x;
         this.y = y;
         this.scale = scale;
+        this.itemScale = itemScale;
         this.textScale = textScale;
     }
 
@@ -91,41 +101,19 @@ public class HotbarWidget implements Drawable, Element, Selectable {
             int slotX = x + i * slotSize;
             int slotY = y;
 
-            // slot background
             boolean isHovered = (i == hoveredSlot);
             int bgColor = isHovered ? 0x8E1E293B : 0x24BDB7B7;
-            int borderColor = isHovered ? 0xFF38BDF8 : 0x4DFFFFFF;
+            int borderColor = isHovered ? UITheme.PRIMARY : 0x4DFFFFFF;
+            int badgeColor = isHovered ? UITheme.PRIMARY : 0xFDF2F4F8;
 
-            context.fill(slotX, slotY, slotX + slotSize, slotY + slotSize, bgColor);
-            RenderHelper.drawBorder(context, slotX, slotY, slotSize, slotSize, borderColor);
+            ItemStack stack = (inventory != null) ? inventory.getStack(i) : ItemStack.EMPTY;
 
-            // slot number (1-9) in top-left
-            String slotNum = String.valueOf(i + 1);
-            int numColor = isHovered ? 0xFF38BDF8 : 0xFDF2F4F8;
-            com.itemorganizer.gui.util.TextScaleHelper.drawScaledText(context, client.textRenderer, slotNum, slotX + 2, slotY + 2, numColor, false, textScale);
+            RenderHelper.renderSlotWithBadge(context, client.textRenderer, stack, String.valueOf(i + 1),
+                    slotX, slotY, slotSize, this.itemScale, textScale, isHovered,
+                    bgColor, bgColor, borderColor, borderColor, badgeColor, badgeColor);
 
-            // current hotbar item
-            if (inventory != null) {
-                ItemStack stack = inventory.getStack(i);
-                if (!stack.isEmpty()) {
-                    float itemScale = ((float) slotSize / (float) BASE_SLOT_SIZE);
-                    float cx = slotX + (slotSize - 1) / 2.0f;
-                    float cy = slotY + (slotSize - 1) / 2.0f;
-
-                    context.getMatrices().pushMatrix();
-                    context.getMatrices().translate(cx, cy);
-                    context.getMatrices().scale(itemScale, itemScale);
-
-                    context.drawItem(stack, -8, -8);
-                    context.drawStackOverlay(client.textRenderer, stack, -8, -8);
-
-                    context.getMatrices().popMatrix();
-
-                    // render tooltip on hover
-                    if (isHovered) {
-                        context.drawItemTooltip(client.textRenderer, stack, mouseX, mouseY);
-                    }
-                }
+            if (isHovered && !stack.isEmpty()) {
+                context.drawItemTooltip(client.textRenderer, stack, mouseX, mouseY);
             }
         }
     }
@@ -139,12 +127,40 @@ public class HotbarWidget implements Drawable, Element, Selectable {
         int slot = getSlotAt(click.x(), click.y());
         if (slot >= 0) {
             MinecraftClient client = MinecraftClient.getInstance();
-            if (click.button() == 0 && client.player != null) {
+            if (click.button() == 0 && client.player != null && client.player.isCreative()) {
+                // delete item with shift + left click
+                boolean hasShift = HotbarActionHelper.hasShiftDown(click);
+                if (hasShift) {
+                    PlayerInventory inv = client.player.getInventory();
+                    ItemStack stack = inv.getStack(slot);
+                    if (!stack.isEmpty()) {
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                new com.itemorganizer.gui.undo.HotbarSlotUndoAction(slot, stack.copy(), ItemStack.EMPTY)
+                        );
+                        inv.setStack(slot, ItemStack.EMPTY);
+                        HotbarActionHelper.assignItemToSlot(client, slot, ItemStack.EMPTY);
+                        SoundHelper.playClick();
+                        lastShiftSlot = slot;
+                        return true;
+                    }
+                }
+
+                // drop dragged payload if currently dragging
+                DragAndDropManager dragManager = DragAndDropManager.getInstance();
+                if (dragManager.isDragging()) {
+                    DragPayload payload = dragManager.getActivePayload();
+                    if (payload != null && HotbarActionHelper.dropPayloadToSlot(client, payload, slot)) {
+                        dragManager.consumePayload();
+                        return true;
+                    }
+                }
+
+                // otherwise drag item from this hotbar slot
                 ItemStack stack = client.player.getInventory().getStack(slot);
                 if (!stack.isEmpty()) {
                     String itemId = Registries.ITEM.getId(stack.getItem()).toString();
                     DragPayload payload = DragPayload.ofIndexed(itemId, stack.copy(), DragSource.HOTBAR, slot, false);
-                    DragAndDropManager.getInstance().startDrag(payload);
+                    dragManager.startDrag(payload, click.x(), click.y());
                     return true;
                 }
             }
@@ -153,27 +169,63 @@ public class HotbarWidget implements Drawable, Element, Selectable {
         return false;
     }
 
+    @Override
+    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+        if (click.button() == 0 && HotbarActionHelper.hasShiftDown(click)) {
+            int slot = getSlotAt(click.x(), click.y());
+            if (slot >= 0 && slot < SLOT_COUNT && slot != lastShiftSlot) {
+                lastShiftSlot = slot;
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client.player != null && client.player.isCreative()) {
+                    PlayerInventory inv = client.player.getInventory();
+                    ItemStack stack = inv.getStack(slot);
+                    if (!stack.isEmpty()) {
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                new com.itemorganizer.gui.undo.HotbarSlotUndoAction(slot, stack.copy(), ItemStack.EMPTY)
+                        );
+                        inv.setStack(slot, ItemStack.EMPTY);
+                        HotbarActionHelper.assignItemToSlot(client, slot, ItemStack.EMPTY);
+                        SoundHelper.playClick();
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean mouseReleased(Click click) {
+        lastShiftSlot = -1;
+        return false;
+    }
+
     public boolean keyPressed(KeyInput input) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (hoveredSlot >= 0 && hoveredSlot < SLOT_COUNT && client.player != null) {
+        if (hoveredSlot >= 0 && hoveredSlot < SLOT_COUNT && client.player != null && client.player.isCreative()) {
             for (int i = 0; i < SLOT_COUNT; i++) {
-                if (client.options.hotbarKeys[i].matchesKey(input)) {
+                boolean matches = (client.options != null && client.options.hotbarKeys[i].matchesKey(input))
+                        || input.key() == (GLFW.GLFW_KEY_1 + i)
+                        || input.key() == (GLFW.GLFW_KEY_KP_1 + i);
+
+                if (matches) {
                     if (i != hoveredSlot) {
                         PlayerInventory inv = client.player.getInventory();
                         ItemStack stackHovered = inv.getStack(hoveredSlot).copy();
                         ItemStack stackTarget = inv.getStack(i).copy();
 
+                        com.itemorganizer.gui.undo.HotbarFullUndoAction undoAction =
+                                com.itemorganizer.gui.undo.HotbarFullUndoAction.capture(client);
                         inv.setStack(i, stackHovered);
                         inv.setStack(hoveredSlot, stackTarget);
 
-                        if (client.getNetworkHandler() != null && client.player.isCreative()) {
-                            client.getNetworkHandler().sendPacket(new CreativeInventoryActionC2SPacket(36 + i, stackHovered));
-                            client.getNetworkHandler().sendPacket(new CreativeInventoryActionC2SPacket(36 + hoveredSlot, stackTarget));
-                        }
+                        HotbarActionHelper.assignItemToSlot(client, i, stackHovered);
+                        HotbarActionHelper.assignItemToSlot(client, hoveredSlot, stackTarget);
 
-                        client.getSoundManager().play(
-                                PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F)
-                        );
+                        undoAction.setNewStacks(com.itemorganizer.gui.undo.HotbarFullUndoAction.captureCurrent(client));
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(undoAction);
+
+                        SoundHelper.playClick();
                         return true;
                     }
                 }

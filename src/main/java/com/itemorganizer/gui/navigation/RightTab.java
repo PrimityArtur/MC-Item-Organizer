@@ -5,6 +5,7 @@ import net.minecraft.text.Text;
 // navigation tabs on the right side
 public enum RightTab {
     PALETAS("tab.itemorganizer.palettes", "Palettes"),
+    INF_PALETAS("tab.itemorganizer.inf_palette", "Inf. Palette"),
     POR_ORGANIZAR("tab.itemorganizer.unorganized", "Unorganized"),
     POR_VERSION("tab.itemorganizer.version", "By Version");
 

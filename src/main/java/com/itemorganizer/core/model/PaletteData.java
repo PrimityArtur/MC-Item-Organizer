@@ -28,9 +28,26 @@ public class PaletteData {
         }
     }
 
+    public void insertRow(int index, PaletteRow row) {
+        if (row != null) {
+            int target = Math.max(0, Math.min(rows.size(), index));
+            rows.add(target, row);
+        }
+    }
+
     public boolean removeRowById(String id) {
         if (id == null) return false;
         return rows.removeIf(row -> id.equals(row.getId()));
+    }
+
+    public PaletteRow findRowById(String id) {
+        if (id == null) return null;
+        for (PaletteRow row : rows) {
+            if (id.equals(row.getId())) {
+                return row;
+            }
+        }
+        return null;
     }
 
     public PaletteRow duplicateRow(int index) {

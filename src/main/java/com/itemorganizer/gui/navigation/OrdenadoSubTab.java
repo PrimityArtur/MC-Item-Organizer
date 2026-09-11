@@ -5,7 +5,8 @@ import net.minecraft.text.Text;
 // subtabs inside organized view
 public enum OrdenadoSubTab {
     ORGANIZADO("subtab.itemorganizer.organized", "Organized"),
-    BLOQUEADO("subtab.itemorganizer.blocked", "Blocked");
+    BLOQUEADO("subtab.itemorganizer.blocked", "Blocked"),
+    CREAR_PALETA("subtab.itemorganizer.create_palette", "Crear Paleta");
 
     private final String translationKey;
     private final String label;

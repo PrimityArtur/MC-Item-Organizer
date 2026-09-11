@@ -1,15 +1,25 @@
 package com.itemorganizer.gui.widget;
 
+import com.itemorganizer.gui.theme.UITheme;
 import com.itemorganizer.gui.util.RenderHelper;
+import com.itemorganizer.gui.util.SoundHelper;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
+import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.text.Text;
 
 import java.util.function.Supplier;
 
 // navigation tab button with selected and hovered states
-public class TabButtonWidget extends ButtonWidget {
+public class TabButtonWidget extends ClickableWidget {
+    @FunctionalInterface
+    public interface PressAction {
+        void onPress(TabButtonWidget button);
+    }
+
+    private final PressAction onPress;
     private final Supplier<Boolean> isSelectedSupplier;
     private final boolean isToggleButton;
 
@@ -18,7 +28,8 @@ public class TabButtonWidget extends ButtonWidget {
     }
 
     public TabButtonWidget(int x, int y, int width, int height, Text message, PressAction onPress, Supplier<Boolean> isSelectedSupplier, boolean isToggleButton) {
-        super(x, y, width, height, message, onPress, DEFAULT_NARRATION_SUPPLIER);
+        super(x, y, width, height, message);
+        this.onPress = onPress;
         this.isSelectedSupplier = isSelectedSupplier;
         this.isToggleButton = isToggleButton;
     }
@@ -28,6 +39,19 @@ public class TabButtonWidget extends ButtonWidget {
         setY(y);
         setWidth(width);
         setHeight(height);
+    }
+
+    @Override
+    public void onClick(Click click, boolean bl) {
+        SoundHelper.playClick();
+        if (this.onPress != null) {
+            this.onPress.onPress(this);
+        }
+    }
+
+    @Override
+    protected void appendClickableNarrations(NarrationMessageBuilder builder) {
+        appendDefaultNarrations(builder);
     }
 
     @Override
@@ -50,25 +74,22 @@ public class TabButtonWidget extends ButtonWidget {
             bgColor = hovered ? 0x55991B1B : 0x447F1D1D;
             textColor = 0xFFFCA5A5;
             borderColor = hovered ? 0xFFFF6666 : 0xFFDC2626;
-            indicatorColor = 0xFFEF4444;
+            indicatorColor = UITheme.DANGER;
         } else if (selected) {
             // active tab
             bgColor = hovered ? 0x4A1E293B : 0x381E293B;
-            textColor = 0xFFFFFFFF;
+            textColor = UITheme.TEXT_WHITE;
             borderColor = hovered ? 0x6638BDF8 : 0x4038BDF8;
-            indicatorColor = 0xFF38BDF8;
+            indicatorColor = UITheme.PRIMARY;
         } else {
             // inactive tab
             bgColor = hovered ? 0x2AFFFFFF : 0x12FFFFFF;
-            textColor = hovered ? 0xFFFFFFFF : 0xFF94A3B8;
-            borderColor = hovered ? 0x33FFFFFF : 0x1AFFFFFF;
+            textColor = hovered ? UITheme.TEXT_WHITE : UITheme.TEXT_MUTED;
+            borderColor = hovered ? UITheme.BORDER_SUBTLE : UITheme.BORDER_MUTED;
         }
 
-        // button background
-        context.fill(x, y, x + w, y + h, bgColor);
-
-        // border
-        RenderHelper.drawBorder(context, x, y, w, h, borderColor);
+        // button card background and border
+        RenderHelper.drawCard(context, x, y, w, h, bgColor, borderColor);
 
         // active indicator line
         if (indicatorColor != 0) {
@@ -84,4 +105,3 @@ public class TabButtonWidget extends ButtonWidget {
         com.itemorganizer.gui.util.TextScaleHelper.drawVerticallyCenteredScaledText(context, client.textRenderer, getMessage(), centerX, centerY, textColor, true, textScale);
     }
 }
-

@@ -2,9 +2,12 @@ package com.itemorganizer.gui.widget;
 
 import com.itemorganizer.core.model.ItemSlotPosition;
 import com.itemorganizer.core.model.ProfileData;
+import com.itemorganizer.gui.component.ScrollbarComponent;
 import com.itemorganizer.gui.dragdrop.DragAndDropManager;
 import com.itemorganizer.gui.dragdrop.DragPayload;
 import com.itemorganizer.gui.dragdrop.DragSource;
+import com.itemorganizer.gui.theme.UITheme;
+import com.itemorganizer.gui.util.HotbarActionHelper;
 import com.itemorganizer.gui.util.RenderHelper;
 import com.itemorganizer.gui.viewmodel.OrganizerViewModel;
 import com.itemorganizer.storage.StorageManager;
@@ -16,14 +19,8 @@ import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.Selectable;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.input.KeyInput;
-import net.minecraft.client.sound.PositionedSoundInstance;
-import net.minecraft.item.Item;
+import com.itemorganizer.gui.util.SoundHelper;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket;
-import net.minecraft.registry.Registries;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.Optional;
@@ -40,7 +37,7 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
     private int width;
     private int height;
 
-    private final VerticalScrollbar scrollbar;
+    private final ScrollbarComponent scrollbar;
     private int hoveredCol = -1;
     private int hoveredRow = -1;
     private ItemStack hoveredStack = ItemStack.EMPTY;
@@ -57,6 +54,8 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
     private long lastLeftClickTime = 0;
     private int lastLeftClickCol = -1;
     private int lastLeftClickRow = -1;
+    private int lastShiftCol = -1;
+    private int lastShiftRow = -1;
 
     public OrderedGridWidget(OrganizerViewModel viewModel, int x, int y, int width, int height) {
         this.viewModel = viewModel;
@@ -66,7 +65,7 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
         this.height = height;
 
         // scrollbar on the left side
-        this.scrollbar = new VerticalScrollbar(x + 2, y + 2, SCROLLBAR_WIDTH, height - 4);
+        this.scrollbar = new ScrollbarComponent(x + 2, y + 2, SCROLLBAR_WIDTH, height - 4);
     }
 
     public void setBounds(int x, int y, int width, int height) {
@@ -152,33 +151,20 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
                 boolean isHovered = (c == hoveredCol && r == hoveredRow);
                 boolean isSelected = (c == selectedCol && r == selectedRow);
 
-                int slotBg = isSelected ? 0x4D38BDF8 : (isHovered ? 0x22FFFFFF : 0x00000000);
-                int slotBorder = isSelected ? 0xFF38BDF8 : (isHovered ? 0x66FFFFFF : 0x00000000);
+                int slotBg = isSelected ? UITheme.PRIMARY_BG : (isHovered ? UITheme.BG_HOVER : 0x00000000);
+                int slotBorder = isSelected ? UITheme.PRIMARY : (isHovered ? UITheme.BORDER_HOVER : 0x00000000);
 
-                context.fill(slotX, slotY, slotX + slotSize, slotY + slotSize, slotBg);
-                RenderHelper.drawBorder(context, slotX, slotY, slotSize, slotSize, slotBorder);
-
+                ItemStack stack = ItemStack.EMPTY;
                 if (profile != null) {
                     Optional<ItemSlotPosition> posOpt = profile.findItemAt(c, r);
                     if (posOpt.isPresent()) {
-                        String itemId = posOpt.get().getItemId();
-                        ItemStack stack = getItemStackFromId(itemId);
-                        if (!stack.isEmpty()) {
-                            float itemScale = ((float) slotSize / (float) BASE_SLOT_SIZE) * viewModel.getConfig().getItemScale();
-                            float cx = slotX + (slotSize - 1) / 2.0f;
-                            float cy = slotY + (slotSize - 1) / 2.0f;
-
-                            context.getMatrices().pushMatrix();
-                            context.getMatrices().translate(cx, cy);
-                            context.getMatrices().scale(itemScale, itemScale);
-
-                            context.drawItem(stack, -8, -8);
-                            context.drawStackOverlay(client.textRenderer, stack, -8, -8);
-
-                            context.getMatrices().popMatrix();
-                        }
+                        stack = RenderHelper.getItemStack(posOpt.get().getItemId());
                     }
                 }
+
+                float itemScale = viewModel.getConfig().getItemScale();
+                RenderHelper.renderSlot(context, client.textRenderer, stack, slotX, slotY, slotSize, itemScale,
+                        false, slotBg, slotBg, slotBorder, slotBorder);
             }
         }
 
@@ -220,15 +206,7 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
     }
 
     public ItemStack getItemStackFromId(String itemId) {
-        if (itemId == null || itemId.isEmpty()) return ItemStack.EMPTY;
-        Identifier id = Identifier.tryParse(itemId);
-        if (id != null) {
-            Item item = Registries.ITEM.get(id);
-            if (item != null && item != Items.AIR) {
-                return new ItemStack(item);
-            }
-        }
-        return ItemStack.EMPTY;
+        return RenderHelper.getItemStack(itemId);
     }
 
     @Override
@@ -246,7 +224,33 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
                 int col = relX / slotSize;
                 int row = relY / slotSize;
 
-                if (col >= 0 && col < getColumnCount()) {
+                if (col >= 0 && col < getColumnCount() && row >= 0) {
+                    DragAndDropManager dragManager = DragAndDropManager.getInstance();
+                    if (dragManager.isDragging() && click.button() == 0) {
+                        if (!viewModel.isBlockerActive()) {
+                            DragPayload payload = dragManager.consumePayload();
+                            ProfileData profile = viewModel.getActiveProfile();
+                            if (profile != null && payload != null) {
+                                ProfileData before = profile.snapshot();
+                                if (payload.getSource() == DragSource.ORDENADO && !payload.isCopy()) {
+                                    profile.removeAt(payload.getSourceCol(), payload.getSourceRow());
+                                } else if (payload.getSource() == DragSource.POR_VERSION) {
+                                    profile.removeItem(payload.getItemId());
+                                }
+
+                                insertWithRippleWrap(profile, payload.getItemId(), col, row);
+
+                                StorageManager.getInstance().getProfileRepository().saveProfile(profile);
+                                viewModel.recomputeUnorganizedItems();
+                                com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                        new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+                                );
+                                SoundHelper.playClick();
+                            }
+                            return true;
+                        }
+                    }
+
                     ProfileData profile = viewModel.getActiveProfile();
                     long now = System.currentTimeMillis();
 
@@ -254,18 +258,24 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
                     if (click.button() == 1) {
                         if (profile != null && profile.findItemAt(col, row).isPresent()) {
                             if (now - lastRightClickTime < 350 && col == lastRightClickCol && row == lastRightClickRow) {
+                                if (viewModel.isBlockerActive()) {
+                                    SoundHelper.playLock();
+                                    return true;
+                                }
                                 Optional<ItemSlotPosition> slotItem = profile.findItemAt(col, row);
                                 if (slotItem.isPresent()) {
+                                    ProfileData before = profile.snapshot();
                                     String itemId = slotItem.get().getItemId();
                                     profile.removeAt(col, row);
                                     profile.blockItem(itemId);
                                     StorageManager.getInstance().getProfileRepository().saveProfile(profile);
                                     viewModel.recomputeUnorganizedItems();
+                                    com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                            new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+                                    );
                                     selectedCol = -1;
                                     selectedRow = -1;
-                                    MinecraftClient.getInstance().getSoundManager().play(
-                                            PositionedSoundInstance.master(SoundEvents.BLOCK_IRON_TRAPDOOR_CLOSE, 1.2F)
-                                    );
+                                    SoundHelper.playTrapdoorClose();
                                 }
                                 lastRightClickTime = 0;
                                 return true;
@@ -276,9 +286,7 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
                             lastRightClickTime = now;
                             lastRightClickCol = col;
                             lastRightClickRow = row;
-                            MinecraftClient.getInstance().getSoundManager().play(
-                                    PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F)
-                            );
+                            SoundHelper.playClick();
                         } else {
                             selectedCol = -1;
                             selectedRow = -1;
@@ -292,18 +300,34 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
                         Optional<ItemSlotPosition> slotItem = profile.findItemAt(col, row);
                         if (slotItem.isPresent()) {
                             String itemId = slotItem.get().getItemId();
+                            ItemStack stack = getItemStackFromId(itemId);
+
+                            if (HotbarActionHelper.hasShiftDown(click)) {
+                                if (!stack.isEmpty()) {
+                                    HotbarActionHelper.quickMoveToHotbar(MinecraftClient.getInstance(), stack);
+                                }
+                                lastShiftCol = col;
+                                lastShiftRow = row;
+                                return true;
+                            }
 
                             if (now - lastLeftClickTime < 350 && col == lastLeftClickCol && row == lastLeftClickRow) {
+                                if (viewModel.isBlockerActive()) {
+                                    SoundHelper.playLock();
+                                    return true;
+                                }
+                                ProfileData before = profile.snapshot();
                                 profile.removeAt(col, row);
                                 profile.blockItem(itemId);
                                 StorageManager.getInstance().getProfileRepository().saveProfile(profile);
                                 viewModel.recomputeUnorganizedItems();
+                                com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                        new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+                                );
                                 selectedCol = -1;
                                 selectedRow = -1;
                                 DragAndDropManager.getInstance().consumePayload();
-                                MinecraftClient.getInstance().getSoundManager().play(
-                                        PositionedSoundInstance.master(SoundEvents.BLOCK_IRON_TRAPDOOR_CLOSE, 1.2F)
-                                );
+                                SoundHelper.playTrapdoorClose();
                                 lastLeftClickTime = 0;
                                 return true;
                             }
@@ -312,11 +336,10 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
                             lastLeftClickCol = col;
                             lastLeftClickRow = row;
 
-                            ItemStack stack = getItemStackFromId(itemId);
                             if (!stack.isEmpty()) {
                                 boolean isCopy = viewModel.isBlockerActive();
                                 DragPayload payload = DragPayload.ofGrid(itemId, stack, DragSource.ORDENADO, col, row, isCopy);
-                                DragAndDropManager.getInstance().startDrag(payload);
+                                DragAndDropManager.getInstance().startDrag(payload, click.x(), click.y());
                                 selectedCol = -1;
                                 selectedRow = -1;
                                 return true;
@@ -337,17 +360,23 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
 
     @Override
     public boolean mouseReleased(Click click) {
+        lastShiftCol = -1;
+        lastShiftRow = -1;
         if (scrollbar.mouseReleased(click)) {
             return true;
         }
 
         DragAndDropManager dragManager = DragAndDropManager.getInstance();
         if (dragManager.isDragging()) {
+            if (!dragManager.isDraggedBeyondThreshold()) {
+                return false;
+            }
             if (isMouseOver(click.x(), click.y())) {
                 if (!viewModel.isBlockerActive() && hoveredCol >= 0 && hoveredRow >= 0) {
                     DragPayload payload = dragManager.getActivePayload();
                     ProfileData profile = viewModel.getActiveProfile();
                     if (profile != null) {
+                        ProfileData before = profile.snapshot();
                         if (payload.getSource() == DragSource.ORDENADO && !payload.isCopy()) {
                             profile.removeAt(payload.getSourceCol(), payload.getSourceRow());
                         } else if (payload.getSource() == DragSource.POR_VERSION) {
@@ -358,10 +387,10 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
 
                         StorageManager.getInstance().getProfileRepository().saveProfile(profile);
                         viewModel.recomputeUnorganizedItems();
-
-                        MinecraftClient.getInstance().getSoundManager().play(
-                                PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F)
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
                         );
+                        SoundHelper.playClick();
                     }
                 }
                 dragManager.consumePayload();
@@ -419,20 +448,8 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
         MinecraftClient client = MinecraftClient.getInstance();
 
         // 1-9 hotbar key assignment
-        if (!hoveredStack.isEmpty() && client.player != null) {
-            for (int i = 0; i < 9; i++) {
-                if (client.options.hotbarKeys[i].matchesKey(input)) {
-                    if (client.player.isCreative()) {
-                        ItemStack giveStack = new ItemStack(hoveredStack.getItem(), 1);
-                        client.player.getInventory().setStack(i, giveStack);
-                        if (client.getNetworkHandler() != null) {
-                            client.getNetworkHandler().sendPacket(new CreativeInventoryActionC2SPacket(36 + i, giveStack));
-                        }
-                        client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-                        return true;
-                    }
-                }
-            }
+        if (HotbarActionHelper.handleHotbarKeyPress(client, input, hoveredStack)) {
+            return true;
         }
 
         // deselect with ESC
@@ -480,6 +497,7 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
         if (currentItem.isEmpty()) return false;
         String currentId = currentItem.get().getItemId();
 
+        ProfileData before = profile.snapshot();
         Optional<ItemSlotPosition> targetItem = profile.findItemAt(targetCol, targetRow);
 
         if (targetItem.isPresent()) {
@@ -501,9 +519,10 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
         ensureRowVisible(selectedRow);
 
         StorageManager.getInstance().getProfileRepository().saveProfile(profile);
-        MinecraftClient.getInstance().getSoundManager().play(
-                PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F)
+        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
         );
+        SoundHelper.playClick();
         return true;
     }
 
@@ -511,14 +530,16 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
         if (selectedCol < 0 || selectedRow < 0) return false;
         ProfileData profile = viewModel.getActiveProfile();
         if (profile != null) {
+            ProfileData before = profile.snapshot();
             if (profile.removeAt(selectedCol, selectedRow)) {
                 selectedCol = -1;
                 selectedRow = -1;
                 StorageManager.getInstance().getProfileRepository().saveProfile(profile);
                 viewModel.recomputeUnorganizedItems();
-                MinecraftClient.getInstance().getSoundManager().play(
-                        PositionedSoundInstance.master(SoundEvents.ENTITY_ITEM_BREAK, 1.0F)
+                com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                        new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
                 );
+                SoundHelper.playBreak();
                 return true;
             }
         }
@@ -542,6 +563,32 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
         if (scrollbar.mouseDragged(click, deltaX, deltaY)) {
             return true;
         }
+
+        if (click.button() == 0 && HotbarActionHelper.hasShiftDown(click)) {
+            int gridStartX = getGridStartX();
+            if (click.x() >= gridStartX && click.x() < x + width && click.y() >= y && click.y() <= y + height) {
+                int slotSize = getSlotSize();
+                int relX = (int) click.x() - gridStartX;
+                int relY = (int) click.y() - y + (int) scrollbar.getScrollOffset();
+                int col = relX / slotSize;
+                int row = relY / slotSize;
+                if (col >= 0 && col < getColumnCount() && (col != lastShiftCol || row != lastShiftRow)) {
+                    lastShiftCol = col;
+                    lastShiftRow = row;
+                    ProfileData profile = viewModel.getActiveProfile();
+                    if (profile != null) {
+                        profile.findItemAt(col, row).ifPresent(pos -> {
+                            ItemStack stack = getItemStackFromId(pos.getItemId());
+                            if (!stack.isEmpty()) {
+                                HotbarActionHelper.quickMoveToHotbar(MinecraftClient.getInstance(), stack);
+                            }
+                        });
+                    }
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 
@@ -594,5 +641,13 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
 
     public int getSelectedRow() {
         return selectedRow;
+    }
+
+    public double getScrollOffset() {
+        return scrollbar.getScrollOffset();
+    }
+
+    public void setScrollOffset(double offset) {
+        scrollbar.setScrollOffset(offset);
     }
 }

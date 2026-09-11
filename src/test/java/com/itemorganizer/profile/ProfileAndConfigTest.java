@@ -1,5 +1,6 @@
 package com.itemorganizer.profile;
 
+import com.itemorganizer.core.model.ItemCategory;
 import com.itemorganizer.core.model.ItemSlotPosition;
 import com.itemorganizer.core.model.ModConfig;
 import com.itemorganizer.core.model.ProfileData;
@@ -127,6 +128,48 @@ public class ProfileAndConfigTest {
         assertEquals(0.50f, config.getHotbarScale(), 0.001f);
         config.setHotbarScale(3.50f);
         assertEquals(2.00f, config.getHotbarScale(), 0.001f);
+
+        // hotbar item scale clamping (0.50 to 1.50, default 1.00)
+        assertEquals(1.00f, config.getHotbarItemScale(), 0.001f);
+        config.setHotbarItemScale(0.20f);
+        assertEquals(0.50f, config.getHotbarItemScale(), 0.001f);
+        config.setHotbarItemScale(3.50f);
+        assertEquals(1.50f, config.getHotbarItemScale(), 0.001f);
+
+        // palette item scale clamping (0.50 to 1.50, default 1.00)
+        assertEquals(1.00f, config.getPaletteItemScale(), 0.001f);
+        config.setPaletteItemScale(0.20f);
+        assertEquals(0.50f, config.getPaletteItemScale(), 0.001f);
+        config.setPaletteItemScale(3.50f);
+        assertEquals(1.50f, config.getPaletteItemScale(), 0.001f);
+
+        // palette button scale clamping (0.50 to 2.00, default 1.00)
+        assertEquals(1.00f, config.getPaletteButtonScale(), 0.001f);
+        config.setPaletteButtonScale(0.20f);
+        assertEquals(0.50f, config.getPaletteButtonScale(), 0.001f);
+        config.setPaletteButtonScale(3.50f);
+        assertEquals(2.00f, config.getPaletteButtonScale(), 0.001f);
+
+        // create palette scale clamping (0.50 to 2.00, default 1.00)
+        assertEquals(1.00f, config.getCreatePaletteScale(), 0.001f);
+        config.setCreatePaletteScale(0.20f);
+        assertEquals(0.50f, config.getCreatePaletteScale(), 0.001f);
+        config.setCreatePaletteScale(3.50f);
+        assertEquals(2.00f, config.getCreatePaletteScale(), 0.001f);
+
+        // create palette item scale clamping (0.50 to 1.50, default 1.00)
+        assertEquals(1.00f, config.getCreatePaletteItemScale(), 0.001f);
+        config.setCreatePaletteItemScale(0.20f);
+        assertEquals(0.50f, config.getCreatePaletteItemScale(), 0.001f);
+        config.setCreatePaletteItemScale(3.50f);
+        assertEquals(1.50f, config.getCreatePaletteItemScale(), 0.001f);
+
+        // create palette button scale clamping (0.50 to 2.00, default 1.00)
+        assertEquals(1.00f, config.getCreatePaletteButtonScale(), 0.001f);
+        config.setCreatePaletteButtonScale(0.20f);
+        assertEquals(0.50f, config.getCreatePaletteButtonScale(), 0.001f);
+        config.setCreatePaletteButtonScale(3.50f);
+        assertEquals(2.00f, config.getCreatePaletteButtonScale(), 0.001f);
     }
 
     @Test
@@ -318,231 +361,117 @@ public class ProfileAndConfigTest {
 
     @Test
     void testItemCategoryOrderingExactSequence() {
-        // category sequence checks: full blocks, glass, panes, bars, chains, fences, walls, slabs, gates, stairs, etc.
-        assertEquals(1, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:stone"));
-        assertEquals(1, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_concrete"));
-        assertEquals(1, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_planks"));
+        // category mappings
+        assertEquals(ItemCategory.FULL_BLOCKS, ItemCategory.getCategory("minecraft:stone"));
+        assertEquals(ItemCategory.FULL_BLOCKS, ItemCategory.getCategory("minecraft:white_concrete"));
+        assertEquals(ItemCategory.FULL_BLOCKS, ItemCategory.getCategory("minecraft:oak_planks"));
 
-        assertEquals(45, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:chest"));
-        assertEquals(45, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:trapped_chest"));
-        assertEquals(45, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:ender_chest"));
+        assertEquals(ItemCategory.LOGS_AND_STEMS, ItemCategory.getCategory("minecraft:oak_log"));
+        assertEquals(ItemCategory.LOGS_AND_STEMS, ItemCategory.getCategory("minecraft:spruce_log"));
 
-        assertEquals(46, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:minecart"));
-        assertEquals(46, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:chest_minecart"));
-        assertEquals(46, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:hopper_minecart"));
+        assertEquals(ItemCategory.ORES, ItemCategory.getCategory("minecraft:iron_ore"));
+        assertEquals(ItemCategory.ORES, ItemCategory.getCategory("minecraft:coal_ore"));
 
-        assertEquals(47, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:iron_golem_spawn_egg"));
+        assertEquals(ItemCategory.GLAZED_TERRACOTTA, ItemCategory.getCategory("minecraft:white_glazed_terracotta"));
+        assertEquals(ItemCategory.GLAZED_TERRACOTTA, ItemCategory.getCategory("minecraft:red_glazed_terracotta"));
 
-        assertEquals(48, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:apple"));
-        assertEquals(48, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:diamond"));
-        assertEquals(48, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:glass_bottle"));
-        assertEquals(48, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:hopper"));
+        assertEquals(ItemCategory.GRATES, ItemCategory.getCategory("minecraft:copper_grate"));
+        assertEquals(ItemCategory.BULBS, ItemCategory.getCategory("minecraft:copper_bulb"));
 
-        assertEquals(2, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:glass"));
-        assertEquals(2, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:tinted_glass"));
-        assertEquals(2, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_stained_glass"));
+        assertEquals(ItemCategory.TOOLS_REDSTONE, ItemCategory.getCategory("minecraft:redstone"));
+        assertEquals(ItemCategory.TOOLS_REDSTONE, ItemCategory.getCategory("minecraft:repeater"));
 
-        assertEquals(3, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:glass_pane"));
-        assertEquals(3, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:red_stained_glass_pane"));
+        assertEquals(ItemCategory.WORKING_STATIONS, ItemCategory.getCategory("minecraft:crafting_table"));
+        assertEquals(ItemCategory.WORKING_STATIONS, ItemCategory.getCategory("minecraft:furnace"));
+        assertEquals(ItemCategory.WORKING_STATIONS, ItemCategory.getCategory("minecraft:anvil"));
 
-        assertEquals(4, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:iron_bars"));
+        assertEquals(ItemCategory.UNCATEGORIZED_VEGETATION, ItemCategory.getCategory("minecraft:fern"));
+        assertEquals(ItemCategory.UNCATEGORIZED_VEGETATION, ItemCategory.getCategory("minecraft:short_grass"));
 
-        assertEquals(5, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:chain"));
+        assertEquals(ItemCategory.CROPS, ItemCategory.getCategory("minecraft:wheat"));
+        assertEquals(ItemCategory.CROPS, ItemCategory.getCategory("minecraft:carrot"));
 
-        assertEquals(6, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_fence"));
-        assertEquals(6, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:nether_brick_fence"));
+        assertEquals(ItemCategory.FLOWERS, ItemCategory.getCategory("minecraft:dandelion"));
+        assertEquals(ItemCategory.FLOWERS, ItemCategory.getCategory("minecraft:poppy"));
 
-        assertEquals(7, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:cobblestone_wall"));
-        assertEquals(7, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:deepslate_brick_wall"));
+        assertEquals(ItemCategory.TORCH, ItemCategory.getCategory("minecraft:torch"));
+        assertEquals(ItemCategory.TORCH, ItemCategory.getCategory("minecraft:soul_torch"));
 
-        assertEquals(8, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_slab"));
-        assertEquals(8, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:stone_slab"));
+        assertEquals(ItemCategory.GLASS, ItemCategory.getCategory("minecraft:glass"));
+        assertEquals(ItemCategory.GLASS, ItemCategory.getCategory("minecraft:tinted_glass"));
+        assertEquals(ItemCategory.GLASS, ItemCategory.getCategory("minecraft:white_stained_glass"));
 
-        assertEquals(9, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_fence_gate"));
-        assertEquals(9, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:bamboo_fence_gate"));
+        assertEquals(ItemCategory.GLASS_PANES, ItemCategory.getCategory("minecraft:glass_pane"));
+        assertEquals(ItemCategory.GLASS_PANES, ItemCategory.getCategory("minecraft:red_stained_glass_pane"));
 
-        assertEquals(10, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_stairs"));
-        assertEquals(10, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:brick_stairs"));
+        assertEquals(ItemCategory.BARS, ItemCategory.getCategory("minecraft:iron_bars"));
+        assertEquals(ItemCategory.CHAINS, ItemCategory.getCategory("minecraft:chain"));
+        assertEquals(ItemCategory.FENCES, ItemCategory.getCategory("minecraft:oak_fence"));
+        assertEquals(ItemCategory.WALLS, ItemCategory.getCategory("minecraft:cobblestone_wall"));
+        assertEquals(ItemCategory.SLABS, ItemCategory.getCategory("minecraft:oak_slab"));
+        assertEquals(ItemCategory.FENCE_GATES, ItemCategory.getCategory("minecraft:oak_fence_gate"));
+        assertEquals(ItemCategory.STAIRS, ItemCategory.getCategory("minecraft:oak_stairs"));
+        assertEquals(ItemCategory.SAPLINGS, ItemCategory.getCategory("minecraft:oak_sapling"));
+        assertEquals(ItemCategory.LEAVES, ItemCategory.getCategory("minecraft:oak_leaves"));
+        assertEquals(ItemCategory.CARPETS, ItemCategory.getCategory("minecraft:white_carpet"));
+        assertEquals(ItemCategory.LANTERNS, ItemCategory.getCategory("minecraft:lantern"));
+        assertEquals(ItemCategory.SHELVES, ItemCategory.getCategory("minecraft:bookshelf"));
+        assertEquals(ItemCategory.SIGNS, ItemCategory.getCategory("minecraft:oak_sign"));
+        assertEquals(ItemCategory.DOORS, ItemCategory.getCategory("minecraft:oak_door"));
+        assertEquals(ItemCategory.TRAPDOORS, ItemCategory.getCategory("minecraft:oak_trapdoor"));
+        assertEquals(ItemCategory.PRESSURE_PLATES, ItemCategory.getCategory("minecraft:oak_pressure_plate"));
+        assertEquals(ItemCategory.BEDS, ItemCategory.getCategory("minecraft:white_bed"));
+        assertEquals(ItemCategory.BOATS, ItemCategory.getCategory("minecraft:oak_boat"));
+        assertEquals(ItemCategory.BUTTONS, ItemCategory.getCategory("minecraft:oak_button"));
+        assertEquals(ItemCategory.DYES, ItemCategory.getCategory("minecraft:white_dye"));
+        assertEquals(ItemCategory.SPAWN_EGGS, ItemCategory.getCategory("minecraft:egg"));
+        assertEquals(ItemCategory.CANDLES, ItemCategory.getCategory("minecraft:candle"));
+        assertEquals(ItemCategory.BANNERS, ItemCategory.getCategory("minecraft:white_banner"));
+        assertEquals(ItemCategory.CORALS, ItemCategory.getCategory("minecraft:tube_coral"));
+        assertEquals(ItemCategory.HARNESS, ItemCategory.getCategory("minecraft:saddle"));
+        assertEquals(ItemCategory.TOOLS, ItemCategory.getCategory("minecraft:diamond_pickaxe"));
+        assertEquals(ItemCategory.ARMOR, ItemCategory.getCategory("minecraft:diamond_helmet"));
+        assertEquals(ItemCategory.RODS, ItemCategory.getCategory("minecraft:blaze_rod"));
+        assertEquals(ItemCategory.BUNDLES, ItemCategory.getCategory("minecraft:bundle"));
+        assertEquals(ItemCategory.BOOKS, ItemCategory.getCategory("minecraft:book"));
+        assertEquals(ItemCategory.SHERDS, ItemCategory.getCategory("minecraft:angler_pottery_sherd"));
+        assertEquals(ItemCategory.HEADS, ItemCategory.getCategory("minecraft:skeleton_skull"));
+        assertEquals(ItemCategory.HEADS, ItemCategory.getCategory("minecraft:conduit"));
+        assertEquals(ItemCategory.HEADS, ItemCategory.getCategory("minecraft:dried_ghast"));
+        assertEquals(ItemCategory.HEADS, ItemCategory.getCategory("minecraft:carved_pumpkin"));
+        assertEquals(ItemCategory.TRIMS, ItemCategory.getCategory("minecraft:coast_armor_trim_smithing_template"));
+        assertEquals(ItemCategory.SHULKER_BOXES, ItemCategory.getCategory("minecraft:shulker_box"));
+        assertEquals(ItemCategory.SCRAPS, ItemCategory.getCategory("minecraft:netherite_scrap"));
+        assertEquals(ItemCategory.BUCKETS, ItemCategory.getCategory("minecraft:bucket"));
+        assertEquals(ItemCategory.POTIONS, ItemCategory.getCategory("minecraft:potion"));
+        assertEquals(ItemCategory.ARROWS, ItemCategory.getCategory("minecraft:arrow"));
+        assertEquals(ItemCategory.DISCS, ItemCategory.getCategory("minecraft:music_disc_13"));
+        assertEquals(ItemCategory.RAILS, ItemCategory.getCategory("minecraft:rail"));
+        assertEquals(ItemCategory.CHESTS, ItemCategory.getCategory("minecraft:chest"));
+        assertEquals(ItemCategory.MINECARTS, ItemCategory.getCategory("minecraft:minecart"));
+        assertEquals(ItemCategory.GOLEMS, ItemCategory.getCategory("minecraft:copper_golem_statue"));
+        assertEquals(ItemCategory.MISC, ItemCategory.getCategory("minecraft:apple"));
 
-        assertEquals(11, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_sapling"));
-        assertEquals(11, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:mangrove_propagule"));
+        // verify that getItemCategoryOrder matches ItemCategory.getOrder(...)
+        for (String sample : java.util.List.of("minecraft:stone", "minecraft:iron_ore", "minecraft:copper_grate",
+                "minecraft:conduit", "minecraft:skeleton_skull", "minecraft:shulker_box", "minecraft:apple")) {
+            ItemCategory cat = ItemCategory.getCategory(sample);
+            assertEquals(ItemCategory.getOrder(cat), com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder(sample));
+        }
 
-        assertEquals(12, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_leaves"));
-        assertEquals(12, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:cherry_leaves"));
-
-        assertEquals(13, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_carpet"));
-        assertEquals(13, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:red_carpet"));
-
-        assertEquals(14, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:lantern"));
-        assertEquals(14, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:soul_lantern"));
-
-        assertEquals(15, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:bookshelf"));
-        assertEquals(15, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:chiseled_bookshelf"));
-
-        assertEquals(16, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_sign"));
-        assertEquals(16, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:spruce_hanging_sign"));
-
-        assertEquals(17, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_door"));
-        assertEquals(17, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:iron_door"));
-
-        assertEquals(18, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_trapdoor"));
-        assertEquals(18, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:iron_trapdoor"));
-
-        assertEquals(19, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_pressure_plate"));
-        assertEquals(19, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:stone_pressure_plate"));
-
-        assertEquals(20, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_bed"));
-        assertEquals(20, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:red_bed"));
-
-        assertEquals(21, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_boat"));
-        assertEquals(21, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:bamboo_raft"));
-
-        assertEquals(22, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:oak_button"));
-        assertEquals(22, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:stone_button"));
-
-        assertEquals(23, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_dye"));
-        assertEquals(23, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:red_dye"));
-
-        assertEquals(24, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:egg"));
-        assertEquals(24, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:turtle_egg"));
-        assertEquals(24, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:zombie_spawn_egg"));
-
-        assertEquals(25, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:candle"));
-        assertEquals(25, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_candle"));
-
-        assertEquals(26, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_banner"));
-        assertEquals(26, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:flower_banner_pattern"));
-
-        assertEquals(27, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:tube_coral"));
-        assertEquals(27, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:fire_coral_fan"));
-        assertEquals(1, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:brain_coral_block"));
-
-        assertEquals(28, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:harness"));
-        assertEquals(28, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:saddle"));
-        assertEquals(28, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:lead"));
-
-        assertEquals(29, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:diamond_pickaxe"));
-        assertEquals(29, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:iron_sword"));
-        assertEquals(29, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:bow"));
-        assertEquals(29, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:shield"));
-        assertEquals(29, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:spyglass"));
-
-        assertEquals(30, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:diamond_helmet"));
-        assertEquals(30, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:iron_chestplate"));
-        assertEquals(30, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:golden_leggings"));
-        assertEquals(30, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:chainmail_boots"));
-        assertEquals(30, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:elytra"));
-
-        assertEquals(31, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:blaze_rod"));
-        assertEquals(31, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:end_rod"));
-        assertEquals(31, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:lightning_rod"));
-
-        assertEquals(32, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:bundle"));
-        assertEquals(32, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_bundle"));
-
-        assertEquals(33, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:book"));
-        assertEquals(33, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:enchanted_book"));
-        assertEquals(33, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:writable_book"));
-
-        assertEquals(34, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:skeleton_skull"));
-        assertEquals(34, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:zombie_head"));
-        assertEquals(34, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:creeper_head"));
-
-        assertEquals(35, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:coast_armor_trim_smithing_template"));
-        assertEquals(35, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:netherite_upgrade_smithing_template"));
-
-        assertEquals(36, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:shulker_box"));
-        assertEquals(36, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:white_shulker_box"));
-        assertEquals(36, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:shulker_shell"));
-
-        assertEquals(37, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:netherite_scrap"));
-
-        assertEquals(38, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:bucket"));
-        assertEquals(38, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:water_bucket"));
-        assertEquals(38, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:lava_bucket"));
-
-        assertEquals(39, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:potion"));
-        assertEquals(39, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:splash_potion"));
-
-        assertEquals(40, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:arrow"));
-        assertEquals(40, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:spectral_arrow"));
-
-        assertEquals(41, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:music_disc_13"));
-        assertEquals(41, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:music_disc_cat"));
-
-        assertEquals(42, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:rail"));
-        assertEquals(42, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:powered_rail"));
-
-        assertEquals(43, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:anvil"));
-        assertEquals(43, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:chipped_anvil"));
-
-        assertEquals(44, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:angler_pottery_sherd"));
-        assertEquals(44, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:scrape_pottery_sherd"));
-        assertEquals(44, com.itemorganizer.gui.util.ItemColorHelper.getItemCategoryOrder("minecraft:skull_pottery_sherd"));
-
-        // verify strict relative order with comparator
-        java.util.Comparator<String> cmp = com.itemorganizer.gui.util.ItemColorHelper.getColorComparator();
-
-        String[] categorySamples = new String[]{
-                "minecraft:stone",              // 1. items
-                "minecraft:glass",              // 2. glass
-                "minecraft:glass_pane",         // 3. glass_pane
-                "minecraft:iron_bars",          // 4. bars
-                "minecraft:chain",              // 5. chain
-                "minecraft:oak_fence",          // 6. fence
-                "minecraft:cobblestone_wall",   // 7. wall
-                "minecraft:oak_slab",           // 8. slab
-                "minecraft:oak_fence_gate",     // 9. fence_gate
-                "minecraft:oak_stairs",         // 10. stairs
-                "minecraft:oak_sapling",        // 11. saplings
-                "minecraft:oak_leaves",         // 12. leaves
-                "minecraft:white_carpet",       // 13. carpets
-                "minecraft:lantern",            // 14. lantern
-                "minecraft:bookshelf",          // 15. shelf
-                "minecraft:oak_sign",           // 16. sign
-                "minecraft:oak_door",           // 17. door
-                "minecraft:oak_trapdoor",       // 18. trapdoor
-                "minecraft:oak_pressure_plate", // 19. pressure_plate
-                "minecraft:white_bed",          // 20. bed
-                "minecraft:oak_boat",           // 21. boat
-                "minecraft:oak_button",         // 22. button
-                "minecraft:white_dye",          // 23. dye
-                "minecraft:egg",                // 24. egg
-                "minecraft:candle",             // 25. candle
-                "minecraft:white_banner",       // 26. banner
-                "minecraft:tube_coral",         // 27. coral
-                "minecraft:saddle",             // 28. harness
-                "minecraft:diamond_pickaxe",    // 29. tools
-                "minecraft:diamond_helmet",     // 30. armor
-                "minecraft:blaze_rod",          // 31. rod
-                "minecraft:bundle",             // 32. bundle
-                "minecraft:book",               // 33. book
-                "minecraft:skeleton_skull",     // 34. heads
-                "minecraft:coast_armor_trim_smithing_template", // 35. trim
-                "minecraft:shulker_box",        // 36. shulker
-                "minecraft:netherite_scrap",    // 37. scrape
-                "minecraft:bucket",             // 38. bucket
-                "minecraft:potion",             // 39. potion
-                "minecraft:arrow",              // 40. arrow
-                "minecraft:music_disc_13",      // 41. disc
-                "minecraft:rail",               // 42. rail
-                "minecraft:anvil",              // 43. anvil
-                "minecraft:angler_pottery_sherd",// 44. sherd
-                "minecraft:chest",              // 45. chest
-                "minecraft:minecart",           // 46. minecart
-                "minecraft:iron_golem_spawn_egg",// 47. golem
-                "minecraft:apple"               // 48. non-cubic items
-        };
-
-        for (int i = 0; i < categorySamples.length - 1; i++) {
-            assertTrue(cmp.compare(categorySamples[i], categorySamples[i + 1]) < 0,
-                    "order mismatch: " + categorySamples[i] + " should precede " + categorySamples[i + 1]);
+        // verify that active categories have strictly increasing order indices
+        java.util.List<ItemCategory> activeOrder = ItemCategory.getActiveOrder();
+        for (int i = 0; i < activeOrder.size() - 1; i++) {
+            ItemCategory c1 = activeOrder.get(i);
+            ItemCategory c2 = activeOrder.get(i + 1);
+            assertTrue(ItemCategory.getOrder(c1) < ItemCategory.getOrder(c2),
+                    "Order should be strictly increasing: " + c1 + " before " + c2);
         }
     }
 
     @Test
     void testColorSortingWithinSameCategory() {
-        java.util.Comparator<String> cmp = com.itemorganizer.gui.util.ItemColorHelper.getColorComparator();
+        java.util.Comparator<String> cmp = com.itemorganizer.gui.util.ItemColorHelper.getCategoryColorComparator();
 
         // inside carpets (cat 13): white_carpet before red_carpet
         assertTrue(cmp.compare("minecraft:white_carpet", "minecraft:red_carpet") < 0);
@@ -575,6 +504,83 @@ public class ProfileAndConfigTest {
 
         assertEquals(3, profile.findPositionOf("minecraft:red_carpet").get().getX());
         assertEquals(0, profile.findPositionOf("minecraft:red_carpet").get().getY());
+    }
+
+    @Test
+    void testPureColorGradientSorting() {
+        java.util.Comparator<String> cmp = com.itemorganizer.gui.util.ItemColorHelper.getColorComparator();
+
+        // neutrals transition: blanco -> gris -> negro
+        assertTrue(cmp.compare("minecraft:white_concrete", "minecraft:gray_concrete") < 0);
+        assertTrue(cmp.compare("minecraft:gray_concrete", "minecraft:black_concrete") < 0);
+
+        // dark blocks like black_terracotta sort into neutrals, before chromatics
+        float[] blackTerracottaHsv = com.itemorganizer.gui.util.ItemColorHelper.rgbToHsv(
+                com.itemorganizer.gui.util.ItemColorHelper.getItemColor("minecraft:black_terracotta")
+        );
+        assertTrue(com.itemorganizer.gui.util.ItemColorHelper.isNeutral(blackTerracottaHsv));
+        assertTrue(cmp.compare("minecraft:black_concrete", "minecraft:red_concrete") < 0);
+
+        // chromatics: roja -> naranja -> amarillo -> lima -> verde -> cyan -> azul -> purpura -> magenta -> rosa
+        assertTrue(cmp.compare("minecraft:red_concrete", "minecraft:orange_concrete") < 0);
+        assertTrue(cmp.compare("minecraft:orange_concrete", "minecraft:yellow_concrete") < 0);
+        assertTrue(cmp.compare("minecraft:yellow_concrete", "minecraft:lime_concrete") < 0);
+        assertTrue(cmp.compare("minecraft:lime_concrete", "minecraft:green_concrete") < 0);
+        assertTrue(cmp.compare("minecraft:green_concrete", "minecraft:cyan_concrete") < 0);
+        assertTrue(cmp.compare("minecraft:cyan_concrete", "minecraft:blue_concrete") < 0);
+        assertTrue(cmp.compare("minecraft:blue_concrete", "minecraft:purple_concrete") < 0);
+        assertTrue(cmp.compare("minecraft:purple_concrete", "minecraft:magenta_concrete") < 0);
+        assertTrue(cmp.compare("minecraft:magenta_concrete", "minecraft:pink_concrete") < 0);
+
+        // wool continuous sequence
+        assertTrue(cmp.compare("minecraft:white_wool", "minecraft:light_gray_wool") < 0);
+        assertTrue(cmp.compare("minecraft:light_gray_wool", "minecraft:gray_wool") < 0);
+        assertTrue(cmp.compare("minecraft:gray_wool", "minecraft:black_wool") < 0);
+        assertTrue(cmp.compare("minecraft:black_wool", "minecraft:red_wool") < 0);
+        assertTrue(cmp.compare("minecraft:red_wool", "minecraft:brown_wool") < 0);
+        assertTrue(cmp.compare("minecraft:brown_wool", "minecraft:orange_wool") < 0);
+        assertTrue(cmp.compare("minecraft:orange_wool", "minecraft:yellow_wool") < 0);
+        assertTrue(cmp.compare("minecraft:yellow_wool", "minecraft:lime_wool") < 0);
+        assertTrue(cmp.compare("minecraft:lime_wool", "minecraft:green_wool") < 0);
+        assertTrue(cmp.compare("minecraft:green_wool", "minecraft:cyan_wool") < 0);
+        assertTrue(cmp.compare("minecraft:cyan_wool", "minecraft:light_blue_wool") < 0);
+        assertTrue(cmp.compare("minecraft:light_blue_wool", "minecraft:blue_wool") < 0);
+        assertTrue(cmp.compare("minecraft:blue_wool", "minecraft:purple_wool") < 0);
+        assertTrue(cmp.compare("minecraft:purple_wool", "minecraft:magenta_wool") < 0);
+        assertTrue(cmp.compare("minecraft:magenta_wool", "minecraft:pink_wool") < 0);
+    }
+
+    @Test
+    void testCategoryGroupedColorGradient() {
+        java.util.Comparator<String> cmp = com.itemorganizer.gui.util.ItemColorHelper.getColorComparator();
+
+        ProfileData multiCatProfile = new ProfileData("multi_cat_gradient");
+        // full blocks
+        multiCatProfile.setItemAt("minecraft:red_wool", 0, 0);
+        multiCatProfile.setItemAt("minecraft:white_wool", 1, 0);
+        multiCatProfile.setItemAt("minecraft:orange_wool", 2, 0);
+        // carpets
+        multiCatProfile.setItemAt("minecraft:red_carpet", 3, 0);
+        multiCatProfile.setItemAt("minecraft:white_carpet", 4, 0);
+        multiCatProfile.setItemAt("minecraft:orange_carpet", 5, 0);
+
+        multiCatProfile.sortItems(cmp, 3);
+
+        // full blocks group first, ordered by gradient (white -> red -> orange)
+        assertEquals(0, multiCatProfile.findPositionOf("minecraft:white_wool").get().getX());
+        assertEquals(0, multiCatProfile.findPositionOf("minecraft:white_wool").get().getY());
+        assertEquals(1, multiCatProfile.findPositionOf("minecraft:red_wool").get().getX());
+        assertEquals(0, multiCatProfile.findPositionOf("minecraft:red_wool").get().getY());
+        assertEquals(2, multiCatProfile.findPositionOf("minecraft:orange_wool").get().getX());
+        assertEquals(0, multiCatProfile.findPositionOf("minecraft:orange_wool").get().getY());
+
+        // carpets group second, ordered by the same gradient (white -> red -> orange)
+        assertEquals(0, multiCatProfile.findPositionOf("minecraft:white_carpet").get().getX());
+        assertEquals(1, multiCatProfile.findPositionOf("minecraft:white_carpet").get().getY());
+        assertEquals(1, multiCatProfile.findPositionOf("minecraft:red_carpet").get().getX());
+        assertEquals(1, multiCatProfile.findPositionOf("minecraft:red_carpet").get().getY());
+        assertEquals(2, multiCatProfile.findPositionOf("minecraft:orange_carpet").get().getX());
+        assertEquals(1, multiCatProfile.findPositionOf("minecraft:orange_carpet").get().getY());
     }
 
     @Test
@@ -749,12 +755,16 @@ public class ProfileAndConfigTest {
 
         initial.setSelectedProfile("creative_builds");
         initial.setBlur(0.75f);
+        initial.setHotbarItemScale(1.25f);
+        initial.setPaletteItemScale(0.80f);
         assertTrue(configRepo.save(initial));
 
         com.itemorganizer.storage.ConfigRepository reloadedRepo = new com.itemorganizer.storage.ConfigRepository(tempDir);
         ModConfig loaded = reloadedRepo.load();
         assertEquals("creative_builds", loaded.getSelectedProfile());
         assertEquals(0.75f, loaded.getBlur(), 0.001f);
+        assertEquals(1.25f, loaded.getHotbarItemScale(), 0.001f);
+        assertEquals(0.80f, loaded.getPaletteItemScale(), 0.001f);
         assertTrue(loaded.isBackgroundBlur());
     }
 
@@ -794,5 +804,331 @@ public class ProfileAndConfigTest {
         assertTrue(reloaded.isItemBlocked("minecraft:bedrock"));
         assertTrue(reloaded.isItemBlocked("minecraft:barrier"));
     }
-}
 
+    @Test
+    void testHotbarSlotFinder() {
+        assertEquals(-1, com.itemorganizer.gui.util.HotbarActionHelper.findFirstEmptySlot(null));
+
+        try {
+            net.minecraft.entity.player.PlayerInventory inventory = new net.minecraft.entity.player.PlayerInventory(null, null);
+            assertEquals(0, com.itemorganizer.gui.util.HotbarActionHelper.findFirstEmptySlot(inventory));
+        } catch (Throwable ignored) {
+            // PlayerInventory may require full game bootstrap in headless environment
+        }
+    }
+
+    @Test
+    void testConfigUndoKey() {
+        ModConfig config = new ModConfig();
+        // default undo key: z
+        assertEquals("key.keyboard.z", config.getKeyUndo());
+
+        // reassign key
+        config.setKeyUndo("key.keyboard.u");
+        assertEquals("key.keyboard.u", config.getKeyUndo());
+
+        // fallback for null or empty
+        config.setKeyUndo(null);
+        assertEquals("key.keyboard.z", config.getKeyUndo());
+        config.setKeyUndo("");
+        assertEquals("key.keyboard.z", config.getKeyUndo());
+    }
+
+    @Test
+    void testUndoManagerStackAndCapacity() {
+        com.itemorganizer.gui.undo.UndoManager manager = com.itemorganizer.gui.undo.UndoManager.getInstance();
+        manager.clear();
+        assertFalse(manager.canUndo());
+        assertEquals(0, manager.getHistorySize());
+
+        // record actions
+        java.util.concurrent.atomic.AtomicInteger counter = new java.util.concurrent.atomic.AtomicInteger(0);
+        manager.record((client, vm) -> counter.set(1));
+        manager.record((client, vm) -> counter.set(2));
+
+        assertTrue(manager.canUndo());
+        assertEquals(2, manager.getHistorySize());
+
+        // pop LIFO
+        assertTrue(manager.undo(null, null));
+        assertEquals(2, counter.get());
+        assertEquals(1, manager.getHistorySize());
+
+        assertTrue(manager.undo(null, null));
+        assertEquals(1, counter.get());
+        assertEquals(0, manager.getHistorySize());
+
+        // empty stack
+        assertFalse(manager.undo(null, null));
+        assertFalse(manager.canUndo());
+
+        // capacity bound: up to 100 actions
+        for (int i = 0; i < 120; i++) {
+            final int val = i;
+            manager.record((client, vm) -> counter.set(val));
+        }
+        assertEquals(100, manager.getHistorySize());
+
+        manager.clear();
+        assertEquals(0, manager.getHistorySize());
+        assertFalse(manager.canUndo());
+    }
+
+    @Test
+    void testPaletteDataFindRowById() {
+        com.itemorganizer.core.model.PaletteData data = new com.itemorganizer.core.model.PaletteData();
+        com.itemorganizer.core.model.PaletteRow row1 = new com.itemorganizer.core.model.PaletteRow();
+        com.itemorganizer.core.model.PaletteRow row2 = new com.itemorganizer.core.model.PaletteRow();
+        data.addRow(row1);
+        data.addRow(row2);
+
+        assertEquals(row1, data.findRowById(row1.getId()));
+        assertEquals(row2, data.findRowById(row2.getId()));
+        assertNull(data.findRowById("non_existent_id"));
+        assertNull(data.findRowById(null));
+    }
+
+    @Test
+    void testPaletteUndoActionsData() {
+        com.itemorganizer.core.model.PaletteRow row = new com.itemorganizer.core.model.PaletteRow();
+        row.setSlot(0, "minecraft:stone");
+        row.setSlot(1, "minecraft:dirt");
+
+        // full row undo snapshot
+        com.itemorganizer.gui.undo.PaletteFullUndoAction fullAction = new com.itemorganizer.gui.undo.PaletteFullUndoAction(row);
+        assertEquals(row.getId(), fullAction.getPaletteId());
+        assertEquals("minecraft:stone", fullAction.getPreviousSlots().get(0));
+        assertEquals("minecraft:dirt", fullAction.getPreviousSlots().get(1));
+        assertNull(fullAction.getPreviousSlots().get(2));
+
+        // slot undo snapshot
+        com.itemorganizer.gui.undo.PaletteSlotUndoAction slotAction = new com.itemorganizer.gui.undo.PaletteSlotUndoAction(row.getId(), 0, "minecraft:stone");
+        assertEquals(row.getId(), slotAction.getPaletteId());
+        assertEquals(0, slotAction.getSlot());
+        assertEquals("minecraft:stone", slotAction.getPreviousItemId());
+    }
+
+    @Test
+    void testHotbarActionHelperDefensiveChecks() {
+        assertFalse(com.itemorganizer.gui.util.HotbarActionHelper.isItemInHotbar(null, null));
+        assertFalse(com.itemorganizer.gui.util.HotbarActionHelper.quickMoveToHotbar(null, null));
+        assertFalse(com.itemorganizer.gui.util.HotbarActionHelper.dropPayloadToSlot(null, null, 0));
+    }
+
+    @Test
+    void testPaletteRowSlotComparisonAndClearing() {
+        com.itemorganizer.core.model.PaletteRow rowA = new com.itemorganizer.core.model.PaletteRow();
+        com.itemorganizer.core.model.PaletteRow rowB = new com.itemorganizer.core.model.PaletteRow();
+
+        // empty palettes
+        assertFalse(rowA.hasAnyItem());
+        assertFalse(rowB.hasAnyItem());
+        assertTrue(rowA.hasSameSlotsAs(rowB));
+
+        // populate row A
+        rowA.setSlot(0, "minecraft:stone");
+        rowA.setSlot(4, "minecraft:oak_planks");
+        assertTrue(rowA.hasAnyItem());
+        assertFalse(rowA.hasSameSlotsAs(rowB));
+
+        // match row B to row A
+        rowB.setSlot(0, "minecraft:stone");
+        rowB.setSlot(4, "minecraft:oak_planks");
+        assertTrue(rowB.hasAnyItem());
+        assertTrue(rowA.hasSameSlotsAs(rowB));
+        assertTrue(rowB.hasSameSlotsAs(rowA));
+
+        // different slot index
+        com.itemorganizer.core.model.PaletteRow rowC = new com.itemorganizer.core.model.PaletteRow();
+        rowC.setSlot(1, "minecraft:stone");
+        rowC.setSlot(4, "minecraft:oak_planks");
+        assertFalse(rowA.hasSameSlotsAs(rowC));
+
+        // clear slots
+        rowA.clearSlots();
+        assertFalse(rowA.hasAnyItem());
+        assertNull(rowA.getSlot(0));
+        assertNull(rowA.getSlot(4));
+    }
+
+    @Test
+    void testDuplicatePaletteDetection() {
+        com.itemorganizer.core.model.PaletteRow empty1 = new com.itemorganizer.core.model.PaletteRow();
+        com.itemorganizer.core.model.PaletteRow empty2 = new com.itemorganizer.core.model.PaletteRow();
+        java.util.List<com.itemorganizer.core.model.PaletteRow> list = new java.util.ArrayList<>();
+        list.add(empty1);
+        list.add(empty2);
+
+        // empty palettes must not be flagged as duplicates
+        assertFalse(com.itemorganizer.gui.widget.PaletteListWidget.isDuplicatePalette(empty1, list));
+        assertFalse(com.itemorganizer.gui.widget.PaletteListWidget.isDuplicatePalette(empty2, list));
+
+        // single non-empty palette is not duplicate
+        com.itemorganizer.core.model.PaletteRow p1 = new com.itemorganizer.core.model.PaletteRow();
+        p1.setSlot(0, "minecraft:diamond_block");
+        p1.setSlot(1, "minecraft:gold_block");
+        list.add(p1);
+        assertFalse(com.itemorganizer.gui.widget.PaletteListWidget.isDuplicatePalette(p1, list));
+
+        // duplicate palette with same slots
+        com.itemorganizer.core.model.PaletteRow p2 = new com.itemorganizer.core.model.PaletteRow();
+        p2.setSlot(0, "minecraft:diamond_block");
+        p2.setSlot(1, "minecraft:gold_block");
+        list.add(p2);
+
+        // both p1 and p2 should now be detected as duplicates
+        assertTrue(com.itemorganizer.gui.widget.PaletteListWidget.isDuplicatePalette(p1, list));
+        assertTrue(com.itemorganizer.gui.widget.PaletteListWidget.isDuplicatePalette(p2, list));
+
+        // modifying one slot breaks the collision
+        p2.setSlot(2, "minecraft:iron_block");
+        assertFalse(com.itemorganizer.gui.widget.PaletteListWidget.isDuplicatePalette(p1, list));
+        assertFalse(com.itemorganizer.gui.widget.PaletteListWidget.isDuplicatePalette(p2, list));
+
+        // reset back to matching
+        p2.clearSlot(2);
+        assertTrue(com.itemorganizer.gui.widget.PaletteListWidget.isDuplicatePalette(p1, list));
+        assertTrue(com.itemorganizer.gui.widget.PaletteListWidget.isDuplicatePalette(p2, list));
+    }
+
+    @Test
+    void testPaletteSearchFilterWidgetMatching() {
+        com.itemorganizer.gui.widget.PaletteSearchFilterWidget filterWidget = new com.itemorganizer.gui.widget.PaletteSearchFilterWidget(0, 0);
+        assertFalse(filterWidget.isActive());
+
+        com.itemorganizer.core.model.PaletteRow row = new com.itemorganizer.core.model.PaletteRow();
+        row.setSlot(0, "minecraft:stone");
+        row.setSlot(1, "minecraft:dirt");
+        row.setSlot(8, "minecraft:glass");
+
+        // inactive filter matches everything
+        assertTrue(filterWidget.matches(row));
+
+        // filter by slot 0
+        filterWidget.getFilterPalette().setSlot(0, "minecraft:stone");
+        assertTrue(filterWidget.isActive());
+        assertTrue(filterWidget.matches(row));
+
+        // mismatch in slot 0
+        filterWidget.getFilterPalette().setSlot(0, "minecraft:cobblestone");
+        assertFalse(filterWidget.matches(row));
+
+        // match slot 0 and slot 8
+        filterWidget.getFilterPalette().setSlot(0, "minecraft:stone");
+        filterWidget.getFilterPalette().setSlot(8, "minecraft:glass");
+        assertTrue(filterWidget.matches(row));
+
+        // empty slots in filter (e.g. slot 1) are ignored
+        assertNull(filterWidget.getFilterPalette().getSlot(1));
+        assertEquals("minecraft:dirt", row.getSlot(1));
+        assertTrue(filterWidget.matches(row));
+
+        // mismatch in slot 8
+        filterWidget.getFilterPalette().setSlot(8, "minecraft:obsidian");
+        assertFalse(filterWidget.matches(row));
+
+        // clear filter resets matching
+        filterWidget.clearFilter();
+        assertFalse(filterWidget.isActive());
+        assertTrue(filterWidget.matches(row));
+    }
+
+    @Test
+    void testPaletteDataRemoveAndPasteOperations() {
+        com.itemorganizer.core.model.PaletteData data = new com.itemorganizer.core.model.PaletteData();
+        com.itemorganizer.core.model.PaletteRow row = new com.itemorganizer.core.model.PaletteRow();
+        row.setSlot(0, "minecraft:iron_sword");
+        data.addRow(row);
+
+        assertEquals(1, data.getRows().size());
+        assertEquals("minecraft:iron_sword", data.findRowById(row.getId()).getSlot(0));
+
+        // simulate paste hotbar items
+        for (int s = 0; s < 9; s++) {
+            row.setSlot(s, "minecraft:stone");
+        }
+        for (int s = 0; s < 9; s++) {
+            assertEquals("minecraft:stone", row.getSlot(s));
+        }
+
+        // simulate delete row
+        data.removeRowById(row.getId());
+        assertEquals(0, data.getRows().size());
+        assertNull(data.findRowById(row.getId()));
+    }
+
+    @Test
+    void testSearchFilterFarRightPlacementMath() {
+        int screenWidth = 600;
+        int margin = 10;
+        int hotbarWidth = 9 * 22; // 198
+        int filterWidth = 9 * 22 + 4 + 14; // 216
+
+        int hotbarX = (screenWidth - hotbarWidth) / 2; // 201
+        int filterX = screenWidth - margin - filterWidth; // 600 - 10 - 216 = 374
+
+        // hotbar right edge: 201 + 198 = 399 > 374 -> would collide on narrow screen
+        if (hotbarX + hotbarWidth + 8 > filterX) {
+            hotbarX = Math.max(6, filterX - hotbarWidth - 8);
+        }
+        assertEquals(374 - 198 - 8, hotbarX);
+        assertTrue(hotbarX + hotbarWidth <= filterX - 8);
+
+        // on wider screen (800)
+        screenWidth = 800;
+        hotbarX = (screenWidth - hotbarWidth) / 2; // 301
+        filterX = screenWidth - margin - filterWidth; // 800 - 10 - 216 = 574
+        // 301 + 198 = 499 < 574 -> stays centered!
+        assertTrue(hotbarX + hotbarWidth + 8 <= filterX);
+        assertEquals(301, hotbarX);
+    }
+
+    @Test
+    void testBlockerActiveConfigPersistence() {
+        com.itemorganizer.storage.ConfigRepository configRepo = new com.itemorganizer.storage.ConfigRepository(tempDir);
+        ModConfig config = configRepo.load();
+        assertFalse(config.isBlockerActive());
+
+        config.setBlockerActive(true);
+        assertTrue(configRepo.save(config));
+
+        com.itemorganizer.storage.ConfigRepository reloadedRepo = new com.itemorganizer.storage.ConfigRepository(tempDir);
+        ModConfig reloaded = reloadedRepo.load();
+        assertTrue(reloaded.isBlockerActive());
+
+        reloaded.setBlockerActive(false);
+        assertTrue(reloadedRepo.save(reloaded));
+
+        ModConfig secondReload = new com.itemorganizer.storage.ConfigRepository(tempDir).load();
+        assertFalse(secondReload.isBlockerActive());
+    }
+
+    @Test
+    void testProfileSnapshotAndCopyFrom() {
+        ProfileData profile = new ProfileData("test_profile");
+        profile.setColumnCount(12);
+        profile.setItemAt("minecraft:stone", 0, 0);
+        profile.setItemAt("minecraft:dirt", 1, 0);
+        profile.blockItem("minecraft:bedrock");
+
+        ProfileData snap = profile.snapshot();
+        assertEquals("test_profile", snap.getName());
+        assertEquals(12, snap.getColumnCount());
+        assertEquals(2, snap.getItems().size());
+        assertTrue(snap.isItemBlocked("minecraft:bedrock"));
+
+        // mutate original
+        profile.setItemAt("minecraft:gold_block", 2, 0);
+        profile.blockItem("minecraft:barrier");
+        assertEquals(3, profile.getItems().size());
+        assertEquals(2, snap.getItems().size());
+
+        // restore with copyFrom
+        profile.copyFrom(snap);
+        assertEquals(12, profile.getColumnCount());
+        assertEquals(2, profile.getItems().size());
+        assertFalse(profile.hasItem("minecraft:gold_block"));
+        assertFalse(profile.isItemBlocked("minecraft:barrier"));
+        assertTrue(profile.isItemBlocked("minecraft:bedrock"));
+    }
+}

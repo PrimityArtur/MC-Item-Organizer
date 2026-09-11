@@ -7,7 +7,13 @@ import net.minecraft.client.gui.DrawContext;
 // global drag and drop manager between mod panels
 public class DragAndDropManager {
     private static final DragAndDropManager instance = new DragAndDropManager();
+    private static final double DRAG_THRESHOLD = 4.0;
+
     private DragPayload activePayload;
+    private double startMouseX;
+    private double startMouseY;
+    private boolean mouseButtonHeld;
+    private boolean draggedBeyondThreshold;
 
     private DragAndDropManager() {
     }
@@ -25,16 +31,57 @@ public class DragAndDropManager {
     }
 
     public void startDrag(DragPayload payload) {
+        startDrag(payload, 0, 0);
+    }
+
+    public void startDrag(DragPayload payload, double mouseX, double mouseY) {
         this.activePayload = payload;
+        this.startMouseX = mouseX;
+        this.startMouseY = mouseY;
+        this.mouseButtonHeld = true;
+        this.draggedBeyondThreshold = false;
+    }
+
+    public void startHolding(double mouseX, double mouseY) {
+        this.startMouseX = mouseX;
+        this.startMouseY = mouseY;
+        this.mouseButtonHeld = true;
+        this.draggedBeyondThreshold = false;
+    }
+
+    public void onMouseDrag(double currentX, double currentY) {
+        if (activePayload != null && mouseButtonHeld && !draggedBeyondThreshold) {
+            double dx = currentX - startMouseX;
+            double dy = currentY - startMouseY;
+            if (Math.hypot(dx, dy) >= DRAG_THRESHOLD) {
+                draggedBeyondThreshold = true;
+            }
+        }
+    }
+
+    public void onMouseRelease() {
+        this.mouseButtonHeld = false;
+    }
+
+    public boolean isMouseButtonHeld() {
+        return mouseButtonHeld;
+    }
+
+    public boolean isDraggedBeyondThreshold() {
+        return draggedBeyondThreshold;
     }
 
     public void cancelDrag() {
         this.activePayload = null;
+        this.mouseButtonHeld = false;
+        this.draggedBeyondThreshold = false;
     }
 
     public DragPayload consumePayload() {
         DragPayload payload = this.activePayload;
         this.activePayload = null;
+        this.mouseButtonHeld = false;
+        this.draggedBeyondThreshold = false;
         return payload;
     }
 

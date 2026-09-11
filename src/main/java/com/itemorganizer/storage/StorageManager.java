@@ -16,14 +16,31 @@ public class StorageManager {
     private final ConfigRepository configRepository;
     private final ProfileRepository profileRepository;
     private final PaletteRepository paletteRepository;
+    private final PaletteRepository infinitePaletteRepository;
     private final VersionCatalogRepository versionCatalogRepository;
 
+    public StorageManager(Path baseDir) {
+        if (baseDir != null) {
+            this.baseDir = baseDir;
+        } else {
+            Path dir = null;
+            try {
+                if (FabricLoader.getInstance() != null) {
+                    dir = FabricLoader.getInstance().getConfigDir().resolve("itemorganizer");
+                }
+            } catch (Throwable ignored) {
+            }
+            this.baseDir = (dir != null) ? dir : Path.of("build", "tmp", "test-config", "itemorganizer");
+        }
+        this.configRepository = new ConfigRepository(this.baseDir);
+        this.profileRepository = new ProfileRepository(this.baseDir);
+        this.paletteRepository = new PaletteRepository(this.baseDir);
+        this.infinitePaletteRepository = new PaletteRepository(this.baseDir, "palette_inf.json");
+        this.versionCatalogRepository = new VersionCatalogRepository(this.baseDir);
+    }
+
     private StorageManager() {
-        this.baseDir = FabricLoader.getInstance().getConfigDir().resolve("itemorganizer");
-        this.configRepository = new ConfigRepository(baseDir);
-        this.profileRepository = new ProfileRepository(baseDir);
-        this.paletteRepository = new PaletteRepository(baseDir);
-        this.versionCatalogRepository = new VersionCatalogRepository(baseDir);
+        this(null);
     }
 
     public static synchronized StorageManager getInstance() {
@@ -31,6 +48,10 @@ public class StorageManager {
             instance = new StorageManager();
         }
         return instance;
+    }
+
+    public static synchronized void setInstanceForTesting(StorageManager testInstance) {
+        instance = testInstance;
     }
 
     public void init() {
@@ -42,7 +63,17 @@ public class StorageManager {
             configRepository.load();
             profileRepository.init();
             paletteRepository.load();
+            infinitePaletteRepository.load();
             versionCatalogRepository.load();
+
+            // initialize and ensure category order file
+            Path categoryOrderFile = baseDir.resolve("category_order.json");
+            if (Files.exists(categoryOrderFile)) {
+                com.itemorganizer.core.model.ItemCategory.loadOrderFromFile(categoryOrderFile);
+            } else {
+                com.itemorganizer.core.model.ItemCategory.saveOrderToFile(categoryOrderFile);
+            }
+
             ItemOrganizer.LOGGER.info("ItemOrganizer StorageManager initialized at {}", baseDir);
         } catch (IOException e) {
             ItemOrganizer.LOGGER.error("failed initializing StorageManager: {}", e.getMessage());
@@ -63,6 +94,10 @@ public class StorageManager {
 
     public PaletteRepository getPaletteRepository() {
         return paletteRepository;
+    }
+
+    public PaletteRepository getInfinitePaletteRepository() {
+        return infinitePaletteRepository;
     }
 
     public VersionCatalogRepository getVersionCatalogRepository() {

@@ -2,10 +2,15 @@ package com.itemorganizer.gui.widget;
 
 import com.itemorganizer.core.model.PaletteData;
 import com.itemorganizer.core.model.PaletteRow;
+import com.itemorganizer.gui.component.ModalDialogComponent;
+import com.itemorganizer.gui.component.ScrollbarComponent;
 import com.itemorganizer.gui.dragdrop.DragAndDropManager;
 import com.itemorganizer.gui.dragdrop.DragPayload;
 import com.itemorganizer.gui.dragdrop.DragSource;
+import com.itemorganizer.gui.theme.UITheme;
+import com.itemorganizer.gui.util.HotbarActionHelper;
 import com.itemorganizer.gui.util.RenderHelper;
+import com.itemorganizer.gui.util.SoundHelper;
 import com.itemorganizer.gui.util.TextScaleHelper;
 import com.itemorganizer.gui.viewmodel.OrganizerViewModel;
 import com.itemorganizer.storage.StorageManager;
@@ -20,24 +25,38 @@ import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.input.CharInput;
 import net.minecraft.client.input.KeyInput;
-import net.minecraft.client.sound.PositionedSoundInstance;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket;
 import net.minecraft.registry.Registries;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
-// palette list widget with 9-slot rows, search, duplicate and delete options
+// palette list widget managing custom 9-slot item groups
 public class PaletteListWidget implements Drawable, Element, Selectable {
     public static final int SCROLLBAR_WIDTH = 3;
-    public static final int BASE_TOP_BAR_HEIGHT = 18;
+    public static final int BASE_SLOT_SIZE = 18;
+    public static final int BASE_ROW_HEIGHT = 38;
+    public static final int BASE_TOP_BAR_HEIGHT = 16;
+    public static final int BASE_ROW_BTN_SIZE = 12;
 
     private final OrganizerViewModel viewModel;
     private int x;
@@ -45,39 +64,57 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     private int width;
     private int height;
 
-    private final VerticalScrollbar scrollbar;
+    private final ScrollbarComponent scrollbar;
     private TextFieldWidget searchField;
     private TextFieldWidget renameField;
+    private PaletteSearchFilterWidget searchFilterWidget;
 
     // active modal states
+    private ModalDialogComponent activeModal = null;
     private String deletingPaletteId = null;
     private String renamingPaletteId = null;
+    private String pastingHotbarPaletteId = null;
 
     // hover state
     private int hoveredOriginalRowIndex = -1;
     private int hoveredSlotIndex = -1;
     private boolean hoveredLoadBtn = false;
+    private boolean hoveredPlaceWorldBtn = false;
+    private boolean hoveredPasteHotbarBtn = false;
     private boolean hoveredDeleteBtn = false;
     private boolean hoveredDupBtn = false;
     private boolean hoveredUpBtn = false;
     private boolean hoveredDownBtn = false;
     private boolean hoveredName = false;
     private boolean hoveredTopAddBtn = false;
+    private boolean hoveredSortBtn = false;
+    private boolean colorSortActive = false;
     private String activeTooltip = null;
     private ItemStack hoveredStack = ItemStack.EMPTY;
+
+    // continuous shift drag tracking
+    private int lastShiftPaletteRow = -1;
+    private int lastShiftPaletteSlot = -1;
+
+    private final boolean infiniteMode;
 
     public record DisplayPalette(int originalIndex, PaletteRow row) {}
 
     public PaletteListWidget(OrganizerViewModel viewModel, int x, int y, int width, int height) {
+        this(viewModel, x, y, width, height, false);
+    }
+
+    public PaletteListWidget(OrganizerViewModel viewModel, int x, int y, int width, int height, boolean infiniteMode) {
         this.viewModel = viewModel;
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
+        this.infiniteMode = infiniteMode;
 
         int listStartY = y + getTopBarHeight() + 2;
         int listHeight = height - getTopBarHeight() - 4;
-        this.scrollbar = new VerticalScrollbar(x + width - SCROLLBAR_WIDTH - 2, listStartY, SCROLLBAR_WIDTH, listHeight);
+        this.scrollbar = new ScrollbarComponent(x + width - SCROLLBAR_WIDTH - 2, listStartY, SCROLLBAR_WIDTH, listHeight);
 
         initInputs();
     }
@@ -94,21 +131,21 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     }
 
     public int getHeaderHeight() {
-        float paletteScale = viewModel.getConfig().getPaletteScale();
+        float btnScale = viewModel.getConfig().getPaletteButtonScale();
         float textScale = viewModel.getConfig().getTextScale();
         int btnH = getButtonSize();
         int textH = Math.round(9 * textScale);
-        return Math.max(btnH + 2, Math.max(textH + 2, Math.round(10 * Math.max(paletteScale, textScale))));
+        return Math.max(btnH + 2, Math.max(textH + 2, Math.round(10 * Math.max(btnScale, textScale))));
     }
 
     public int getButtonSize() {
-        float paletteScale = viewModel.getConfig().getPaletteScale();
-        return Math.max(6, Math.min(16, Math.round(8 * paletteScale)));
+        float btnScale = viewModel.getConfig().getPaletteButtonScale();
+        return Math.max(6, Math.min(22, Math.round(8 * btnScale)));
     }
 
     public int getButtonGap() {
-        float paletteScale = viewModel.getConfig().getPaletteScale();
-        return Math.max(1, Math.round(2 * paletteScale));
+        float btnScale = viewModel.getConfig().getPaletteButtonScale();
+        return Math.max(1, Math.round(2 * btnScale));
     }
 
     private void initInputs() {
@@ -118,14 +155,75 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         float textScale = viewModel.getConfig().getTextScale();
         int searchH = getSearchHeight();
         int addBtnW = (width < 160) ? searchH : Math.round(40 * Math.min(1.3f, textScale));
-        int searchW = Math.max(30, width - SCROLLBAR_WIDTH - addBtnW - 12);
+        int sortBtnW = searchH;
+        int searchW = Math.max(30, width - SCROLLBAR_WIDTH - addBtnW - sortBtnW - 15);
         this.searchField = new TextFieldWidget(tr, x + 4, y + 2, searchW, searchH, Text.translatable("palettes.itemorganizer.search_placeholder"));
         this.searchField.setPlaceholder(Text.translatable("palettes.itemorganizer.search_placeholder"));
-        this.searchField.setChangedListener(text -> scrollbar.setScrollOffset(0));
+        String initialQuery = infiniteMode ? viewModel.getInfinitePaletteSearchQuery() : viewModel.getPaletteSearchQuery();
+        if (initialQuery != null && !initialQuery.isEmpty()) {
+            this.searchField.setText(initialQuery);
+        }
+        this.searchField.setChangedListener(text -> {
+            String current = infiniteMode ? viewModel.getInfinitePaletteSearchQuery() : viewModel.getPaletteSearchQuery();
+            if (!Objects.equals(text, current)) {
+                if (infiniteMode) {
+                    viewModel.setInfinitePaletteSearchQuery(text);
+                } else {
+                    viewModel.setPaletteSearchQuery(text);
+                }
+                scrollbar.setScrollOffset(0);
+            }
+        });
         this.searchField.setDrawsBackground(false);
 
         this.renameField = new TextFieldWidget(tr, x + 20, y + 20, 120, 16, Text.translatable("palettes.itemorganizer.rename.title"));
         this.renameField.setMaxLength(24);
+    }
+
+    public PaletteData getPaletteData() {
+        return infiniteMode ? viewModel.getInfinitePaletteData() : viewModel.getPaletteData();
+    }
+
+    public void savePaletteData(PaletteData data) {
+        if (data == null) return;
+        if (infiniteMode) {
+            StorageManager.getInstance().getInfinitePaletteRepository().save(data);
+        } else {
+            StorageManager.getInstance().getPaletteRepository().save(data);
+        }
+    }
+
+    public boolean isInfiniteMode() {
+        return infiniteMode;
+    }
+
+    public String getSearchText() {
+        return searchField != null ? searchField.getText() : "";
+    }
+
+    public void setSearchText(String text) {
+        if (searchField != null) {
+            String clean = (text != null) ? text : "";
+            if (!Objects.equals(searchField.getText(), clean)) {
+                searchField.setText(clean);
+            }
+        }
+    }
+
+    public double getScrollOffset() {
+        return scrollbar.getScrollOffset();
+    }
+
+    public void setScrollOffset(double offset) {
+        scrollbar.setScrollOffset(offset);
+    }
+
+    public boolean isColorSortActive() {
+        return colorSortActive;
+    }
+
+    public void setColorSortActive(boolean colorSortActive) {
+        this.colorSortActive = colorSortActive;
     }
 
     public void setBounds(int x, int y, int width, int height) {
@@ -143,7 +241,9 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         int addBtnH = searchH;
         int addBtnW = (width < 160) ? searchH : Math.round(40 * Math.min(1.3f, viewModel.getConfig().getTextScale()));
         int addBtnX = x + width - SCROLLBAR_WIDTH - addBtnW - 4;
-        int searchW = Math.max(30, addBtnX - (x + 4) - 4);
+        int sortBtnW = searchH;
+        int sortBtnX = addBtnX - sortBtnW - 3;
+        int searchW = Math.max(30, sortBtnX - (x + 4) - 4);
         int searchY = y + 2 + (topBarH - 4 - searchH) / 2;
         this.searchField.setX(x + 4);
         this.searchField.setY(searchY);
@@ -165,10 +265,26 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         return Math.max(10, Math.min(36, scaled));
     }
 
+    public int getSlotsPerRow(int cardW, int slotSize) {
+        int availW = Math.max(slotSize, cardW - 8);
+        return Math.max(1, availW / slotSize);
+    }
+
     public int getCardHeight() {
+        return getCardHeight(null);
+    }
+
+    public int getCardHeight(PaletteRow row) {
         int slotSize = getSlotSize();
         int headerH = getHeaderHeight();
-        return 2 + headerH + 2 + slotSize + 3;
+        if (!infiniteMode || row == null) {
+            return 2 + headerH + 2 + slotSize + 3;
+        }
+        int cardW = getCardWidth();
+        int slotsPerRow = getSlotsPerRow(cardW, slotSize);
+        int totalLines = Math.max(1, (row.getSlotCount() + slotsPerRow - 1) / slotsPerRow);
+        int slotGap = 1;
+        return 2 + headerH + 2 + (totalLines * slotSize) + ((totalLines - 1) * slotGap) + 3;
     }
 
     public int getCardGap() {
@@ -176,69 +292,113 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     }
 
     private List<DisplayPalette> getFilteredPalettes(List<PaletteRow> allRows) {
-        List<DisplayPalette> list = new ArrayList<>();
-        if (allRows == null) return list;
+        if (allRows == null) return new ArrayList<>();
 
         String query = searchField.getText().trim().toLowerCase();
+        boolean filterActive = (searchFilterWidget != null && searchFilterWidget.isActive());
+
+        List<DisplayPalette> exactList = new ArrayList<>();
+        List<DisplayPalette> itemList = new ArrayList<>();
+        List<DisplayPalette> colorList = new ArrayList<>();
+        List<DisplayPalette> standardList = new ArrayList<>();
+
         for (int i = 0; i < allRows.size(); i++) {
             PaletteRow row = allRows.get(i);
-            if (query.isEmpty()) {
-                list.add(new DisplayPalette(i, row));
-                continue;
-            }
 
-            // filter by row index
-            String idxStr = String.valueOf(i + 1);
-            if (idxStr.contains(query) || ("#" + idxStr).contains(query)) {
-                list.add(new DisplayPalette(i, row));
-                continue;
-            }
-
-            // filter by custom name
-            if (row.getName() != null && row.getName().toLowerCase().contains(query)) {
-                list.add(new DisplayPalette(i, row));
-                continue;
-            }
-
-            // filter by item names inside slots
-            boolean matchedItem = false;
-            for (int s = 0; s < 9; s++) {
-                String itemId = row.getSlot(s);
-                if (itemId != null) {
-                    if (itemId.toLowerCase().contains(query)) {
-                        matchedItem = true;
-                        break;
-                    }
-                    ItemStack stack = getItemStackFromId(itemId);
-                    if (!stack.isEmpty() && stack.getName().getString().toLowerCase().contains(query)) {
-                        matchedItem = true;
-                        break;
+            // check text query if present
+            if (!query.isEmpty()) {
+                boolean matchesText = false;
+                String idxStr = String.valueOf(i + 1);
+                if (idxStr.contains(query) || ("#" + idxStr).contains(query)) {
+                    matchesText = true;
+                } else if (row.getName() != null && row.getName().toLowerCase().contains(query)) {
+                    matchesText = true;
+                } else {
+                    int count = row.getSlotCount();
+                    for (int s = 0; s < count; s++) {
+                        String itemId = row.getSlot(s);
+                        if (itemId != null) {
+                            if (itemId.toLowerCase().contains(query)) {
+                                matchesText = true;
+                                break;
+                            }
+                            ItemStack stack = getItemStackFromId(itemId);
+                            if (!stack.isEmpty() && stack.getName().getString().toLowerCase().contains(query)) {
+                                matchesText = true;
+                                break;
+                            }
+                        }
                     }
                 }
+                if (!matchesText) {
+                    continue;
+                }
             }
-            if (matchedItem) {
-                list.add(new DisplayPalette(i, row));
+
+            if (filterActive) {
+                PaletteSearchFilterWidget.FilterMatchResult matchResult = searchFilterWidget.evaluateMatch(row);
+                if (matchResult.isMatch()) {
+                    DisplayPalette dp = new DisplayPalette(i, row);
+                    if (matchResult.tier() == PaletteSearchFilterWidget.MatchTier.EXACT) {
+                        exactList.add(dp);
+                    } else if (matchResult.tier() == PaletteSearchFilterWidget.MatchTier.ITEM_MATCH) {
+                        itemList.add(dp);
+                    } else if (matchResult.tier() == PaletteSearchFilterWidget.MatchTier.COLOR_MATCH) {
+                        colorList.add(dp);
+                    }
+                }
+            } else {
+                standardList.add(new DisplayPalette(i, row));
             }
         }
-        return list;
+
+        com.itemorganizer.gui.util.PaletteColumnColorComparator colorComparator = com.itemorganizer.gui.util.PaletteColumnColorComparator.getInstance();
+
+        if (filterActive) {
+            if (colorSortActive) {
+                exactList.sort((d1, d2) -> colorComparator.compare(d1.row(), d2.row()));
+                itemList.sort((d1, d2) -> colorComparator.compare(d1.row(), d2.row()));
+                colorList.sort((d1, d2) -> colorComparator.compare(d1.row(), d2.row()));
+            }
+            List<DisplayPalette> combined = new ArrayList<>(exactList.size() + itemList.size() + colorList.size());
+            combined.addAll(exactList);
+            combined.addAll(itemList);
+            combined.addAll(colorList);
+            return combined;
+        } else {
+            if (colorSortActive) {
+                standardList.sort((d1, d2) -> colorComparator.compare(d1.row(), d2.row()));
+            }
+            return standardList;
+        }
     }
 
-    private int calculateTotalContentHeight(int filteredCount) {
-        return (filteredCount * (getCardHeight() + getCardGap())) + 8;
+    public int calculateTotalContentHeight(int count) {
+        if (count <= 0) return 0;
+        return (count * getCardHeight()) + ((count - 1) * getCardGap()) + 8;
+    }
+
+    private int calculateTotalContentHeight(List<DisplayPalette> displayList) {
+        int total = 8;
+        int cardGap = getCardGap();
+        for (DisplayPalette dp : displayList) {
+            total += getCardHeight(dp.row()) + cardGap;
+        }
+        return total;
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         MinecraftClient client = MinecraftClient.getInstance();
         TextRenderer tr = client.textRenderer;
-        PaletteData data = viewModel.getPaletteData();
+        PaletteData data = getPaletteData();
         if (data == null) return;
 
         List<PaletteRow> allRows = data.getRows();
         List<DisplayPalette> displayList = getFilteredPalettes(allRows);
 
         float textScale = viewModel.getConfig().getTextScale();
-        float itemScale = viewModel.getConfig().getItemScale();
+        float itemScale = viewModel.getConfig().getPaletteItemScale();
 
         // top bar
         renderTopBar(context, tr, mouseX, mouseY, delta, textScale);
@@ -247,7 +407,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         int topBarH = getTopBarHeight();
         int listStartY = y + topBarH + 2;
         int listHeight = height - topBarH - 4;
-        int totalContentHeight = calculateTotalContentHeight(displayList.size());
+        int totalContentHeight = calculateTotalContentHeight(displayList);
         scrollbar.setBounds(x + width - SCROLLBAR_WIDTH - 2, listStartY, SCROLLBAR_WIDTH, listHeight);
         scrollbar.updateMaxScroll(totalContentHeight, listHeight);
 
@@ -259,10 +419,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         int cardX = x + 4;
         int cardW = getCardWidth();
         int slotSize = getSlotSize();
-        int cardH = getCardHeight();
         int cardGap = getCardGap();
-        int totalSlotsW = 9 * slotSize;
-        int slotsStartX = cardX + Math.max(4, (cardW - totalSlotsW) / 2);
         float effectiveScale = ((float) slotSize / 16.0f) * itemScale;
 
         int currentY = listStartY + 3 - scrollY;
@@ -280,13 +437,17 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
             DisplayPalette dp = displayList.get(i);
             PaletteRow row = dp.row();
             int origIdx = dp.originalIndex();
+            int cardH = getCardHeight(row);
 
             if (currentY + cardH >= listStartY && currentY <= listStartY + listHeight) {
-                boolean isCardHover = (deletingPaletteId == null && renamingPaletteId == null && origIdx == hoveredOriginalRowIndex);
+                boolean isCardHover = (activeModal == null && origIdx == hoveredOriginalRowIndex);
+                boolean isDuplicate = isDuplicatePalette(row, allRows);
 
                 // card background
-                context.fill(cardX, currentY, cardX + cardW, currentY + cardH, isCardHover ? 0x22FFFFFF : 0x00000000);
-                RenderHelper.drawBorder(context, cardX, currentY, cardW, cardH, isCardHover ? 0x44FFFFFF : 0x00000000);
+                int cardBg = isDuplicate ? (isCardHover ? 0x4CEF4444 : 0x22EF4444) : (isCardHover ? 0x22FFFFFF : 0x00000000);
+                int cardBorder = isDuplicate ? 0xFFEF4444 : (isCardHover ? 0x44FFFFFF : 0x00000000);
+                context.fill(cardX, currentY, cardX + cardW, currentY + cardH, cardBg);
+                RenderHelper.drawBorder(context, cardX, currentY, cardW, cardH, cardBorder);
 
                 // card header
                 int headerY = currentY + 2;
@@ -297,22 +458,33 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                 int btnY = headerY + (headerH - btnH) / 2;
 
                 int btnDeleteX = cardX + cardW - 3 - btnW;
-                int btnLoadX = btnDeleteX - btnGap - btnW;
-                int btnDupX = btnLoadX - btnGap - btnW;
+                int btnPlaceWorldX = btnDeleteX - btnGap - btnW;
+                int nextBtnX = btnPlaceWorldX;
 
-                boolean showReorder = (cardW >= 140 && searchField.getText().trim().isEmpty());
+                int btnLoadX = -1;
+                if (!infiniteMode) {
+                    btnLoadX = nextBtnX - btnGap - btnW;
+                    nextBtnX = btnLoadX;
+                }
+                int btnPasteHotbarX = nextBtnX - btnGap - btnW;
+                nextBtnX = btnPasteHotbarX;
+
+                int btnDupX = nextBtnX - btnGap - btnW;
+                boolean showReorder = (cardW >= 170 && searchField.getText().trim().isEmpty() && !colorSortActive);
                 int btnDownX = showReorder ? btnDupX - btnGap - btnW : btnDupX;
                 int btnUpX = showReorder ? btnDownX - btnGap - btnW : btnDownX;
                 int leftmostBtnX = showReorder ? btnUpX : btnDupX;
 
                 String title = "#" + (origIdx + 1);
-                if (row.getName() != null && !row.getName().isEmpty()) {
+                if (isDuplicate) {
+                    title += " " + Text.translatable("palettes.itemorganizer.duplicate_warning").getString();
+                } else if (row.getName() != null && !row.getName().isEmpty()) {
                     title += " " + row.getName();
                 }
                 int maxTitleW = Math.max(20, leftmostBtnX - cardX - 6);
                 String trimmedTitle = tr.trimToWidth(title, (int) (maxTitleW / Math.min(1.0f, textScale)));
                 boolean isNameHover = (isCardHover && hoveredName);
-                int titleColor = isNameHover ? 0xFF38BDF8 : 0xFFCBD5E1;
+                int titleColor = isDuplicate ? 0xFFEF4444 : (isNameHover ? 0xFF38BDF8 : 0xFFCBD5E1);
 
                 int textY = headerY + Math.max(0, (headerH - Math.round(9 * textScale)) / 2);
                 TextScaleHelper.drawScaledText(
@@ -320,69 +492,76 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                 );
 
                 float iconScale = Math.max(0.6f, Math.min(1.6f, ((float) btnW / 8.0f) * textScale));
-
                 float btnCenterY = btnY + (btnH - 1) / 2.0f;
 
-                // reorder buttons
+                boolean hoverLoad = (isCardHover && hoveredLoadBtn);
+                boolean hoverPlaceWorld = (isCardHover && hoveredPlaceWorldBtn);
+                boolean hoverPasteHotbar = (isCardHover && hoveredPasteHotbarBtn);
+                boolean hoverDel = (isCardHover && hoveredDeleteBtn);
+                boolean hoverDup = (isCardHover && hoveredDupBtn);
+                boolean hoverUp = (isCardHover && hoveredUpBtn);
+                boolean hoverDown = (isCardHover && hoveredDownBtn);
+
                 if (showReorder) {
+                    // up button
                     if (origIdx > 0) {
-                        boolean hoverUp = (isCardHover && hoveredUpBtn);
-                        context.fill(btnUpX, btnY, btnUpX + btnW, btnY + btnH, hoverUp ? 0x801E293B : 0x401E293B);
-                        RenderHelper.drawBorder(context, btnUpX, btnY, btnW, btnH, hoverUp ? 0xFF38BDF8 : 0x4038BDF8);
-                        drawArrowUpIcon(context, btnUpX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverUp ? 0xFFFFFFFF : 0xFF94A3B8);
+                        context.fill(btnUpX, btnY, btnUpX + btnW, btnY + btnH, hoverUp ? 0x801E293B  : 0x401E293B);
+                        RenderHelper.drawBorder(context, btnUpX, btnY, btnW, btnH, hoverUp ? 0xFF38BDF8  : 0x4038BDF8);
+                        RenderHelper.drawArrowUpIcon(context, btnUpX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverUp ? 0xFFFFFFFF  : 0xFF94A3B8);
                     }
+                    // down button
                     if (origIdx < allRows.size() - 1) {
-                        boolean hoverDown = (isCardHover && hoveredDownBtn);
-                        context.fill(btnDownX, btnY, btnDownX + btnW, btnY + btnH, hoverDown ? 0x801E293B : 0x401E293B);
+                        context.fill(btnDownX, btnY, btnDownX + btnW, btnY + btnH, hoverDown ? 0x801E293B  : 0x401E293B);
                         RenderHelper.drawBorder(context, btnDownX, btnY, btnW, btnH, hoverDown ? 0xFF38BDF8 : 0x4038BDF8);
-                        drawArrowDownIcon(context, btnDownX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverDown ? 0xFFFFFFFF : 0xFF94A3B8);
+                        RenderHelper.drawArrowDownIcon(context, btnDownX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverDown ? 0xFFFFFFFF : 0xFF94A3B8);
                     }
                 }
 
-                // duplicate button (blue, copy sheets icon)
-                boolean hoverDup = (isCardHover && hoveredDupBtn);
+                // duplicate button
                 context.fill(btnDupX, btnY, btnDupX + btnW, btnY + btnH, hoverDup ? 0x801E3A5F : 0x401E3A5F);
                 RenderHelper.drawBorder(context, btnDupX, btnY, btnW, btnH, hoverDup ? 0xFF38BDF8 : 0x8038BDF8);
-                drawDuplicateIcon(context, btnDupX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverDup ? 0xFFFFFFFF : 0xFFBAE6FD);
+                RenderHelper.drawDuplicateIcon(context, btnDupX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverDup ?  0xFFFFFFFF : 0xFFBAE6FD);
 
-                // load button (green, arrow down into hotbar tray icon)
-                boolean hoverLoad = (isCardHover && hoveredLoadBtn);
-                context.fill(btnLoadX, btnY, btnLoadX + btnW, btnY + btnH, hoverLoad ? 0x80065F46 : 0x40065F46);
-                RenderHelper.drawBorder(context, btnLoadX, btnY, btnW, btnH, hoverLoad ? 0xFF34D399 : 0x8034D399);
-                drawLoadHotbarIcon(context, btnLoadX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverLoad ? 0xFFFFFFFF : 0xFFA7F3D0);
+                // place in world button
+                context.fill(btnPlaceWorldX, btnY, btnPlaceWorldX + btnW, btnY + btnH, hoverPlaceWorld ? 0x80581C87 : 0x40581C87);
+                RenderHelper.drawBorder(context, btnPlaceWorldX, btnY, btnW, btnH, hoverPlaceWorld ? 0xFFA855F7 : 0x80A855F7);
+                RenderHelper.drawPlaceWorldIcon(context, btnPlaceWorldX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverPlaceWorld ? 0xFFFFFFFF : 0xFFE9D5FF);
 
-                // delete button (red, diagonal cross icon)
-                boolean hoverDel = (isCardHover && hoveredDeleteBtn);
+                // paste hotbar button
+                context.fill(btnPasteHotbarX, btnY, btnPasteHotbarX + btnW, btnY + btnH, hoverPasteHotbar ? 0x8078350F : 0x4078350F);
+                RenderHelper.drawBorder(context, btnPasteHotbarX, btnY, btnW, btnH, hoverPasteHotbar ? 0xFFF59E0B : 0x80F59E0B);
+                RenderHelper.drawPasteHotbarIcon(context, btnPasteHotbarX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverPasteHotbar ? 0xFFFFFFFF : 0xFFFDE68A);
+
+                if (!infiniteMode) {
+                    // load button
+                    context.fill(btnLoadX, btnY, btnLoadX + btnW, btnY + btnH, hoverLoad ? 0x80065F46 : 0x40065F46);
+                    RenderHelper.drawBorder(context, btnLoadX, btnY, btnW, btnH, hoverLoad ? 0xFF34D399 : 0x8034D399);
+                    RenderHelper.drawLoadHotbarIcon(context, btnLoadX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverLoad ? 0xFFFFFFFF : 0xFFA7F3D0);
+                }
+
+                // delete button
                 context.fill(btnDeleteX, btnY, btnDeleteX + btnW, btnY + btnH, hoverDel ? 0x807F1D1D : 0x407F1D1D);
                 RenderHelper.drawBorder(context, btnDeleteX, btnY, btnW, btnH, hoverDel ? 0xFFEF4444 : 0x80EF4444);
-                drawDeleteIcon(context, btnDeleteX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverDel ? 0xFFFFFFFF : 0xFFFCA5A5);
+                RenderHelper.drawDeleteIcon(context, btnDeleteX + (btnW - 1) / 2.0f, btnCenterY, iconScale, hoverDel ? 0xFFFFFFFF : 0xFFFCA5A5);
 
-                // 9 slot continuous strip
+                // continuous slot strip with wrapping in infinite mode
                 int slotsY = headerY + headerH + 2;
-                for (int s = 0; s < 9; s++) {
-                    int slotX = slotsStartX + (s * slotSize);
+                int slotCount = row.getSlotCount();
+                int slotsPerRow = infiniteMode ? getSlotsPerRow(cardW, slotSize) : slotCount;
+                int slotGap = 1;
+                int slotsStartX = infiniteMode ? (cardX + 4) : (cardX + Math.max(4, (cardW - (slotCount * slotSize)) / 2));
+
+                for (int s = 0; s < slotCount; s++) {
+                    int line = infiniteMode ? (s / slotsPerRow) : 0;
+                    int col = infiniteMode ? (s % slotsPerRow) : s;
+                    int slotX = slotsStartX + (col * slotSize);
+                    int slotY = slotsY + (line * (slotSize + slotGap));
                     boolean isSlotHover = (isCardHover && hoveredSlotIndex == s);
 
-                    context.fill(slotX, slotsY, slotX + slotSize, slotsY + slotSize, isSlotHover ? 0x3338BDF8 : 0x1A000000);
-                    RenderHelper.drawBorder(context, slotX, slotsY, slotSize, slotSize, isSlotHover ? 0xFF38BDF8 : 0x22FFFFFF);
-
                     String itemId = row.getSlot(s);
-                    if (itemId != null) {
-                        ItemStack stack = getItemStackFromId(itemId);
-                        if (!stack.isEmpty()) {
-                            float cx = slotX + (slotSize - 1) / 2.0f;
-                            float cy = slotsY + (slotSize - 1) / 2.0f;
-
-                            context.getMatrices().pushMatrix();
-                            context.getMatrices().translate(cx, cy);
-                            context.getMatrices().scale(effectiveScale, effectiveScale);
-
-                            context.drawItem(stack, -8, -8);
-                            context.drawStackOverlay(tr, stack, -8, -8);
-
-                            context.getMatrices().popMatrix();
-                        }
-                    }
+                    ItemStack stack = RenderHelper.getItemStack(itemId);
+                    RenderHelper.renderSlot(context, tr, stack, slotX, slotY, slotSize, itemScale,
+                            isSlotHover, 0x1A000000, 0x3338BDF8, 0x22FFFFFF, UITheme.PRIMARY);
                 }
             }
             currentY += cardH + cardGap;
@@ -392,14 +571,10 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
         scrollbar.render(context, mouseX, mouseY);
 
-        // delete confirmation modal
-        if (deletingPaletteId != null) {
-            renderDeleteModal(context, tr, mouseX, mouseY);
-        }
-
-        // rename modal
-        if (renamingPaletteId != null) {
-            renderRenameModal(context, tr, mouseX, mouseY);
+        // floating modal rendering
+        if (activeModal != null) {
+            activeModal.updateParentBounds(x, y, width, height);
+            activeModal.render(context, tr, mouseX, mouseY, delta, textScale);
         }
 
         renderTooltips(context, tr, mouseX, mouseY);
@@ -416,8 +591,13 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         int addBtnX = x + width - SCROLLBAR_WIDTH - addBtnW - 4;
         int addBtnY = searchY;
 
+        int sortBtnW = searchH;
+        int sortBtnH = searchH;
+        int sortBtnX = addBtnX - sortBtnW - 3;
+        int sortBtnY = searchY;
+
         int searchX = x + 4;
-        int searchW = Math.max(30, addBtnX - searchX - 4);
+        int searchW = Math.max(30, sortBtnX - searchX - 4);
 
         searchField.setX(searchX);
         searchField.setY(searchY);
@@ -449,8 +629,22 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
             TextScaleHelper.drawCenteredScaledText(context, tr, "×", clearBtnX + clearBtnSize / 2, clearBtnY, hoverClear ? 0xFFFF6666 : 0xFFAAAAAA, textScale);
         }
 
+        // sort by column color toggle button
+        boolean hoverSort = (activeModal == null && hoveredSortBtn);
+        int sortBg = colorSortActive
+                ? (hoverSort ? 0x800284C7 : 0x500284C7)
+                : (hoverSort ? 0x601E293B : 0x331E293B);
+        int sortBorder = colorSortActive
+                ? (hoverSort ? 0xFF38BDF8 : 0xCC38BDF8)
+                : (hoverSort ? 0xFF94A3B8 : 0x5094A3B8);
+        context.fill(sortBtnX, sortBtnY, sortBtnX + sortBtnW, sortBtnY + sortBtnH, sortBg);
+        RenderHelper.drawBorder(context, sortBtnX, sortBtnY, sortBtnW, sortBtnH, sortBorder);
+
+        float sortIconScale = Math.max(0.7f, Math.min(1.5f, ((float) sortBtnH / 14.0f) * textScale));
+        RenderHelper.drawColorSortIcon(context, sortBtnX + (sortBtnW - 1) / 2.0f, sortBtnY + (sortBtnH - 1) / 2.0f, sortIconScale, colorSortActive);
+
         // add palette button
-        boolean hoverAdd = (deletingPaletteId == null && renamingPaletteId == null && hoveredTopAddBtn);
+        boolean hoverAdd = (activeModal == null && hoveredTopAddBtn);
         int addBg = hoverAdd ? 0x66065F46 : 0x33065F46;
         int addBorder = hoverAdd ? 0xFF34D399 : 0x8034D399;
         context.fill(addBtnX, addBtnY, addBtnX + addBtnW, addBtnY + addBtnH, addBg);
@@ -458,7 +652,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
         float iconScale = Math.max(0.7f, Math.min(1.5f, ((float) addBtnH / 14.0f) * textScale));
         if (width < 160) {
-            drawPlusIcon(context, addBtnX + (addBtnW - 1) / 2.0f, addBtnY + (addBtnH - 1) / 2.0f, iconScale, hoverAdd ? 0xFFFFFFFF : 0xFFE2E8F0);
+            RenderHelper.drawPlusIcon(context, addBtnX + (addBtnW - 1) / 2.0f, addBtnY + (addBtnH - 1) / 2.0f, iconScale, hoverAdd ? 0xFFFFFFFF : 0xFFE2E8F0);
         } else {
             TextScaleHelper.drawVerticallyCenteredScaledText(
                     context, tr, Text.translatable("palettes.itemorganizer.new"), addBtnX + addBtnW / 2, addBtnY + addBtnH / 2, hoverAdd ? 0xFFFFFFFF : 0xFFE2E8F0, textScale
@@ -466,169 +660,8 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         }
     }
 
-    private void drawDuplicateIcon(DrawContext context, float cx, float cy, float scale, int color) {
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(cx, cy);
-        context.getMatrices().scale(scale, scale);
-
-        // back sheet (top-right, 5x5 overall bounds [-2..2])
-        context.fill(0, -2, 3, -1, color);
-        context.fill(2, -1, 3, 1, color);
-
-        // front sheet (bottom-left)
-        context.fill(-2, -1, 2, 0, color);
-        context.fill(-2, 2, 2, 3, color);
-        context.fill(-2, 0, -1, 2, color);
-        context.fill(1, 0, 2, 2, color);
-
-        context.getMatrices().popMatrix();
-    }
-
-    private void drawLoadHotbarIcon(DrawContext context, float cx, float cy, float scale, int color) {
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(cx, cy);
-        context.getMatrices().scale(scale, scale);
-
-        // arrow down shaft (centered at x=0)
-        context.fill(0, -2, 1, 0, color);
-        // arrow down wings
-        context.fill(-1, -1, 2, 0, color);
-        context.fill(0, 0, 1, 1, color);
-        // hotbar tray (5x5 overall bounds [-2..2])
-        context.fill(-2, 2, 3, 3, color);
-        context.fill(-2, 1, -1, 2, color);
-        context.fill(2, 1, 3, 2, color);
-
-        context.getMatrices().popMatrix();
-    }
-
-    private void drawDeleteIcon(DrawContext context, float cx, float cy, float scale, int color) {
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(cx, cy);
-        context.getMatrices().scale(scale, scale);
-
-        // crisp diagonal cross (5x5 overall bounds [-2..2])
-        context.fill(-2, -2, -1, -1, color);
-        context.fill(2, -2, 3, -1, color);
-        context.fill(-1, -1, 0, 0, color);
-        context.fill(1, -1, 2, 0, color);
-        context.fill(0, 0, 1, 1, color);
-        context.fill(-1, 1, 0, 2, color);
-        context.fill(1, 1, 2, 2, color);
-        context.fill(-2, 2, -1, 3, color);
-        context.fill(2, 2, 3, 3, color);
-
-        context.getMatrices().popMatrix();
-    }
-
-    private void drawArrowUpIcon(DrawContext context, float cx, float cy, float scale, int color) {
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(cx, cy);
-        context.getMatrices().scale(scale, scale);
-
-        // arrow up triangle centered vertically in [-1..1]
-        context.fill(0, -1, 1, 0, color);
-        context.fill(-1, 0, 2, 1, color);
-        context.fill(-2, 1, 3, 2, color);
-
-        context.getMatrices().popMatrix();
-    }
-
-    private void drawArrowDownIcon(DrawContext context, float cx, float cy, float scale, int color) {
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(cx, cy);
-        context.getMatrices().scale(scale, scale);
-
-        // arrow down triangle centered vertically in [-1..1]
-        context.fill(-2, -1, 3, 0, color);
-        context.fill(-1, 0, 2, 1, color);
-        context.fill(0, 1, 1, 2, color);
-
-        context.getMatrices().popMatrix();
-    }
-
-    private void drawPlusIcon(DrawContext context, float cx, float cy, float scale, int color) {
-        context.getMatrices().pushMatrix();
-        context.getMatrices().translate(cx, cy);
-        context.getMatrices().scale(scale, scale);
-
-        // plus cross centered in [-2..2]
-        context.fill(-2, 0, 3, 1, color);
-        context.fill(0, -2, 1, 3, color);
-
-        context.getMatrices().popMatrix();
-    }
-
-    private void renderDeleteModal(DrawContext context, TextRenderer tr, int mouseX, int mouseY) {
-        float textScale = viewModel.getConfig().getTextScale();
-        int modalW = Math.min(220, width - 20);
-        int modalH = 85;
-        int modalX = x + (width - modalW) / 2;
-        int modalY = y + (height - modalH) / 2;
-
-        context.fill(x, y, x + width, y + height, 0xDD0B0F19);
-        context.fill(modalX, modalY, modalX + modalW, modalY + modalH, 0xFF141820);
-        RenderHelper.drawBorder(context, modalX, modalY, modalW, modalH, 0xFFEF4444);
-
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("palettes.itemorganizer.delete.title"), modalX + modalW / 2, modalY + 8, 0xFFEF4444, textScale);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("palettes.itemorganizer.delete.warning"), modalX + modalW / 2, modalY + 24, 0xFF94A3B8, textScale);
-
-        int btnW = (modalW - 28) / 2;
-        int btnH = 18;
-        int btnY = modalY + modalH - 24;
-
-        int delBtnX = modalX + 10;
-        boolean hoverDel = mouseX >= delBtnX && mouseX <= delBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        context.fill(delBtnX, btnY, delBtnX + btnW, btnY + btnH, hoverDel ? 0x807F1D1D : 0x407F1D1D);
-        RenderHelper.drawBorder(context, delBtnX, btnY, btnW, btnH, hoverDel ? 0xFFEF4444 : 0x80EF4444);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("profiles.itemorganizer.delete.btn"), delBtnX + btnW / 2, btnY + 5, 0xFFFFFFFF, textScale);
-
-        int cancelBtnX = delBtnX + btnW + 8;
-        boolean hoverCancel = mouseX >= cancelBtnX && mouseX <= cancelBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        context.fill(cancelBtnX, btnY, cancelBtnX + btnW, btnY + btnH, hoverCancel ? 0x33FFFFFF : 0x1AFFFFFF);
-        RenderHelper.drawBorder(context, cancelBtnX, btnY, btnW, btnH, hoverCancel ? 0x66FFFFFF : 0x33FFFFFF);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("button.itemorganizer.cancel"), cancelBtnX + btnW / 2, btnY + 5, 0xFFE2E8F0, textScale);
-    }
-
-    private void renderRenameModal(DrawContext context, TextRenderer tr, int mouseX, int mouseY) {
-        float textScale = viewModel.getConfig().getTextScale();
-        int modalW = Math.min(220, width - 20);
-        int modalH = 80;
-        int modalX = x + (width - modalW) / 2;
-        int modalY = y + (height - modalH) / 2;
-
-        context.fill(x, y, x + width, y + height, 0xDD0B0F19);
-        context.fill(modalX, modalY, modalX + modalW, modalY + modalH, 0xFF141820);
-        RenderHelper.drawBorder(context, modalX, modalY, modalW, modalH, 0xFF38BDF8);
-
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("palettes.itemorganizer.rename.title"), modalX + modalW / 2, modalY + 8, 0xFF38BDF8, textScale);
-
-        renameField.setX(modalX + 12);
-        renameField.setY(modalY + 24);
-        renameField.setWidth(modalW - 24);
-        context.fill(renameField.getX() - 1, renameField.getY() - 1, renameField.getX() + renameField.getWidth() + 1, renameField.getY() + renameField.getHeight() + 1, 0xFF0B0F19);
-        RenderHelper.drawBorder(context, renameField.getX() - 1, renameField.getY() - 1, renameField.getWidth() + 2, renameField.getHeight() + 2, 0x33FFFFFF);
-        renameField.renderWidget(context, mouseX, mouseY, 0);
-
-        int btnW = (modalW - 28) / 2;
-        int btnH = 16;
-        int btnY = modalY + modalH - 22;
-
-        int saveBtnX = modalX + 10;
-        boolean hoverSave = mouseX >= saveBtnX && mouseX <= saveBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        context.fill(saveBtnX, btnY, saveBtnX + btnW, btnY + btnH, hoverSave ? 0x801E3A5F : 0x401E3A5F);
-        RenderHelper.drawBorder(context, saveBtnX, btnY, btnW, btnH, hoverSave ? 0xFF38BDF8 : 0x8038BDF8);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("profiles.itemorganizer.save"), saveBtnX + btnW / 2, btnY + 4, 0xFFFFFFFF, textScale);
-
-        int cancelBtnX = saveBtnX + btnW + 8;
-        boolean hoverCancel = mouseX >= cancelBtnX && mouseX <= cancelBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        context.fill(cancelBtnX, btnY, cancelBtnX + btnW, btnY + btnH, hoverCancel ? 0x33FFFFFF : 0x1AFFFFFF);
-        RenderHelper.drawBorder(context, cancelBtnX, btnY, btnW, btnH, hoverCancel ? 0x66FFFFFF : 0x33FFFFFF);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("button.itemorganizer.cancel"), cancelBtnX + btnW / 2, btnY + 4, 0xFFE2E8F0, textScale);
-    }
-
     private void renderTooltips(DrawContext context, TextRenderer tr, int mouseX, int mouseY) {
-        if (deletingPaletteId != null || renamingPaletteId != null || DragAndDropManager.getInstance().isDragging() || !isMouseOver(mouseX, mouseY)) {
+        if (activeModal != null || DragAndDropManager.getInstance().isDragging() || !isMouseOver(mouseX, mouseY)) {
             return;
         }
 
@@ -643,16 +676,19 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         hoveredOriginalRowIndex = -1;
         hoveredSlotIndex = -1;
         hoveredLoadBtn = false;
+        hoveredPlaceWorldBtn = false;
+        hoveredPasteHotbarBtn = false;
         hoveredDeleteBtn = false;
         hoveredDupBtn = false;
         hoveredUpBtn = false;
         hoveredDownBtn = false;
         hoveredName = false;
         hoveredTopAddBtn = false;
+        hoveredSortBtn = false;
         activeTooltip = null;
         hoveredStack = ItemStack.EMPTY;
 
-        if (deletingPaletteId != null || renamingPaletteId != null || !isMouseOver(mouseX, mouseY)) return;
+        if (activeModal != null || !isMouseOver(mouseX, mouseY)) return;
 
         int topBarH = getTopBarHeight();
         int searchH = getSearchHeight();
@@ -661,6 +697,19 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         int addBtnW = (width < 160) ? searchH : Math.round(40 * Math.min(1.3f, textScale));
         int addBtnX = x + width - SCROLLBAR_WIDTH - addBtnW - 4;
         int addBtnY = y + 2 + (topBarH - 4 - addBtnH) / 2;
+
+        int sortBtnW = searchH;
+        int sortBtnH = searchH;
+        int sortBtnX = addBtnX - sortBtnW - 3;
+        int sortBtnY = addBtnY;
+        if (mouseX >= sortBtnX && mouseX <= sortBtnX + sortBtnW && mouseY >= sortBtnY && mouseY <= sortBtnY + sortBtnH) {
+            hoveredSortBtn = true;
+            activeTooltip = colorSortActive
+                    ? Text.translatable("palettes.itemorganizer.tooltip.sort_column_color_active").getString()
+                    : Text.translatable("palettes.itemorganizer.tooltip.sort_column_color").getString();
+            return;
+        }
+
         if (mouseX >= addBtnX && mouseX <= addBtnX + addBtnW && mouseY >= addBtnY && mouseY <= addBtnY + addBtnH) {
             hoveredTopAddBtn = true;
             activeTooltip = Text.translatable("palettes.itemorganizer.tooltip.new").getString();
@@ -675,10 +724,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         int cardX = x + 4;
         int cardW = getCardWidth();
         int slotSize = getSlotSize();
-        int cardH = getCardHeight();
         int cardGap = getCardGap();
-        int totalSlotsW = 9 * slotSize;
-        int slotsStartX = cardX + Math.max(4, (cardW - totalSlotsW) / 2);
 
         int currentY = listStartY + 3 - scrollY;
 
@@ -686,6 +732,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
             DisplayPalette dp = displayList.get(i);
             PaletteRow row = dp.row();
             int origIdx = dp.originalIndex();
+            int cardH = getCardHeight(row);
 
             if (mouseY >= currentY && mouseY < currentY + cardH && mouseX >= cardX && mouseX <= cardX + cardW) {
                 hoveredOriginalRowIndex = origIdx;
@@ -698,10 +745,19 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                 int btnY = headerY + (headerH - btnH) / 2;
 
                 int btnDeleteX = cardX + cardW - 3 - btnW;
-                int btnLoadX = btnDeleteX - btnGap - btnW;
-                int btnDupX = btnLoadX - btnGap - btnW;
+                int btnPlaceWorldX = btnDeleteX - btnGap - btnW;
+                int nextBtnX = btnPlaceWorldX;
 
-                boolean showReorder = (cardW >= 140 && searchField.getText().trim().isEmpty());
+                int btnLoadX = -1;
+                if (!infiniteMode) {
+                    btnLoadX = nextBtnX - btnGap - btnW;
+                    nextBtnX = btnLoadX;
+                }
+                int btnPasteHotbarX = nextBtnX - btnGap - btnW;
+                nextBtnX = btnPasteHotbarX;
+
+                int btnDupX = nextBtnX - btnGap - btnW;
+                boolean showReorder = (cardW >= 170 && searchField.getText().trim().isEmpty() && !colorSortActive);
                 int btnDownX = showReorder ? btnDupX - btnGap - btnW : btnDupX;
                 int btnUpX = showReorder ? btnDownX - btnGap - btnW : btnDownX;
                 int leftmostBtnX = showReorder ? btnUpX : btnDupX;
@@ -713,9 +769,19 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                         activeTooltip = Text.translatable("palettes.itemorganizer.tooltip.delete").getString();
                         return;
                     }
-                    if (mouseX >= btnLoadX && mouseX <= btnLoadX + btnW) {
+                    if (!infiniteMode && mouseX >= btnLoadX && mouseX <= btnLoadX + btnW) {
                         hoveredLoadBtn = true;
                         activeTooltip = Text.translatable("palettes.itemorganizer.tooltip.load_hotbar").getString();
+                        return;
+                    }
+                    if (mouseX >= btnPlaceWorldX && mouseX <= btnPlaceWorldX + btnW) {
+                        hoveredPlaceWorldBtn = true;
+                        activeTooltip = Text.translatable("palettes.itemorganizer.tooltip.place_world").getString();
+                        return;
+                    }
+                    if (mouseX >= btnPasteHotbarX && mouseX <= btnPasteHotbarX + btnW) {
+                        hoveredPasteHotbarBtn = true;
+                        activeTooltip = Text.translatable("palettes.itemorganizer.tooltip.paste_hotbar").getString();
                         return;
                     }
                     if (mouseX >= btnDupX && mouseX <= btnDupX + btnW) {
@@ -743,18 +809,48 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                     return;
                 }
 
-                // check 9 slots
+                // check slots
                 int slotsY = headerY + headerH + 2;
-                if (mouseY >= slotsY && mouseY < slotsY + slotSize) {
-                    for (int s = 0; s < 9; s++) {
-                        int slotX = slotsStartX + (s * slotSize);
-                        if (mouseX >= slotX && mouseX < slotX + slotSize) {
-                            hoveredSlotIndex = s;
-                            String itemId = row.getSlot(s);
-                            if (itemId != null) {
-                                hoveredStack = getItemStackFromId(itemId);
+                int slotCount = row.getSlotCount();
+                int slotsPerRow = infiniteMode ? getSlotsPerRow(cardW, slotSize) : slotCount;
+                int slotGap = 1;
+                int slotsStartX = infiniteMode ? (cardX + 4) : (cardX + Math.max(4, (cardW - (slotCount * slotSize)) / 2));
+
+                if (infiniteMode) {
+                    int totalLines = Math.max(1, (slotCount + slotsPerRow - 1) / slotsPerRow);
+                    int totalSlotsHeight = (totalLines * slotSize) + ((totalLines - 1) * slotGap);
+                    if (mouseY >= slotsY && mouseY < slotsY + totalSlotsHeight && mouseX >= slotsStartX) {
+                        int relY = (int) mouseY - slotsY;
+                        int line = relY / (slotSize + slotGap);
+                        int lineRem = relY % (slotSize + slotGap);
+                        if (lineRem < slotSize) {
+                            int relX = (int) mouseX - slotsStartX;
+                            int col = relX / slotSize;
+                            if (col >= 0 && col < slotsPerRow) {
+                                int s = (line * slotsPerRow) + col;
+                                if (s >= 0 && s < slotCount) {
+                                    hoveredSlotIndex = s;
+                                    String itemId = row.getSlot(s);
+                                    if (itemId != null) {
+                                        hoveredStack = getItemStackFromId(itemId);
+                                    }
+                                    return;
+                                }
                             }
-                            return;
+                        }
+                    }
+                } else {
+                    if (mouseY >= slotsY && mouseY < slotsY + slotSize) {
+                        for (int s = 0; s < slotCount; s++) {
+                            int slotX = slotsStartX + (s * slotSize);
+                            if (mouseX >= slotX && mouseX < slotX + slotSize) {
+                                hoveredSlotIndex = s;
+                                String itemId = row.getSlot(s);
+                                if (itemId != null) {
+                                    hoveredStack = getItemStackFromId(itemId);
+                                }
+                                return;
+                            }
                         }
                     }
                 }
@@ -765,82 +861,13 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     }
 
     public ItemStack getItemStackFromId(String itemId) {
-        if (itemId == null || itemId.isEmpty()) return ItemStack.EMPTY;
-        Identifier id = Identifier.tryParse(itemId);
-        if (id != null) {
-            Item item = Registries.ITEM.get(id);
-            if (item != null && item != Items.AIR) {
-                return new ItemStack(item);
-            }
-        }
-        return ItemStack.EMPTY;
+        return RenderHelper.getItemStack(itemId);
     }
 
     @Override
     public boolean mouseClicked(Click click, boolean bl) {
-        // delete modal
-        if (deletingPaletteId != null) {
-            int modalW = Math.min(220, width - 20);
-            int modalH = 85;
-            int modalX = x + (width - modalW) / 2;
-            int modalY = y + (height - modalH) / 2;
-            int btnW = (modalW - 28) / 2;
-            int btnH = 18;
-            int btnY = modalY + modalH - 24;
-
-            int delBtnX = modalX + 10;
-            if (click.button() == 0 && click.x() >= delBtnX && click.x() <= delBtnX + btnW && click.y() >= btnY && click.y() <= btnY + btnH) {
-                PaletteData data = viewModel.getPaletteData();
-                if (data != null) {
-                    data.removeRowById(deletingPaletteId);
-                    StorageManager.getInstance().getPaletteRepository().save(data);
-                }
-                deletingPaletteId = null;
-                playClickSound();
-                return true;
-            }
-
-            int cancelBtnX = delBtnX + btnW + 8;
-            if (click.button() == 0 && click.x() >= cancelBtnX && click.x() <= cancelBtnX + btnW && click.y() >= btnY && click.y() <= btnY + btnH) {
-                deletingPaletteId = null;
-                playClickSound();
-                return true;
-            }
-            return true;
-        }
-
-        // rename modal
-        if (renamingPaletteId != null) {
-            int modalW = Math.min(220, width - 20);
-            int modalH = 80;
-            int modalX = x + (width - modalW) / 2;
-            int modalY = y + (height - modalH) / 2;
-
-            boolean clickOnRenameField = (click.button() == 0 && click.x() >= renameField.getX() && click.x() <= renameField.getX() + renameField.getWidth()
-                    && click.y() >= renameField.getY() && click.y() <= renameField.getY() + renameField.getHeight());
-            renameField.setFocused(clickOnRenameField);
-            if (clickOnRenameField) {
-                renameField.mouseClicked(click, bl);
-                return true;
-            }
-
-            int btnW = (modalW - 28) / 2;
-            int btnH = 16;
-            int btnY = modalY + modalH - 22;
-
-            int saveBtnX = modalX + 10;
-            if (click.button() == 0 && click.x() >= saveBtnX && click.x() <= saveBtnX + btnW && click.y() >= btnY && click.y() <= btnY + btnH) {
-                applyRename();
-                return true;
-            }
-
-            int cancelBtnX = saveBtnX + btnW + 8;
-            if (click.button() == 0 && click.x() >= cancelBtnX && click.x() <= cancelBtnX + btnW && click.y() >= btnY && click.y() <= btnY + btnH) {
-                renamingPaletteId = null;
-                playClickSound();
-                return true;
-            }
-            return true;
+        if (activeModal != null) {
+            return activeModal.mouseClicked(click);
         }
 
         // search bar and add button
@@ -870,12 +897,23 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
             return true;
         }
 
+        if (click.button() == 0 && hoveredSortBtn) {
+            colorSortActive = !colorSortActive;
+            playClickSound();
+            return true;
+        }
+
         if (click.button() == 0 && hoveredTopAddBtn) {
-            PaletteData data = viewModel.getPaletteData();
+            PaletteData data = getPaletteData();
             if (data != null) {
-                PaletteRow newRow = new PaletteRow();
-                data.addRow(newRow);
-                StorageManager.getInstance().getPaletteRepository().save(data);
+                PaletteRow newRow = new PaletteRow(9);
+                int index = 0;
+                data.insertRow(0, newRow);
+                savePaletteData(data);
+                com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                        new com.itemorganizer.gui.undo.PaletteAddDeleteUndoAction(newRow, index, true, infiniteMode)
+                );
+                scrollbar.setScrollOffset(0);
                 searchField.setText("");
                 playClickSound();
             }
@@ -888,34 +926,79 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         }
 
         // clicks inside cards
-        PaletteData data = viewModel.getPaletteData();
+        PaletteData data = getPaletteData();
         if (data == null) return false;
         List<PaletteRow> allRows = data.getRows();
 
         if (hoveredOriginalRowIndex >= 0 && hoveredOriginalRowIndex < allRows.size()) {
             PaletteRow row = allRows.get(hoveredOriginalRowIndex);
 
-            if (click.button() == 0 && hoveredLoadBtn) {
+            if (!infiniteMode && click.button() == 0 && hoveredLoadBtn) {
                 loadRowToHotbar(row);
                 return true;
             }
 
+            if (click.button() == 0 && hoveredPlaceWorldBtn) {
+                placePaletteInWorld(row);
+                return true;
+            }
+
+            if (click.button() == 0 && hoveredPasteHotbarBtn) {
+                pastingHotbarPaletteId = row.getId();
+                if (infiniteMode) {
+                    executePasteHotbar();
+                    return true;
+                } else {
+                    activeModal = ModalDialogComponent.builder()
+                            .parentBounds(x, y, width, height)
+                            .size(Math.min(220, width - 20), 85)
+                            .type(ModalDialogComponent.ModalType.WARNING)
+                            .title(Text.translatable("palettes.itemorganizer.paste_hotbar.title"))
+                            .message(Text.translatable("palettes.itemorganizer.paste_hotbar.warning"))
+                            .confirmButton(Text.translatable("palettes.itemorganizer.paste_hotbar.confirm"), this::executePasteHotbar)
+                            .cancelButton(Text.translatable("button.itemorganizer.cancel"), () -> {
+                                pastingHotbarPaletteId = null;
+                                activeModal = null;
+                            })
+                            .build();
+                    playClickSound();
+                    return true;
+                }
+            }
+
             if (click.button() == 0 && hoveredDeleteBtn) {
                 deletingPaletteId = row.getId();
+                activeModal = ModalDialogComponent.builder()
+                        .parentBounds(x, y, width, height)
+                        .size(Math.min(220, width - 20), 85)
+                        .type(ModalDialogComponent.ModalType.DANGER)
+                        .title(Text.translatable("palettes.itemorganizer.delete.title"))
+                        .message(Text.translatable("palettes.itemorganizer.delete.warning"))
+                        .confirmButton(Text.translatable("profiles.itemorganizer.delete.btn"), this::executeDeletePalette)
+                        .cancelButton(Text.translatable("button.itemorganizer.cancel"), () -> {
+                            deletingPaletteId = null;
+                            activeModal = null;
+                        })
+                        .build();
                 playClickSound();
                 return true;
             }
 
             if (click.button() == 0 && hoveredDupBtn) {
-                data.duplicateRow(hoveredOriginalRowIndex);
-                StorageManager.getInstance().getPaletteRepository().save(data);
+                PaletteRow copy = data.duplicateRow(hoveredOriginalRowIndex);
+                if (copy != null) {
+                    savePaletteData(data);
+                    com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                            new com.itemorganizer.gui.undo.PaletteAddDeleteUndoAction(copy, hoveredOriginalRowIndex + 1, true, infiniteMode)
+                    );
+                }
                 playClickSound();
                 return true;
             }
 
             if (click.button() == 0 && hoveredUpBtn) {
                 if (data.moveUp(hoveredOriginalRowIndex)) {
-                    StorageManager.getInstance().getPaletteRepository().save(data);
+                    savePaletteData(data);
                     playClickSound();
                 }
                 return true;
@@ -923,7 +1006,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
             if (click.button() == 0 && hoveredDownBtn) {
                 if (data.moveDown(hoveredOriginalRowIndex)) {
-                    StorageManager.getInstance().getPaletteRepository().save(data);
+                    savePaletteData(data);
                     playClickSound();
                 }
                 return true;
@@ -933,30 +1016,83 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                 renamingPaletteId = row.getId();
                 renameField.setText(row.getName() != null ? row.getName() : "");
                 renameField.setFocused(true);
+                activeModal = ModalDialogComponent.builder()
+                        .parentBounds(x, y, width, height)
+                        .size(Math.min(220, width - 20), 80)
+                        .type(ModalDialogComponent.ModalType.INFO)
+                        .title(Text.translatable("palettes.itemorganizer.rename.title"))
+                        .customContent((ctx, tr1, cx, cy, cw, ch, mx, my, dt, ts) -> {
+                            renameField.setX(cx + 2);
+                            renameField.setY(cy);
+                            renameField.setWidth(cw - 4);
+                            ctx.fill(renameField.getX() - 1, renameField.getY() - 1, renameField.getX() + renameField.getWidth() + 1, renameField.getY() + renameField.getHeight() + 1, UITheme.BG_INPUT);
+                            RenderHelper.drawBorder(ctx, renameField.getX() - 1, renameField.getY() - 1, renameField.getWidth() + 2, renameField.getHeight() + 2, UITheme.BORDER_SUBTLE);
+                            renameField.renderWidget(ctx, mx, my, 0);
+                        })
+                        .customClickHandler((click1, cx, cy, cw, ch) -> renameField.mouseClicked(click1, false))
+                        .customKeyHandler(input -> renameField.keyPressed(input))
+                        .customCharHandler(input -> renameField.charTyped(input))
+                        .confirmButton(Text.translatable("profiles.itemorganizer.save"), this::applyRename)
+                        .cancelButton(Text.translatable("button.itemorganizer.cancel"), () -> {
+                            renamingPaletteId = null;
+                            activeModal = null;
+                        })
+                        .build();
                 playClickSound();
                 return true;
             }
 
             // slot interaction
-            if (hoveredSlotIndex >= 0 && hoveredSlotIndex < 9) {
+            if (hoveredSlotIndex >= 0 && hoveredSlotIndex < row.getSlotCount()) {
                 // right click: clear slot
                 if (click.button() == 1) {
+                    String previous = row.getSlot(hoveredSlotIndex);
+                    if (previous != null) {
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                new com.itemorganizer.gui.undo.PaletteSlotUndoAction(row.getId(), hoveredSlotIndex, previous, null)
+                        );
+                    }
                     row.clearSlot(hoveredSlotIndex);
-                    StorageManager.getInstance().getPaletteRepository().save(data);
-                    MinecraftClient.getInstance().getSoundManager().play(
-                            PositionedSoundInstance.master(SoundEvents.ENTITY_ITEM_BREAK, 1.0F)
-                    );
+                    if (infiniteMode) {
+                        row.updateInfiniteSlots();
+                    }
+                    savePaletteData(data);
+                    SoundHelper.playBreak();
                     return true;
                 }
 
-                // left click: drag
+                // left click: shift-click to hotbar or drag / place
                 if (click.button() == 0) {
+                    DragAndDropManager dragManager = DragAndDropManager.getInstance();
+                    if (dragManager.isDragging()) {
+                        DragPayload payload = dragManager.consumePayload();
+                        if (payload != null && payload.getItemId() != null) {
+                            String previous = row.getSlot(hoveredSlotIndex);
+                            com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                    new com.itemorganizer.gui.undo.PaletteSlotUndoAction(row.getId(), hoveredSlotIndex, previous, payload.getItemId())
+                            );
+                            row.setSlot(hoveredSlotIndex, payload.getItemId());
+                            if (infiniteMode) {
+                                row.updateInfiniteSlots();
+                            }
+                            savePaletteData(data);
+                            SoundHelper.playClick();
+                            return true;
+                        }
+                    }
+
                     String itemId = row.getSlot(hoveredSlotIndex);
                     if (itemId != null) {
                         ItemStack stack = getItemStackFromId(itemId);
                         if (!stack.isEmpty()) {
+                            if (HotbarActionHelper.hasShiftDown(click)) {
+                                lastShiftPaletteRow = hoveredOriginalRowIndex;
+                                lastShiftPaletteSlot = hoveredSlotIndex;
+                                HotbarActionHelper.quickMoveToHotbar(MinecraftClient.getInstance(), stack);
+                                return true;
+                            }
                             DragPayload payload = DragPayload.ofIndexed(itemId, stack, DragSource.PALETAS, hoveredSlotIndex, true);
-                            DragAndDropManager.getInstance().startDrag(payload);
+                            DragAndDropManager.getInstance().startDrag(payload, click.x(), click.y());
                             return true;
                         }
                     }
@@ -969,65 +1105,153 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
     private void applyRename() {
         if (renamingPaletteId == null) return;
-        PaletteData data = viewModel.getPaletteData();
+        PaletteData data = getPaletteData();
         if (data != null) {
             for (PaletteRow row : data.getRows()) {
                 if (renamingPaletteId.equals(row.getId())) {
                     String newName = renameField.getText().trim();
                     row.setName(newName.isEmpty() ? null : newName);
-                    StorageManager.getInstance().getPaletteRepository().save(data);
+                    savePaletteData(data);
                     break;
                 }
             }
         }
         renamingPaletteId = null;
+        activeModal = null;
+        playClickSound();
+    }
+
+    private void executeDeletePalette() {
+        if (deletingPaletteId == null) return;
+        PaletteData data = getPaletteData();
+        if (data != null) {
+            int index = -1;
+            PaletteRow targetRow = null;
+            List<PaletteRow> rows = data.getRows();
+            for (int i = 0; i < rows.size(); i++) {
+                if (deletingPaletteId.equals(rows.get(i).getId())) {
+                    index = i;
+                    targetRow = rows.get(i);
+                    break;
+                }
+            }
+            if (targetRow != null) {
+                PaletteRow snapshot = targetRow.snapshot();
+                data.removeRowById(deletingPaletteId);
+                savePaletteData(data);
+                com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                        new com.itemorganizer.gui.undo.PaletteAddDeleteUndoAction(snapshot, index, false, infiniteMode)
+                );
+            }
+        }
+        deletingPaletteId = null;
+        activeModal = null;
+        playClickSound();
+    }
+
+    private void executePasteHotbar() {
+        if (pastingHotbarPaletteId == null) return;
+        PaletteData data = getPaletteData();
+        if (data != null) {
+            PaletteRow row = data.findRowById(pastingHotbarPaletteId);
+            if (row != null) {
+                com.itemorganizer.gui.undo.PaletteFullUndoAction undoAction =
+                        new com.itemorganizer.gui.undo.PaletteFullUndoAction(row);
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client.player != null) {
+                    if (infiniteMode) {
+                        List<String> hotbarItems = new ArrayList<>();
+                        for (int s = 0; s < 9; s++) {
+                            ItemStack st = client.player.getInventory().getStack(s);
+                            if (st != null && !st.isEmpty()) {
+                                Identifier id = Registries.ITEM.getId(st.getItem());
+                                hotbarItems.add(id != null ? id.toString() : null);
+                            } else {
+                                hotbarItems.add(null);
+                            }
+                        }
+                        row.appendItems(hotbarItems);
+                    } else {
+                        for (int s = 0; s < 9; s++) {
+                            ItemStack st = client.player.getInventory().getStack(s);
+                            if (st != null && !st.isEmpty()) {
+                                Identifier id = Registries.ITEM.getId(st.getItem());
+                                row.setSlot(s, id != null ? id.toString() : null);
+                            } else {
+                                row.setSlot(s, null);
+                            }
+                        }
+                    }
+                    undoAction.setNewSlots(row.getSlots());
+                    com.itemorganizer.gui.undo.UndoManager.getInstance().record(undoAction);
+                    savePaletteData(data);
+                }
+            }
+        }
+        pastingHotbarPaletteId = null;
+        activeModal = null;
         playClickSound();
     }
 
     // copy the 9 slots to player hotbar
     private void loadRowToHotbar(PaletteRow row) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null || !client.player.isCreative()) return;
+        if (client == null || client.player == null || !client.player.isCreative()) return;
+
+        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                com.itemorganizer.gui.undo.HotbarFullUndoAction.capture(client)
+        );
 
         for (int i = 0; i < 9; i++) {
             String itemId = row.getSlot(i);
             ItemStack stack = ItemStack.EMPTY;
-            if (itemId != null) {
+            if (itemId != null && !itemId.trim().isEmpty()) {
                 stack = getItemStackFromId(itemId);
                 if (!stack.isEmpty()) {
                     stack = new ItemStack(stack.getItem(), 1);
                 }
             }
-
-            client.player.getInventory().setStack(i, stack);
-            if (client.getNetworkHandler() != null) {
-                client.getNetworkHandler().sendPacket(new CreativeInventoryActionC2SPacket(36 + i, stack));
-            }
+            HotbarActionHelper.assignItemToSlot(client, i, stack);
         }
 
-        client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+        SoundHelper.playClick();
+    }
+
+    // place palette blocks horizontally in the world starting below the player and teleport player 1 block to the left
+    public void placePaletteInWorld(PaletteRow row) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        com.itemorganizer.gui.util.PalettePlacementManager.getInstance().placePalette(client, row);
     }
 
     @Override
     public boolean mouseReleased(Click click) {
+        lastShiftPaletteRow = -1;
+        lastShiftPaletteSlot = -1;
         if (scrollbar.mouseReleased(click)) {
             return true;
         }
 
         DragAndDropManager dragManager = DragAndDropManager.getInstance();
         if (dragManager.isDragging()) {
-            PaletteData data = viewModel.getPaletteData();
+            if (!dragManager.isDraggedBeyondThreshold()) {
+                return false;
+            }
+            PaletteData data = getPaletteData();
             if (data != null) {
                 updateHover(click.x(), click.y(), getFilteredPalettes(data.getRows()), data.getRows().size());
                 if (hoveredOriginalRowIndex >= 0 && hoveredSlotIndex >= 0 && hoveredOriginalRowIndex < data.getRows().size()) {
                     PaletteRow row = data.getRows().get(hoveredOriginalRowIndex);
                     DragPayload payload = dragManager.getActivePayload();
-                    row.setSlot(hoveredSlotIndex, payload.getItemId());
-
-                    StorageManager.getInstance().getPaletteRepository().save(data);
-                    MinecraftClient.getInstance().getSoundManager().play(
-                            PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F)
+                    String previous = row.getSlot(hoveredSlotIndex);
+                    com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                            new com.itemorganizer.gui.undo.PaletteSlotUndoAction(row.getId(), hoveredSlotIndex, previous, payload.getItemId())
                     );
+                    row.setSlot(hoveredSlotIndex, payload.getItemId());
+                    if (infiniteMode) {
+                        row.updateInfiniteSlots();
+                    }
+                    savePaletteData(data);
+                    SoundHelper.playClick();
                     dragManager.consumePayload();
                     return true;
                 }
@@ -1042,6 +1266,29 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         if (scrollbar.mouseDragged(click, deltaX, deltaY)) {
             return true;
         }
+
+        if (click.button() == 0 && HotbarActionHelper.hasShiftDown(click)) {
+            PaletteData data = getPaletteData();
+            if (data != null) {
+                updateHover(click.x(), click.y(), getFilteredPalettes(data.getRows()), data.getRows().size());
+                if (hoveredOriginalRowIndex >= 0 && hoveredSlotIndex >= 0 && hoveredOriginalRowIndex < data.getRows().size()) {
+                    if (hoveredOriginalRowIndex != lastShiftPaletteRow || hoveredSlotIndex != lastShiftPaletteSlot) {
+                        lastShiftPaletteRow = hoveredOriginalRowIndex;
+                        lastShiftPaletteSlot = hoveredSlotIndex;
+                        PaletteRow row = data.getRows().get(hoveredOriginalRowIndex);
+                        String itemId = row.getSlot(hoveredSlotIndex);
+                        if (itemId != null) {
+                            ItemStack stack = getItemStackFromId(itemId);
+                            if (!stack.isEmpty()) {
+                                HotbarActionHelper.quickMoveToHotbar(MinecraftClient.getInstance(), stack);
+                            }
+                        }
+                    }
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 
@@ -1055,26 +1302,8 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
     @Override
     public boolean keyPressed(KeyInput input) {
-        if (renamingPaletteId != null) {
-            if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
-                applyRename();
-                return true;
-            }
-            if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
-                renamingPaletteId = null;
-                playClickSound();
-                return true;
-            }
-            return renameField.keyPressed(input);
-        }
-
-        if (deletingPaletteId != null) {
-            if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
-                deletingPaletteId = null;
-                playClickSound();
-                return true;
-            }
-            return true;
+        if (activeModal != null) {
+            return activeModal.keyPressed(input);
         }
 
         if (searchField.isFocused()) {
@@ -1085,29 +1314,17 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
             return searchField.keyPressed(input);
         }
 
-        // 1-9 hotbar keys in creative
+        // 1-9 hotbar keys
         MinecraftClient client = MinecraftClient.getInstance();
-        if (!hoveredStack.isEmpty() && client.player != null) {
-            for (int i = 0; i < 9; i++) {
-                if (client.options.hotbarKeys[i].matchesKey(input)) {
-                    if (client.player.isCreative()) {
-                        ItemStack giveStack = new ItemStack(hoveredStack.getItem(), 1);
-                        client.player.getInventory().setStack(i, giveStack);
-                        if (client.getNetworkHandler() != null) {
-                            client.getNetworkHandler().sendPacket(new CreativeInventoryActionC2SPacket(36 + i, giveStack));
-                        }
-                        client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-                        return true;
-                    }
-                }
-            }
+        if (HotbarActionHelper.handleHotbarKeyPress(client, input, hoveredStack)) {
+            return true;
         }
         return false;
     }
 
     public boolean charTyped(CharInput input) {
-        if (renamingPaletteId != null) {
-            return renameField.charTyped(input);
+        if (activeModal != null) {
+            return activeModal.charTyped(input);
         }
         if (searchField.isFocused()) {
             return searchField.charTyped(input);
@@ -1138,10 +1355,33 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
     public void appendNarrations(NarrationMessageBuilder builder) {
     }
 
-    private void playClickSound() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client != null && client.getSoundManager() != null) {
-            client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+    public boolean isEditingOrSearching() {
+        return (searchField != null && searchField.isFocused()) || activeModal != null;
+    }
+
+    public static boolean isDuplicatePalette(PaletteRow row, List<PaletteRow> allRows) {
+        if (row == null || !row.hasAnyItem() || allRows == null) {
+            return false;
         }
+        for (PaletteRow other : allRows) {
+            if (other != null && other != row && !java.util.Objects.equals(other.getId(), row.getId())) {
+                if (row.hasSameSlotsAs(other)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public void setSearchFilterWidget(PaletteSearchFilterWidget searchFilterWidget) {
+        this.searchFilterWidget = searchFilterWidget;
+    }
+
+    public PaletteSearchFilterWidget getSearchFilterWidget() {
+        return searchFilterWidget;
+    }
+
+    private void playClickSound() {
+        SoundHelper.playClick();
     }
 }

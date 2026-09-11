@@ -9,11 +9,20 @@ public class ModConfig {
     private float textScale = 1.0f;         // text render scale (0.5 to 1.5)
     private float splitRatio = 0.50f;       // left vs right split ratio (0.20 to 0.80)
     private float hotbarScale = 1.0f;       // hotbar size scale (0.5 to 2.0)
+    private float hotbarItemScale = 1.0f;   // hotbar item render scale (0.5 to 1.5)
     private float paletteScale = 1.0f;      // palette size scale (0.5 to 2.0)
+    private float paletteItemScale = 1.0f;  // palette item render scale (0.5 to 1.5)
+    private float paletteButtonScale = 1.0f; // palette action buttons scale (0.5 to 2.0)
+    private float createPaletteScale = 1.0f;       // create palette size scale (0.5 to 2.0)
+    private float createPaletteItemScale = 1.0f;   // create palette item render scale (0.5 to 1.5)
+    private float createPaletteButtonScale = 1.0f; // create palette button scale (0.5 to 2.0)
     private String keyOpenClose = "key.keyboard.o"; // toggle key
     private String keyQuickAppend = "key.keyboard.a"; // quick append key
+    private String keyUndo = "key.keyboard.z"; // undo shortcut key
+    private String keyRedo = "key.keyboard.y"; // redo shortcut key
     private String selectedProfile = "default"; // active profile name
     private float blur = 0.50f; // background blur intensity (0.0 to 5.0)
+    private boolean blockerActive = false;
 
     public ModConfig() {
     }
@@ -78,6 +87,15 @@ public class ModConfig {
         this.hotbarScale = Math.max(0.50f, Math.min(2.00f, hotbarScale));
     }
 
+    public float getHotbarItemScale() {
+        if (hotbarItemScale < 0.10f) hotbarItemScale = 1.0f;
+        return hotbarItemScale;
+    }
+
+    public void setHotbarItemScale(float hotbarItemScale) {
+        this.hotbarItemScale = Math.max(0.50f, Math.min(1.50f, hotbarItemScale));
+    }
+
     public float getPaletteScale() {
         if (paletteScale < 0.50f) paletteScale = 1.0f;
         return paletteScale;
@@ -85,6 +103,51 @@ public class ModConfig {
 
     public void setPaletteScale(float paletteScale) {
         this.paletteScale = Math.max(0.50f, Math.min(2.00f, paletteScale));
+    }
+
+    public float getPaletteItemScale() {
+        if (paletteItemScale < 0.10f) paletteItemScale = 1.0f;
+        return paletteItemScale;
+    }
+
+    public void setPaletteItemScale(float paletteItemScale) {
+        this.paletteItemScale = Math.max(0.50f, Math.min(1.50f, paletteItemScale));
+    }
+
+    public float getPaletteButtonScale() {
+        if (paletteButtonScale < 0.10f) paletteButtonScale = 1.0f;
+        return paletteButtonScale;
+    }
+
+    public void setPaletteButtonScale(float paletteButtonScale) {
+        this.paletteButtonScale = Math.max(0.50f, Math.min(2.00f, paletteButtonScale));
+    }
+
+    public float getCreatePaletteScale() {
+        if (createPaletteScale < 0.10f) createPaletteScale = 1.0f;
+        return createPaletteScale;
+    }
+
+    public void setCreatePaletteScale(float createPaletteScale) {
+        this.createPaletteScale = Math.max(0.50f, Math.min(2.00f, createPaletteScale));
+    }
+
+    public float getCreatePaletteItemScale() {
+        if (createPaletteItemScale < 0.10f) createPaletteItemScale = 1.0f;
+        return createPaletteItemScale;
+    }
+
+    public void setCreatePaletteItemScale(float createPaletteItemScale) {
+        this.createPaletteItemScale = Math.max(0.50f, Math.min(1.50f, createPaletteItemScale));
+    }
+
+    public float getCreatePaletteButtonScale() {
+        if (createPaletteButtonScale < 0.10f) createPaletteButtonScale = 1.0f;
+        return createPaletteButtonScale;
+    }
+
+    public void setCreatePaletteButtonScale(float createPaletteButtonScale) {
+        this.createPaletteButtonScale = Math.max(0.50f, Math.min(2.00f, createPaletteButtonScale));
     }
 
     public float getItemScale() {
@@ -119,6 +182,22 @@ public class ModConfig {
         this.keyQuickAppend = keyQuickAppend;
     }
 
+    public String getKeyUndo() {
+        return (keyUndo != null && !keyUndo.isEmpty()) ? keyUndo : "key.keyboard.z";
+    }
+
+    public void setKeyUndo(String keyUndo) {
+        this.keyUndo = keyUndo;
+    }
+
+    public String getKeyRedo() {
+        return (keyRedo != null && !keyRedo.isEmpty()) ? keyRedo : "key.keyboard.y";
+    }
+
+    public void setKeyRedo(String keyRedo) {
+        this.keyRedo = keyRedo;
+    }
+
     public String getSelectedProfile() {
         return (selectedProfile != null && !selectedProfile.trim().isEmpty()) ? selectedProfile : "default";
     }
@@ -141,6 +220,14 @@ public class ModConfig {
 
     public void setBackgroundBlur(boolean backgroundBlur) {
         this.blur = backgroundBlur ? 0.50f : 0.0f;
+    }
+
+    public boolean isBlockerActive() {
+        return blockerActive;
+    }
+
+    public void setBlockerActive(boolean blockerActive) {
+        this.blockerActive = blockerActive;
     }
 
     // returns background color in argb format for drawcontext.fill

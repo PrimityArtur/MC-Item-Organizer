@@ -2,6 +2,9 @@ package com.itemorganizer.gui.widget;
 
 import com.itemorganizer.core.model.ItemSlotPosition;
 import com.itemorganizer.core.model.ProfileData;
+import com.itemorganizer.gui.component.ModalDialogComponent;
+import com.itemorganizer.gui.component.ScrollbarComponent;
+import com.itemorganizer.gui.theme.UITheme;
 import com.itemorganizer.gui.util.RenderHelper;
 import com.itemorganizer.gui.util.TextScaleHelper;
 import com.itemorganizer.gui.viewmodel.OrganizerViewModel;
@@ -17,7 +20,7 @@ import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.input.CharInput;
 import net.minecraft.client.input.KeyInput;
-import net.minecraft.client.sound.PositionedSoundInstance;
+import com.itemorganizer.gui.util.SoundHelper;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
@@ -25,14 +28,13 @@ import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.List;
 
-// widget for managing profiles (create, clone, rename, delete)
+// widget managing custom sorting profiles with create, rename, and delete dialogs
 public class ProfileManagerWidget implements Drawable, Element, Selectable {
     public static final int SCROLLBAR_WIDTH = 3;
     public static final int ROW_HEIGHT = 24;
     public static final int ROW_GAP = 3;
-    public static final int BTN_DELETE_W = 16;
-    public static final int BTN_RENAME_W = 16;
-    public static final int BTN_LOAD_W = 44;
+    public static final int BTN_DELETE_W = 18;
+    public static final int BTN_RENAME_W = 18;
     public static final int BTN_H = 16;
 
     private final OrganizerViewModel viewModel;
@@ -41,10 +43,10 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
     private int width;
     private int height;
 
-    private final VerticalScrollbar scrollbar;
+    private final ScrollbarComponent scrollbar;
 
     // modal dialog state
-    private boolean isCreating = false;
+    private ModalDialogComponent activeModal = null;
     private boolean cloneActive = false;
     private TextFieldWidget createNameField;
     private String createErrorMessage = "";
@@ -67,7 +69,7 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
 
         int listStartY = y + 40;
         int listHeight = height - 44;
-        this.scrollbar = new VerticalScrollbar(x + width - SCROLLBAR_WIDTH - 4, listStartY, SCROLLBAR_WIDTH, listHeight);
+        this.scrollbar = new ScrollbarComponent(x + width - SCROLLBAR_WIDTH - 4, listStartY, SCROLLBAR_WIDTH, listHeight);
 
         initTextFields();
     }
@@ -136,7 +138,7 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
         int activoLabelW = (int) (tr.getWidth(activeLabel) * textScale);
         TextScaleHelper.drawScaledText(context, tr, activeName, x + 8 + activoLabelW, headerY + 14, 0xFF34D399, true, textScale);
 
-        boolean modalActive = isCreating || renamingProfileName != null || deletingProfileName != null;
+        boolean modalActive = activeModal != null;
 
         // new profile button
         int addBtnW = Math.max(86, Math.round(86 * Math.max(1.0f, textScale)));
@@ -205,42 +207,34 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
             int delBtnX = rightX - BTN_DELETE_W;
             boolean hoverDel = !modalActive && !isDefault && mouseX >= delBtnX && mouseX <= delBtnX + BTN_DELETE_W && mouseY >= btnY && mouseY <= btnY + btnH;
             if (!isDefault) {
-                context.fill(delBtnX, btnY, delBtnX + BTN_DELETE_W, btnY + btnH, hoverDel ? 0x807F1D1D : 0x407F1D1D);
-                RenderHelper.drawBorder(context, delBtnX, btnY, BTN_DELETE_W, btnH, hoverDel ? 0xFFEF4444 : 0x80EF4444);
-                TextScaleHelper.drawVerticallyCenteredScaledText(context, tr, "✕", delBtnX + BTN_DELETE_W / 2, btnY + btnH / 2, hoverDel ? 0xFFFFFFFF : 0xFFFCA5A5, textScale);
+                int delBg = hoverDel ? UITheme.DANGER_HOVER_BG : UITheme.DANGER_BG;
+                int delBorder = hoverDel ? UITheme.DANGER : UITheme.DANGER_BORDER_MUTED;
+                int delColor = hoverDel ? UITheme.TEXT_WHITE : 0xFFFCA5A5;
+                RenderHelper.drawCard(context, delBtnX, btnY, BTN_DELETE_W, btnH, delBg, delBorder);
+                RenderHelper.drawDeleteIcon(context, delBtnX + BTN_DELETE_W / 2.0f, btnY + btnH / 2.0f, textScale, delColor);
                 if (hoverDel) hoveredTooltip = Text.translatable("profiles.itemorganizer.tooltip.delete");
             } else {
-                context.fill(delBtnX, btnY, delBtnX + BTN_DELETE_W, btnY + btnH, 0x0DFFFFFF);
-                RenderHelper.drawBorder(context, delBtnX, btnY, BTN_DELETE_W, btnH, 0x14FFFFFF);
-                TextScaleHelper.drawVerticallyCenteredScaledText(context, tr, "✕", delBtnX + BTN_DELETE_W / 2, btnY + btnH / 2, 0x4094A3B8, textScale);
+                RenderHelper.drawCard(context, delBtnX, btnY, BTN_DELETE_W, btnH, 0x0DFFFFFF, 0x14FFFFFF);
+                RenderHelper.drawDeleteIcon(context, delBtnX + BTN_DELETE_W / 2.0f, btnY + btnH / 2.0f, textScale, UITheme.TEXT_HINT);
             }
 
             // rename button
             int renBtnX = delBtnX - BTN_RENAME_W - 3;
             boolean hoverRen = !modalActive && !isDefault && mouseX >= renBtnX && mouseX <= renBtnX + BTN_RENAME_W && mouseY >= btnY && mouseY <= btnY + btnH;
             if (!isDefault) {
-                context.fill(renBtnX, btnY, renBtnX + BTN_RENAME_W, btnY + btnH, hoverRen ? 0x801E3A5F : 0x401E3A5F);
-                RenderHelper.drawBorder(context, renBtnX, btnY, BTN_RENAME_W, btnH, hoverRen ? 0xFF38BDF8 : 0x8038BDF8);
-                TextScaleHelper.drawVerticallyCenteredScaledText(context, tr, "✎", renBtnX + BTN_RENAME_W / 2, btnY + btnH / 2, hoverRen ? 0xFFFFFFFF : 0xFFBAE6FD, textScale);
+                int renBg = hoverRen ? UITheme.PRIMARY_HOVER_BG : UITheme.PRIMARY_BG;
+                int renBorder = hoverRen ? UITheme.PRIMARY : UITheme.PRIMARY_BORDER_MUTED;
+                int renColor = hoverRen ? UITheme.TEXT_WHITE : 0xFFBAE6FD;
+                RenderHelper.drawCard(context, renBtnX, btnY, BTN_RENAME_W, btnH, renBg, renBorder);
+                RenderHelper.drawEditIcon(context, renBtnX + BTN_RENAME_W / 2.0f, btnY + btnH / 2.0f, textScale, renColor);
                 if (hoverRen) hoveredTooltip = Text.translatable("profiles.itemorganizer.tooltip.rename");
             } else {
-                context.fill(renBtnX, btnY, renBtnX + BTN_RENAME_W, btnY + btnH, 0x0DFFFFFF);
-                RenderHelper.drawBorder(context, renBtnX, btnY, BTN_RENAME_W, btnH, 0x14FFFFFF);
-                TextScaleHelper.drawVerticallyCenteredScaledText(context, tr, "✎", renBtnX + BTN_RENAME_W / 2, btnY + btnH / 2, 0x4094A3B8, textScale);
+                RenderHelper.drawCard(context, renBtnX, btnY, BTN_RENAME_W, btnH, 0x0DFFFFFF, 0x14FFFFFF);
+                RenderHelper.drawEditIcon(context, renBtnX + BTN_RENAME_W / 2.0f, btnY + btnH / 2.0f, textScale, UITheme.TEXT_HINT);
             }
 
-            // load button
-            int loadBtnX = renBtnX - BTN_LOAD_W - 3;
-            boolean hoverLoad = !modalActive && !isActive && mouseX >= loadBtnX && mouseX <= loadBtnX + BTN_LOAD_W && mouseY >= btnY && mouseY <= btnY + btnH;
-            if (!isActive) {
-                context.fill(loadBtnX, btnY, loadBtnX + BTN_LOAD_W, btnY + btnH, hoverLoad ? 0x80065F46 : 0x40065F46);
-                RenderHelper.drawBorder(context, loadBtnX, btnY, BTN_LOAD_W, btnH, hoverLoad ? 0xFF34D399 : 0x8034D399);
-                TextScaleHelper.drawVerticallyCenteredScaledText(context, tr, Text.translatable("profiles.itemorganizer.load"), loadBtnX + BTN_LOAD_W / 2, btnY + btnH / 2, hoverLoad ? 0xFFFFFFFF : 0xFFA7F3D0, textScale);
-                if (hoverLoad) hoveredTooltip = Text.translatable("profiles.itemorganizer.tooltip.load");
-            } else {
-                context.fill(loadBtnX, btnY, loadBtnX + BTN_LOAD_W, btnY + btnH, 0x1A10B981);
-                RenderHelper.drawBorder(context, loadBtnX, btnY, BTN_LOAD_W, btnH, 0x4034D399);
-                TextScaleHelper.drawVerticallyCenteredScaledText(context, tr, Text.translatable("profiles.itemorganizer.loaded"), loadBtnX + BTN_LOAD_W / 2, btnY + btnH / 2, 0x8034D399, textScale);
+            if (hoverRow && !hoverDel && !hoverRen && !isActive) {
+                hoveredTooltip = Text.translatable("profiles.itemorganizer.tooltip.load");
             }
         }
 
@@ -249,12 +243,9 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
         scrollbar.render(context, mouseX, mouseY);
 
         // modal rendering
-        if (isCreating) {
-            renderCreateModal(context, tr, mouseX, mouseY, delta);
-        } else if (renamingProfileName != null) {
-            renderRenameModal(context, tr, mouseX, mouseY, delta);
-        } else if (deletingProfileName != null) {
-            renderDeleteModal(context, tr, mouseX, mouseY, delta);
+        if (activeModal != null) {
+            activeModal.updateParentBounds(x, y, width, height);
+            activeModal.render(context, tr, mouseX, mouseY, delta, textScale);
         }
 
         // tooltip rendering
@@ -263,233 +254,120 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
         }
     }
 
-    private void renderCreateModal(DrawContext context, TextRenderer tr, int mouseX, int mouseY, float delta) {
-        float textScale = viewModel.getConfig().getTextScale();
-        int modalW = Math.min(220, width - 20);
-        int modalH = 120;
-        int modalX = x + (width - modalW) / 2;
-        int modalY = y + (height - modalH) / 2;
+    private void openCreateModal() {
+        cloneActive = false;
+        createErrorMessage = "";
+        createNameField.setText("");
+        createNameField.setFocused(true);
 
-        context.fill(x, y, x + width, y + height, 0xDD0B0F19);
-        context.fill(modalX, modalY, modalX + modalW, modalY + modalH, 0xFF141820);
-        RenderHelper.drawBorder(context, modalX, modalY, modalW, modalH, 0xFF34D399);
+        activeModal = ModalDialogComponent.builder()
+                .parentBounds(x, y, width, height)
+                .size(Math.min(220, width - 20), 120)
+                .type(ModalDialogComponent.ModalType.SUCCESS)
+                .title(Text.translatable("profiles.itemorganizer.create.title"))
+                .customContent((ctx, tr1, cx, cy, cw, ch, mx, my, dt, ts) -> {
+                    createNameField.setX(cx);
+                    createNameField.setY(cy);
+                    createNameField.setWidth(cw);
+                    ctx.fill(createNameField.getX() - 1, createNameField.getY() - 1, createNameField.getX() + createNameField.getWidth() + 1, createNameField.getY() + createNameField.getHeight() + 1, UITheme.BG_INPUT);
+                    RenderHelper.drawBorder(ctx, createNameField.getX() - 1, createNameField.getY() - 1, createNameField.getWidth() + 2, createNameField.getHeight() + 2, UITheme.BORDER_SUBTLE);
+                    createNameField.renderWidget(ctx, mx, my, dt);
 
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("profiles.itemorganizer.create.title"), modalX + modalW / 2, modalY + 8, 0xFF34D399, textScale);
+                    int toggleY = cy + 24;
+                    int toggleH = 16;
+                    boolean hoverToggle = mx >= cx && mx <= cx + cw && my >= toggleY && my <= toggleY + toggleH;
+                    Text modeText = cloneActive ? Text.translatable("profiles.itemorganizer.create.clone") : Text.translatable("profiles.itemorganizer.create.empty");
+                    ctx.fill(cx, toggleY, cx + cw, toggleY + toggleH, hoverToggle ? 0x401E293B : 0x2A1E293B);
+                    RenderHelper.drawBorder(ctx, cx, toggleY, cw, toggleH, hoverToggle ? UITheme.PRIMARY_BORDER : 0x4D38BDF8);
+                    TextScaleHelper.drawCenteredScaledText(ctx, tr1, modeText, cx + cw / 2, toggleY + 4, UITheme.TEXT_PRIMARY, ts);
 
-        context.fill(createNameField.getX() - 1, createNameField.getY() - 1, createNameField.getX() + createNameField.getWidth() + 1, createNameField.getY() + createNameField.getHeight() + 1, 0xFF0B0F19);
-        RenderHelper.drawBorder(context, createNameField.getX() - 1, createNameField.getY() - 1, createNameField.getWidth() + 2, createNameField.getHeight() + 2, 0x33FFFFFF);
-        createNameField.renderWidget(context, mouseX, mouseY, delta);
-
-        // mode toggle
-        int toggleY = modalY + 54;
-        int toggleH = 16;
-        int toggleW = modalW - 20;
-        int toggleX = modalX + 10;
-        boolean hoverToggle = mouseX >= toggleX && mouseX <= toggleX + toggleW && mouseY >= toggleY && mouseY <= toggleY + toggleH;
-        Text modeText = cloneActive ? Text.translatable("profiles.itemorganizer.create.clone") : Text.translatable("profiles.itemorganizer.create.empty");
-
-        context.fill(toggleX, toggleY, toggleX + toggleW, toggleY + toggleH, hoverToggle ? 0x401E293B : 0x2A1E293B);
-        RenderHelper.drawBorder(context, toggleX, toggleY, toggleW, toggleH, hoverToggle ? 0xFF38BDF8 : 0x4D38BDF8);
-        TextScaleHelper.drawCenteredScaledText(context, tr, modeText, toggleX + toggleW / 2, toggleY + 4, 0xFFE2E8F0, textScale);
-
-        if (!createErrorMessage.isEmpty()) {
-            TextScaleHelper.drawCenteredScaledText(context, tr, createErrorMessage, modalX + modalW / 2, modalY + 74, 0xFFEF4444, textScale);
-        }
-
-        int btnW = (modalW - 28) / 2;
-        int btnH = 18;
-        int btnY = modalY + modalH - 24;
-
-        int createBtnX = modalX + 10;
-        boolean hoverCreate = mouseX >= createBtnX && mouseX <= createBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        context.fill(createBtnX, btnY, createBtnX + btnW, btnY + btnH, hoverCreate ? 0x80065F46 : 0x40065F46);
-        RenderHelper.drawBorder(context, createBtnX, btnY, btnW, btnH, hoverCreate ? 0xFF34D399 : 0x8034D399);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("profiles.itemorganizer.create.btn"), createBtnX + btnW / 2, btnY + 5, 0xFFFFFFFF, textScale);
-
-        int cancelBtnX = createBtnX + btnW + 8;
-        boolean hoverCancel = mouseX >= cancelBtnX && mouseX <= cancelBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        context.fill(cancelBtnX, btnY, cancelBtnX + btnW, btnY + btnH, hoverCancel ? 0x33FFFFFF : 0x1AFFFFFF);
-        RenderHelper.drawBorder(context, cancelBtnX, btnY, btnW, btnH, hoverCancel ? 0x66FFFFFF : 0x33FFFFFF);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("button.itemorganizer.cancel"), cancelBtnX + btnW / 2, btnY + 5, 0xFFE2E8F0, textScale);
+                    if (!createErrorMessage.isEmpty()) {
+                        TextScaleHelper.drawCenteredScaledText(ctx, tr1, createErrorMessage, cx + cw / 2, toggleY + 20, UITheme.DANGER, ts);
+                    }
+                })
+                .customClickHandler((click1, cx, cy, cw, ch) -> {
+                    if (createNameField.mouseClicked(click1, false)) {
+                        return true;
+                    }
+                    int toggleY = cy + 24;
+                    int toggleH = 16;
+                    if (click1.button() == 0 && click1.x() >= cx && click1.x() <= cx + cw && click1.y() >= toggleY && click1.y() <= toggleY + toggleH) {
+                        cloneActive = !cloneActive;
+                        playClickSound();
+                        return true;
+                    }
+                    return false;
+                })
+                .customKeyHandler(input -> createNameField.keyPressed(input))
+                .customCharHandler(input -> createNameField.charTyped(input))
+                .confirmButton(Text.translatable("profiles.itemorganizer.create.btn"), this::executeCreate)
+                .cancelButton(Text.translatable("button.itemorganizer.cancel"), () -> activeModal = null)
+                .build();
     }
 
-    private void renderRenameModal(DrawContext context, TextRenderer tr, int mouseX, int mouseY, float delta) {
-        float textScale = viewModel.getConfig().getTextScale();
-        int modalW = Math.min(220, width - 20);
-        int modalH = 100;
-        int modalX = x + (width - modalW) / 2;
-        int modalY = y + (height - modalH) / 2;
+    private void openRenameModal(String profileName) {
+        renamingProfileName = profileName;
+        renameErrorMessage = "";
+        renameField.setText(profileName);
+        renameField.setFocused(true);
 
-        context.fill(x, y, x + width, y + height, 0xDD0B0F19);
-        context.fill(modalX, modalY, modalX + modalW, modalY + modalH, 0xFF141820);
-        RenderHelper.drawBorder(context, modalX, modalY, modalW, modalH, 0xFF38BDF8);
+        activeModal = ModalDialogComponent.builder()
+                .parentBounds(x, y, width, height)
+                .size(Math.min(220, width - 20), 100)
+                .type(ModalDialogComponent.ModalType.INFO)
+                .title(Text.translatable("profiles.itemorganizer.rename.title", profileName))
+                .customContent((ctx, tr1, cx, cy, cw, ch, mx, my, dt, ts) -> {
+                    renameField.setX(cx);
+                    renameField.setY(cy);
+                    renameField.setWidth(cw);
+                    ctx.fill(renameField.getX() - 1, renameField.getY() - 1, renameField.getX() + renameField.getWidth() + 1, renameField.getY() + renameField.getHeight() + 1, UITheme.BG_INPUT);
+                    RenderHelper.drawBorder(ctx, renameField.getX() - 1, renameField.getY() - 1, renameField.getWidth() + 2, renameField.getHeight() + 2, UITheme.BORDER_SUBTLE);
+                    renameField.renderWidget(ctx, mx, my, dt);
 
-        Text title = Text.translatable("profiles.itemorganizer.rename.title", renamingProfileName);
-        TextScaleHelper.drawCenteredScaledText(context, tr, title, modalX + modalW / 2, modalY + 8, 0xFF38BDF8, textScale);
-
-        context.fill(renameField.getX() - 1, renameField.getY() - 1, renameField.getX() + renameField.getWidth() + 1, renameField.getY() + renameField.getHeight() + 1, 0xFF0B0F19);
-        RenderHelper.drawBorder(context, renameField.getX() - 1, renameField.getY() - 1, renameField.getWidth() + 2, renameField.getHeight() + 2, 0x33FFFFFF);
-        renameField.renderWidget(context, mouseX, mouseY, delta);
-
-        if (!renameErrorMessage.isEmpty()) {
-            TextScaleHelper.drawCenteredScaledText(context, tr, renameErrorMessage, modalX + modalW / 2, modalY + 54, 0xFFEF4444, textScale);
-        }
-
-        int btnW = (modalW - 28) / 2;
-        int btnH = 18;
-        int btnY = modalY + modalH - 24;
-
-        int saveBtnX = modalX + 10;
-        boolean hoverSave = mouseX >= saveBtnX && mouseX <= saveBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        context.fill(saveBtnX, btnY, saveBtnX + btnW, btnY + btnH, hoverSave ? 0x801E3A5F : 0x401E3A5F);
-        RenderHelper.drawBorder(context, saveBtnX, btnY, btnW, btnH, hoverSave ? 0xFF38BDF8 : 0x8038BDF8);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("profiles.itemorganizer.save"), saveBtnX + btnW / 2, btnY + 5, 0xFFFFFFFF, textScale);
-
-        int cancelBtnX = saveBtnX + btnW + 8;
-        boolean hoverCancel = mouseX >= cancelBtnX && mouseX <= cancelBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        context.fill(cancelBtnX, btnY, cancelBtnX + btnW, btnY + btnH, hoverCancel ? 0x33FFFFFF : 0x1AFFFFFF);
-        RenderHelper.drawBorder(context, cancelBtnX, btnY, btnW, btnH, hoverCancel ? 0x66FFFFFF : 0x33FFFFFF);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("button.itemorganizer.cancel"), cancelBtnX + btnW / 2, btnY + 5, 0xFFE2E8F0, textScale);
+                    if (!renameErrorMessage.isEmpty()) {
+                        TextScaleHelper.drawCenteredScaledText(ctx, tr1, renameErrorMessage, cx + cw / 2, cy + 22, UITheme.DANGER, ts);
+                    }
+                })
+                .customClickHandler((click1, cx, cy, cw, ch) -> renameField.mouseClicked(click1, false))
+                .customKeyHandler(input -> renameField.keyPressed(input))
+                .customCharHandler(input -> renameField.charTyped(input))
+                .confirmButton(Text.translatable("profiles.itemorganizer.save"), this::executeRename)
+                .cancelButton(Text.translatable("button.itemorganizer.cancel"), () -> {
+                    renamingProfileName = null;
+                    activeModal = null;
+                })
+                .build();
     }
 
-    private void renderDeleteModal(DrawContext context, TextRenderer tr, int mouseX, int mouseY, float delta) {
-        float textScale = viewModel.getConfig().getTextScale();
-        int modalW = Math.min(220, width - 20);
-        int modalH = 95;
-        int modalX = x + (width - modalW) / 2;
-        int modalY = y + (height - modalH) / 2;
+    private void openDeleteModal(String profileName) {
+        deletingProfileName = profileName;
 
-        context.fill(x, y, x + width, y + height, 0xDD0B0F19);
-        context.fill(modalX, modalY, modalX + modalW, modalY + modalH, 0xFF141820);
-        RenderHelper.drawBorder(context, modalX, modalY, modalW, modalH, 0xFFEF4444);
-
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("profiles.itemorganizer.delete.title"), modalX + modalW / 2, modalY + 8, 0xFFEF4444, textScale);
-        TextScaleHelper.drawCenteredScaledText(context, tr, "\"" + deletingProfileName + "\"", modalX + modalW / 2, modalY + 24, 0xFFFFFFFF, textScale);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("profiles.itemorganizer.delete.warning"), modalX + modalW / 2, modalY + 38, 0xFF94A3B8, textScale);
-
-        int btnW = (modalW - 28) / 2;
-        int btnH = 18;
-        int btnY = modalY + modalH - 24;
-
-        int delBtnX = modalX + 10;
-        boolean hoverDel = mouseX >= delBtnX && mouseX <= delBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        context.fill(delBtnX, btnY, delBtnX + btnW, btnY + btnH, hoverDel ? 0x807F1D1D : 0x407F1D1D);
-        RenderHelper.drawBorder(context, delBtnX, btnY, btnW, btnH, hoverDel ? 0xFFEF4444 : 0x80EF4444);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("profiles.itemorganizer.delete.btn"), delBtnX + btnW / 2, btnY + 5, 0xFFFFFFFF, textScale);
-
-        int cancelBtnX = delBtnX + btnW + 8;
-        boolean hoverCancel = mouseX >= cancelBtnX && mouseX <= cancelBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH;
-        context.fill(cancelBtnX, btnY, cancelBtnX + btnW, btnY + btnH, hoverCancel ? 0x33FFFFFF : 0x1AFFFFFF);
-        RenderHelper.drawBorder(context, cancelBtnX, btnY, btnW, btnH, hoverCancel ? 0x66FFFFFF : 0x33FFFFFF);
-        TextScaleHelper.drawCenteredScaledText(context, tr, Text.translatable("button.itemorganizer.cancel"), cancelBtnX + btnW / 2, btnY + 5, 0xFFE2E8F0, textScale);
+        activeModal = ModalDialogComponent.builder()
+                .parentBounds(x, y, width, height)
+                .size(Math.min(220, width - 20), 95)
+                .type(ModalDialogComponent.ModalType.DANGER)
+                .title(Text.translatable("profiles.itemorganizer.delete.title"))
+                .message(Text.literal("\"" + profileName + "\"\n").append(Text.translatable("profiles.itemorganizer.delete.warning")))
+                .confirmButton(Text.translatable("profiles.itemorganizer.delete.btn"), this::executeDelete)
+                .cancelButton(Text.translatable("button.itemorganizer.cancel"), () -> {
+                    deletingProfileName = null;
+                    activeModal = null;
+                })
+                .build();
     }
 
     private void playClickSound() {
-        MinecraftClient.getInstance().getSoundManager().play(
-                PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F)
-        );
+        SoundHelper.playClick();
     }
 
     @Override
     public boolean mouseClicked(Click click, boolean bl) {
+        if (activeModal != null) {
+            return activeModal.mouseClicked(click);
+        }
+
         int mouseX = (int) click.x();
         int mouseY = (int) click.y();
-
-        if (isCreating) {
-            int modalW = Math.min(220, width - 20);
-            int modalH = 120;
-            int modalX = x + (width - modalW) / 2;
-            int modalY = y + (height - modalH) / 2;
-
-            if (createNameField.mouseClicked(click, bl)) {
-                return true;
-            }
-
-            int toggleY = modalY + 54;
-            int toggleH = 16;
-            int toggleW = modalW - 20;
-            int toggleX = modalX + 10;
-            if (mouseX >= toggleX && mouseX <= toggleX + toggleW && mouseY >= toggleY && mouseY <= toggleY + toggleH) {
-                cloneActive = !cloneActive;
-                playClickSound();
-                return true;
-            }
-
-            int btnW = (modalW - 28) / 2;
-            int btnH = 18;
-            int btnY = modalY + modalH - 24;
-
-            int createBtnX = modalX + 10;
-            if (mouseX >= createBtnX && mouseX <= createBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH) {
-                executeCreate();
-                return true;
-            }
-
-            int cancelBtnX = createBtnX + btnW + 8;
-            if (mouseX >= cancelBtnX && mouseX <= cancelBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH) {
-                isCreating = false;
-                playClickSound();
-                return true;
-            }
-
-            return true;
-        }
-
-        if (renamingProfileName != null) {
-            int modalW = Math.min(220, width - 20);
-            int modalH = 100;
-            int modalX = x + (width - modalW) / 2;
-            int modalY = y + (height - modalH) / 2;
-
-            if (renameField.mouseClicked(click, bl)) {
-                return true;
-            }
-
-            int btnW = (modalW - 28) / 2;
-            int btnH = 18;
-            int btnY = modalY + modalH - 24;
-
-            int saveBtnX = modalX + 10;
-            if (mouseX >= saveBtnX && mouseX <= saveBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH) {
-                executeRename();
-                return true;
-            }
-
-            int cancelBtnX = saveBtnX + btnW + 8;
-            if (mouseX >= cancelBtnX && mouseX <= cancelBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH) {
-                renamingProfileName = null;
-                playClickSound();
-                return true;
-            }
-
-            return true;
-        }
-
-        if (deletingProfileName != null) {
-            int modalW = Math.min(220, width - 20);
-            int modalH = 95;
-            int modalX = x + (width - modalW) / 2;
-            int modalY = y + (height - modalH) / 2;
-
-            int btnW = (modalW - 28) / 2;
-            int btnH = 18;
-            int btnY = modalY + modalH - 24;
-
-            int delBtnX = modalX + 10;
-            if (mouseX >= delBtnX && mouseX <= delBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH) {
-                executeDelete();
-                return true;
-            }
-
-            int cancelBtnX = delBtnX + btnW + 8;
-            if (mouseX >= cancelBtnX && mouseX <= cancelBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH) {
-                deletingProfileName = null;
-                playClickSound();
-                return true;
-            }
-
-            return true;
-        }
 
         float textScale = viewModel.getConfig().getTextScale();
         int addBtnW = Math.max(86, Math.round(86 * Math.max(1.0f, textScale)));
@@ -497,12 +375,8 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
         int addBtnX = x + width - addBtnW - 10;
         int addBtnY = y + 10;
 
-        if (mouseX >= addBtnX && mouseX <= addBtnX + addBtnW && mouseY >= addBtnY && mouseY <= addBtnY + addBtnH) {
-            isCreating = true;
-            cloneActive = false;
-            createErrorMessage = "";
-            createNameField.setText("");
-            createNameField.setFocused(true);
+        if (click.button() == 0 && mouseX >= addBtnX && mouseX <= addBtnX + addBtnW && mouseY >= addBtnY && mouseY <= addBtnY + addBtnH) {
+            openCreateModal();
             playClickSound();
             return true;
         }
@@ -533,7 +407,7 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
             // delete
             int delBtnX = rightX - BTN_DELETE_W;
             if (!isDefault && mouseX >= delBtnX && mouseX <= delBtnX + BTN_DELETE_W && mouseY >= btnY && mouseY <= btnY + BTN_H) {
-                deletingProfileName = profileName;
+                openDeleteModal(profileName);
                 playClickSound();
                 return true;
             }
@@ -541,19 +415,17 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
             // rename
             int renBtnX = delBtnX - BTN_RENAME_W - 3;
             if (!isDefault && mouseX >= renBtnX && mouseX <= renBtnX + BTN_RENAME_W && mouseY >= btnY && mouseY <= btnY + BTN_H) {
-                renamingProfileName = profileName;
-                renameErrorMessage = "";
-                renameField.setText(profileName);
-                renameField.setFocused(true);
+                openRenameModal(profileName);
                 playClickSound();
                 return true;
             }
 
-            // load
-            int loadBtnX = renBtnX - BTN_LOAD_W - 3;
-            if (!isActive && mouseX >= loadBtnX && mouseX <= loadBtnX + BTN_LOAD_W && mouseY >= btnY && mouseY <= btnY + BTN_H) {
-                viewModel.loadProfileByName(profileName);
-                playClickSound();
+            // click profile card to load
+            if (mouseX >= rowStartX && mouseX <= rowStartX + rowW && mouseY >= rowY && mouseY <= rowY + rowHeight) {
+                if (!isActive) {
+                    viewModel.loadProfileByName(profileName);
+                    playClickSound();
+                }
                 return true;
             }
         }
@@ -578,7 +450,7 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
 
         boolean ok = viewModel.createNewProfile(name, cloneActive);
         if (ok) {
-            isCreating = false;
+            activeModal = null;
             createErrorMessage = "";
             playClickSound();
         } else {
@@ -598,6 +470,7 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
         }
         if (newName.equals(renamingProfileName)) {
             renamingProfileName = null;
+            activeModal = null;
             return;
         }
         if (viewModel.getAvailableProfiles().contains(newName)) {
@@ -608,6 +481,7 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
         boolean ok = viewModel.renameProfile(renamingProfileName, newName);
         if (ok) {
             renamingProfileName = null;
+            activeModal = null;
             renameErrorMessage = "";
             playClickSound();
         } else {
@@ -619,6 +493,7 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
         if (deletingProfileName != null) {
             viewModel.deleteProfileByName(deletingProfileName);
             deletingProfileName = null;
+            activeModal = null;
             playClickSound();
         }
     }
@@ -638,7 +513,7 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
     }
 
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (isCreating || renamingProfileName != null || deletingProfileName != null) {
+        if (activeModal != null) {
             return false;
         }
         if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height) {
@@ -650,54 +525,15 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
 
     @Override
     public boolean keyPressed(KeyInput input) {
-        if (isCreating) {
-            if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
-                isCreating = false;
-                playClickSound();
-                return true;
-            }
-            if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
-                executeCreate();
-                return true;
-            }
-            return createNameField.keyPressed(input);
+        if (activeModal != null) {
+            return activeModal.keyPressed(input);
         }
-
-        if (renamingProfileName != null) {
-            if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
-                renamingProfileName = null;
-                playClickSound();
-                return true;
-            }
-            if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
-                executeRename();
-                return true;
-            }
-            return renameField.keyPressed(input);
-        }
-
-        if (deletingProfileName != null) {
-            if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
-                deletingProfileName = null;
-                playClickSound();
-                return true;
-            }
-            if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
-                executeDelete();
-                return true;
-            }
-            return true;
-        }
-
         return false;
     }
 
     public boolean charTyped(CharInput input) {
-        if (isCreating) {
-            return createNameField.charTyped(input);
-        }
-        if (renamingProfileName != null) {
-            return renameField.charTyped(input);
+        if (activeModal != null) {
+            return activeModal.charTyped(input);
         }
         return false;
     }
@@ -723,5 +559,17 @@ public class ProfileManagerWidget implements Drawable, Element, Selectable {
 
     @Override
     public void appendNarrations(NarrationMessageBuilder builder) {
+    }
+
+    public boolean isEditingOrSearching() {
+        return activeModal != null;
+    }
+
+    public double getScrollOffset() {
+        return scrollbar.getScrollOffset();
+    }
+
+    public void setScrollOffset(double offset) {
+        scrollbar.setScrollOffset(offset);
     }
 }

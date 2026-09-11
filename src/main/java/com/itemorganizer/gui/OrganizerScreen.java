@@ -1,15 +1,22 @@
 package com.itemorganizer.gui;
 
+import com.itemorganizer.client.ItemOrganizerClient;
+import com.itemorganizer.gui.component.ModalDialogComponent;
 import com.itemorganizer.gui.navigation.LeftTab;
 import com.itemorganizer.gui.navigation.OrdenadoSubTab;
 import com.itemorganizer.gui.navigation.RightTab;
+import com.itemorganizer.gui.theme.UITheme;
 import com.itemorganizer.gui.viewmodel.OrganizerViewModel;
 import com.itemorganizer.gui.util.RenderHelper;
+import com.itemorganizer.gui.util.SoundHelper;
 import com.itemorganizer.gui.util.TextScaleHelper;
 import com.itemorganizer.gui.widget.HotbarWidget;
 import com.itemorganizer.gui.widget.TabButtonWidget;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
 
 // main screen layout with left/right panels and hotbar
@@ -18,9 +25,12 @@ public class OrganizerScreen extends Screen {
     private HotbarWidget hotbarWidget;
     private com.itemorganizer.gui.widget.OrderedGridWidget orderedGridWidget;
     private com.itemorganizer.gui.widget.BlockedGridWidget blockedGridWidget;
+    private com.itemorganizer.gui.widget.CreatePaletteWidget createPaletteWidget;
     private com.itemorganizer.gui.widget.ProfileManagerWidget profileManagerWidget;
     private com.itemorganizer.gui.widget.ConfigWidget configWidget;
     private com.itemorganizer.gui.widget.PaletteListWidget paletteListWidget;
+    private com.itemorganizer.gui.widget.PaletteListWidget infinitePaletteListWidget;
+    private com.itemorganizer.gui.widget.PaletteSearchFilterWidget paletteSearchFilterWidget;
     private com.itemorganizer.gui.widget.UnorganizedGridWidget unorganizedGridWidget;
     private com.itemorganizer.gui.widget.VersionCatalogWidget versionCatalogWidget;
 
@@ -29,13 +39,7 @@ public class OrganizerScreen extends Screen {
     private int rightPanelX, rightPanelY, rightPanelWidth, rightPanelHeight;
     private int leftContentY, leftContentHeight, rightContentY, rightContentHeight;
 
-    public enum ConfirmAction {
-        NONE,
-        SORT_COLOR,
-        COMPACT
-    }
-
-    private ConfirmAction activeConfirmAction = ConfirmAction.NONE;
+    private ModalDialogComponent activeModal = null;
     private String activeToolbarTooltip = null;
     private int originalVanillaBlur = -1;
 
@@ -80,11 +84,49 @@ public class OrganizerScreen extends Screen {
 
     @Override
     public void removed() {
+        saveScrollPositions();
+        com.itemorganizer.gui.dragdrop.DragAndDropManager.getInstance().cancelDrag();
         super.removed();
         if (originalVanillaBlur != -1 && client != null && client.options != null) {
             setOptionValue(client.options.getMenuBackgroundBlurriness(), originalVanillaBlur);
             originalVanillaBlur = -1;
         }
+    }
+
+    public void saveScrollPositions() {
+        if (orderedGridWidget != null) viewModel.setScrollOffset(OrganizerViewModel.AREA_ORGANIZED, orderedGridWidget.getScrollOffset());
+        if (profileManagerWidget != null) viewModel.setScrollOffset(OrganizerViewModel.AREA_PROFILES, profileManagerWidget.getScrollOffset());
+        if (configWidget != null) viewModel.setScrollOffset(OrganizerViewModel.AREA_CONFIG, configWidget.getScrollOffset());
+        if (blockedGridWidget != null) viewModel.setScrollOffset(OrganizerViewModel.AREA_BLOCKER, blockedGridWidget.getScrollOffset());
+        if (createPaletteWidget != null) viewModel.setScrollOffset(OrganizerViewModel.AREA_CREATE_PALETTE, createPaletteWidget.getScrollOffset());
+        if (paletteListWidget != null) {
+            viewModel.setScrollOffset(OrganizerViewModel.AREA_PALETTES, paletteListWidget.getScrollOffset());
+            viewModel.setPaletteSearchQuery(paletteListWidget.getSearchText());
+        }
+        if (infinitePaletteListWidget != null) {
+            viewModel.setScrollOffset(OrganizerViewModel.AREA_INF_PALETTE, infinitePaletteListWidget.getScrollOffset());
+            viewModel.setInfinitePaletteSearchQuery(infinitePaletteListWidget.getSearchText());
+        }
+        if (unorganizedGridWidget != null) viewModel.setScrollOffset(OrganizerViewModel.AREA_UNORGANIZED, unorganizedGridWidget.getScrollOffset());
+        if (versionCatalogWidget != null) viewModel.setScrollOffset(OrganizerViewModel.AREA_VERSION, versionCatalogWidget.getScrollOffset());
+    }
+
+    public void restoreScrollPositions() {
+        if (orderedGridWidget != null) orderedGridWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_ORGANIZED));
+        if (profileManagerWidget != null) profileManagerWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_PROFILES));
+        if (configWidget != null) configWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_CONFIG));
+        if (blockedGridWidget != null) blockedGridWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_BLOCKER));
+        if (createPaletteWidget != null) createPaletteWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_CREATE_PALETTE));
+        if (paletteListWidget != null) {
+            paletteListWidget.setSearchText(viewModel.getPaletteSearchQuery());
+            paletteListWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_PALETTES));
+        }
+        if (infinitePaletteListWidget != null) {
+            infinitePaletteListWidget.setSearchText(viewModel.getInfinitePaletteSearchQuery());
+            infinitePaletteListWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_INF_PALETTE));
+        }
+        if (unorganizedGridWidget != null) unorganizedGridWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_UNORGANIZED));
+        if (versionCatalogWidget != null) versionCatalogWidget.setScrollOffset(viewModel.getScrollOffset(OrganizerViewModel.AREA_VERSION));
     }
 
     public void applyBlurSetting() {
@@ -135,25 +177,41 @@ public class OrganizerScreen extends Screen {
         TabButtonWidget tabOrdenado = new TabButtonWidget(
                 0, 0, 10, 16,
                 LeftTab.ORDENADO.getText(),
-                btn -> viewModel.setActiveLeftTab(LeftTab.ORDENADO),
+                btn -> {
+                    saveScrollPositions();
+                    viewModel.setActiveLeftTab(LeftTab.ORDENADO);
+                    restoreScrollPositions();
+                },
                 () -> viewModel.getActiveLeftTab() == LeftTab.ORDENADO
         );
         TabButtonWidget tabPerfiles = new TabButtonWidget(
                 0, 0, 10, 16,
                 LeftTab.PERFILES.getText(),
-                btn -> viewModel.setActiveLeftTab(LeftTab.PERFILES),
+                btn -> {
+                    saveScrollPositions();
+                    viewModel.setActiveLeftTab(LeftTab.PERFILES);
+                    restoreScrollPositions();
+                },
                 () -> viewModel.getActiveLeftTab() == LeftTab.PERFILES
         );
         TabButtonWidget tabConfig = new TabButtonWidget(
                 0, 0, 10, 16,
                 LeftTab.CONFIG.getText(),
-                btn -> viewModel.setActiveLeftTab(LeftTab.CONFIG),
+                btn -> {
+                    saveScrollPositions();
+                    viewModel.setActiveLeftTab(LeftTab.CONFIG);
+                    restoreScrollPositions();
+                },
                 () -> viewModel.getActiveLeftTab() == LeftTab.CONFIG
         );
         TabButtonWidget tabBlocker = new TabButtonWidget(
                 0, 0, 10, 16,
                 Text.translatable("tab.itemorganizer.blocker"),
-                btn -> viewModel.toggleBlocker(),
+                btn -> {
+                    saveScrollPositions();
+                    viewModel.toggleBlocker();
+                    restoreScrollPositions();
+                },
                 viewModel::isBlockerActive,
                 true
         );
@@ -167,22 +225,45 @@ public class OrganizerScreen extends Screen {
         TabButtonWidget tabPaletas = new TabButtonWidget(
                 0, 0, 10, 16,
                 RightTab.PALETAS.getText(),
-                btn -> viewModel.setActiveRightTab(RightTab.PALETAS),
+                btn -> {
+                    saveScrollPositions();
+                    viewModel.setActiveRightTab(RightTab.PALETAS);
+                    restoreScrollPositions();
+                },
                 () -> viewModel.getActiveRightTab() == RightTab.PALETAS
+        );
+        TabButtonWidget tabInfPaletas = new TabButtonWidget(
+                0, 0, 10, 16,
+                RightTab.INF_PALETAS.getText(),
+                btn -> {
+                    saveScrollPositions();
+                    viewModel.setActiveRightTab(RightTab.INF_PALETAS);
+                    restoreScrollPositions();
+                },
+                () -> viewModel.getActiveRightTab() == RightTab.INF_PALETAS
         );
         TabButtonWidget tabPorOrganizar = new TabButtonWidget(
                 0, 0, 10, 16,
                 RightTab.POR_ORGANIZAR.getText(),
-                btn -> viewModel.setActiveRightTab(RightTab.POR_ORGANIZAR),
+                btn -> {
+                    saveScrollPositions();
+                    viewModel.setActiveRightTab(RightTab.POR_ORGANIZAR);
+                    restoreScrollPositions();
+                },
                 () -> viewModel.getActiveRightTab() == RightTab.POR_ORGANIZAR
         );
         TabButtonWidget tabPorVersion = new TabButtonWidget(
                 0, 0, 10, 16,
                 RightTab.POR_VERSION.getText(),
-                btn -> viewModel.setActiveRightTab(RightTab.POR_VERSION),
+                btn -> {
+                    saveScrollPositions();
+                    viewModel.setActiveRightTab(RightTab.POR_VERSION);
+                    restoreScrollPositions();
+                },
                 () -> viewModel.getActiveRightTab() == RightTab.POR_VERSION
         );
         rightTabs.add(tabPaletas);
+        rightTabs.add(tabInfPaletas);
         rightTabs.add(tabPorOrganizar);
         rightTabs.add(tabPorVersion);
         rightTabs.forEach(this::addDrawableChild);
@@ -204,11 +285,20 @@ public class OrganizerScreen extends Screen {
         configWidget = new com.itemorganizer.gui.widget.ConfigWidget(
                 viewModel, 0, 0, 10, 10
         );
+        createPaletteWidget = new com.itemorganizer.gui.widget.CreatePaletteWidget(
+                viewModel, 0, 0, 10, 10
+        );
 
         // right content widgets
         paletteListWidget = new com.itemorganizer.gui.widget.PaletteListWidget(
                 viewModel, 0, 0, 10, 10
         );
+        paletteSearchFilterWidget = new com.itemorganizer.gui.widget.PaletteSearchFilterWidget(0, 0, viewModel.getPaletteFilterRow());
+        paletteListWidget.setSearchFilterWidget(paletteSearchFilterWidget);
+        infinitePaletteListWidget = new com.itemorganizer.gui.widget.PaletteListWidget(
+                viewModel, 0, 0, 10, 10, true
+        );
+        infinitePaletteListWidget.setSearchFilterWidget(paletteSearchFilterWidget);
         unorganizedGridWidget = new com.itemorganizer.gui.widget.UnorganizedGridWidget(
                 viewModel, 0, 0, 10, 10
         );
@@ -217,12 +307,14 @@ public class OrganizerScreen extends Screen {
         );
 
         updateLayout();
+        restoreScrollPositions();
     }
 
     public void updateLayout() {
         int margin = 10;
         int topMargin = 8;
         float hotbarScale = viewModel.getConfig().getHotbarScale();
+        float hotbarItemScale = viewModel.getConfig().getHotbarItemScale();
         float splitRatio = viewModel.getConfig().getSplitRatio();
         float textScale = viewModel.getConfig().getTextScale();
 
@@ -269,12 +361,25 @@ public class OrganizerScreen extends Screen {
             }
         }
 
-        // position bottom hotbar
+        // position bottom hotbar and palette search filter
         int totalHotbarWidth = HotbarWidget.SLOT_COUNT * hotbarSlotSize;
         int hotbarX = (this.width - totalHotbarWidth) / 2;
         int hotbarY = this.height - hotbarSlotSize - 6;
+
+        boolean isPaletasTab = (viewModel.getActiveRightTab() == RightTab.PALETAS || viewModel.getActiveRightTab() == RightTab.INF_PALETAS);
+        if (isPaletasTab && paletteSearchFilterWidget != null) {
+            int filterSlotSize = hotbarSlotSize;
+            int clearW = Math.max(12, Math.round(14 * hotbarScale));
+            int totalFilterWidth = (com.itemorganizer.gui.widget.PaletteSearchFilterWidget.SLOT_COUNT * filterSlotSize) + 4 + clearW;
+            int filterX = this.width - margin - totalFilterWidth;
+            if (hotbarX + totalHotbarWidth + 8 > filterX) {
+                hotbarX = Math.max(6, filterX - totalHotbarWidth - 8);
+            }
+            paletteSearchFilterWidget.setBounds(filterX, hotbarY, hotbarScale, hotbarItemScale, textScale);
+        }
+
         if (hotbarWidget != null) {
-            hotbarWidget.setBounds(hotbarX, hotbarY, hotbarScale, textScale);
+            hotbarWidget.setBounds(hotbarX, hotbarY, hotbarScale, hotbarItemScale, textScale);
         }
 
         // position content panels
@@ -295,12 +400,14 @@ public class OrganizerScreen extends Screen {
             orderedGridWidget.reflowIfNeeded();
         }
         if (blockedGridWidget != null) blockedGridWidget.setBounds(leftPanelX, leftContentY, leftPanelWidth, leftContentHeight);
+        if (createPaletteWidget != null) createPaletteWidget.setBounds(leftPanelX, leftContentY, leftPanelWidth, leftContentHeight);
         if (profileManagerWidget != null) profileManagerWidget.setBounds(leftPanelX, leftContentY, leftPanelWidth, leftContentHeight);
         if (configWidget != null) configWidget.setBounds(leftPanelX, leftContentY, leftPanelWidth, leftContentHeight);
 
         rightContentY = rightPanelY + tabHeight + tabGap;
         rightContentHeight = rightPanelHeight - tabHeight - tabGap;
         if (paletteListWidget != null) paletteListWidget.setBounds(rightPanelX, rightContentY, rightPanelWidth, rightContentHeight);
+        if (infinitePaletteListWidget != null) infinitePaletteListWidget.setBounds(rightPanelX, rightContentY, rightPanelWidth, rightContentHeight);
         if (unorganizedGridWidget != null) unorganizedGridWidget.setBounds(rightPanelX, rightContentY, rightPanelWidth, rightContentHeight);
         if (versionCatalogWidget != null) versionCatalogWidget.setBounds(rightPanelX, rightContentY, rightPanelWidth, rightContentHeight);
     }
@@ -326,6 +433,11 @@ public class OrganizerScreen extends Screen {
         renderLeftContentArea(context, mouseX, mouseY, delta);
         renderRightContentArea(context, mouseX, mouseY, delta);
 
+        // render search filter palette if palettes tab is active
+        if ((viewModel.getActiveRightTab() == RightTab.PALETAS || viewModel.getActiveRightTab() == RightTab.INF_PALETAS) && paletteSearchFilterWidget != null) {
+            paletteSearchFilterWidget.render(context, mouseX, mouseY, delta);
+        }
+
         // render widgets and children
         super.render(context, mouseX, mouseY, delta);
 
@@ -333,8 +445,9 @@ public class OrganizerScreen extends Screen {
         com.itemorganizer.gui.dragdrop.DragAndDropManager.getInstance().renderFloatingItem(context, mouseX, mouseY, viewModel.getConfig().getItemScale());
 
         // confirmation modal or tooltips
-        if (activeConfirmAction != ConfirmAction.NONE && client != null && client.textRenderer != null) {
-            renderConfirmModal(context, client.textRenderer, mouseX, mouseY);
+        if (activeModal != null && client != null && client.textRenderer != null) {
+            activeModal.updateParentBounds(0, 0, this.width, this.height);
+            activeModal.render(context, client.textRenderer, mouseX, mouseY, delta, viewModel.getConfig().getTextScale());
         } else if (activeToolbarTooltip != null && client != null && client.textRenderer != null) {
             context.drawTooltip(client.textRenderer, Text.literal(activeToolbarTooltip), mouseX, mouseY);
         }
@@ -348,6 +461,8 @@ public class OrganizerScreen extends Screen {
         if (tab == LeftTab.ORDENADO) {
             if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.BLOQUEADO) {
                 if (blockedGridWidget != null) blockedGridWidget.render(context, mouseX, mouseY, delta);
+            } else if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.CREAR_PALETA) {
+                if (createPaletteWidget != null) createPaletteWidget.render(context, mouseX, mouseY, delta);
             } else {
                 if (orderedGridWidget != null) orderedGridWidget.render(context, mouseX, mouseY, delta);
             }
@@ -365,6 +480,8 @@ public class OrganizerScreen extends Screen {
         RightTab tab = viewModel.getActiveRightTab();
         if (tab == RightTab.PALETAS && paletteListWidget != null) {
             paletteListWidget.render(context, mouseX, mouseY, delta);
+        } else if (tab == RightTab.INF_PALETAS && infinitePaletteListWidget != null) {
+            infinitePaletteListWidget.render(context, mouseX, mouseY, delta);
         } else if (tab == RightTab.POR_ORGANIZAR && unorganizedGridWidget != null) {
             unorganizedGridWidget.render(context, mouseX, mouseY, delta);
         } else if (tab == RightTab.POR_VERSION && versionCatalogWidget != null) {
@@ -375,40 +492,15 @@ public class OrganizerScreen extends Screen {
     @Override
     public boolean mouseClicked(net.minecraft.client.gui.Click click, boolean bl) {
         // modal handles click first
-        if (activeConfirmAction != ConfirmAction.NONE) {
-            int modalW = Math.min(270, this.width - 24);
-            int modalH = 88;
-            int modalX = (this.width - modalW) / 2;
-            int modalY = (this.height - modalH) / 2;
-            int btnW = (modalW - 28) / 2;
-            int btnH = 18;
-            int btnY = modalY + modalH - 24;
+        if (activeModal != null) {
+            return activeModal.mouseClicked(click);
+        }
 
-            int confirmBtnX = modalX + 10;
-            if (click.button() == 0 && click.x() >= confirmBtnX && click.x() <= confirmBtnX + btnW && click.y() >= btnY && click.y() <= btnY + btnH) {
-                if (activeConfirmAction == ConfirmAction.SORT_COLOR) {
-                    executeSortByColor();
-                } else if (activeConfirmAction == ConfirmAction.COMPACT) {
-                    executeCompactItems();
-                }
-                activeConfirmAction = ConfirmAction.NONE;
-                return true;
-            }
-
-            int cancelBtnX = confirmBtnX + btnW + 8;
-            if (click.button() == 0 && click.x() >= cancelBtnX && click.x() <= cancelBtnX + btnW && click.y() >= btnY && click.y() <= btnY + btnH) {
-                activeConfirmAction = ConfirmAction.NONE;
-                playClickSound();
-                return true;
-            }
-
-            // click outside modal cancels it
-            if (click.button() == 0 && (click.x() < modalX || click.x() > modalX + modalW || click.y() < modalY || click.y() > modalY + modalH)) {
-                activeConfirmAction = ConfirmAction.NONE;
-                playClickSound();
-                return true;
-            }
-
+        // right click cancels active drag
+        com.itemorganizer.gui.dragdrop.DragAndDropManager dragManager = com.itemorganizer.gui.dragdrop.DragAndDropManager.getInstance();
+        if (dragManager.isDragging() && click.button() == 1) {
+            dragManager.cancelDrag();
+            playClickSound();
             return true;
         }
 
@@ -416,41 +508,90 @@ public class OrganizerScreen extends Screen {
         LeftTab leftTab = viewModel.getActiveLeftTab();
         if (leftTab == LeftTab.ORDENADO) {
             float textScale = viewModel.getConfig().getTextScale();
+            float subTabScale = Math.min(0.68f, textScale * 0.78f);
+            TextRenderer tr = this.textRenderer;
+
+            Text sub1Text = Text.literal("▦ ").append(OrdenadoSubTab.ORGANIZADO.getText());
+            int blockedCount = (viewModel.getActiveProfile() != null) ? viewModel.getActiveProfile().getBlockedItems().size() : 0;
+            Text sub2Text = (blockedCount > 0)
+                    ? Text.literal("🔒 ").append(OrdenadoSubTab.BLOQUEADO.getText()).append(" (" + blockedCount + ")")
+                    : Text.literal("🔒 ").append(OrdenadoSubTab.BLOQUEADO.getText());
+            Text sub3Text = Text.literal("🎨 ").append(OrdenadoSubTab.CREAR_PALETA.getText());
+
             int tabHeight = Math.max(16, Math.round(16 * textScale));
             int toolbarY = leftPanelY + tabHeight + 3;
             int toolbarH = 11;
             int gap = 3;
-            int sub1W = Math.min(58, Math.max(46, (leftPanelWidth - 20) / 5));
-            int sub2W = Math.min(68, Math.max(52, (leftPanelWidth - 20) / 5));
+            int sub1W = Math.max(46, Math.round(tr.getWidth(sub1Text) * subTabScale) + 8);
+            int sub2W = Math.max(52, Math.round(tr.getWidth(sub2Text) * subTabScale) + 8);
+            int sub3W = Math.max(54, Math.round(tr.getWidth(sub3Text) * subTabScale) + 8);
 
             int sub1X = leftPanelX;
             int sub2X = sub1X + sub1W + gap;
+            int sub3X = sub2X + sub2W + gap;
 
             if (click.button() == 0 && click.y() >= toolbarY && click.y() <= toolbarY + toolbarH) {
                 if (click.x() >= sub1X && click.x() <= sub1X + sub1W) {
+                    saveScrollPositions();
                     viewModel.setActiveOrdenadoSubTab(OrdenadoSubTab.ORGANIZADO);
+                    restoreScrollPositions();
                     playClickSound();
                     return true;
                 }
                 if (click.x() >= sub2X && click.x() <= sub2X + sub2W) {
+                    saveScrollPositions();
                     viewModel.setActiveOrdenadoSubTab(OrdenadoSubTab.BLOQUEADO);
+                    restoreScrollPositions();
+                    playClickSound();
+                    return true;
+                }
+                if (click.x() >= sub3X && click.x() <= sub3X + sub3W) {
+                    saveScrollPositions();
+                    viewModel.setActiveOrdenadoSubTab(OrdenadoSubTab.CREAR_PALETA);
+                    restoreScrollPositions();
                     playClickSound();
                     return true;
                 }
 
                 if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.ORGANIZADO) {
-                    int remainingW = (leftPanelX + leftPanelWidth) - (sub2X + sub2W + gap * 2);
-                    int btnW = Math.min(78, Math.max(48, (remainingW - gap) / 2));
-                    int btn1X = sub2X + sub2W + gap * 2;
+                    int remainingW = (leftPanelX + leftPanelWidth) - (sub3X + sub3W + gap * 2);
+                    int btnW = Math.min(78, Math.max(44, (remainingW - gap) / 2));
+                    int btn1X = sub3X + sub3W + gap * 2;
                     int btn2X = btn1X + btnW + gap;
 
                     if (click.x() >= btn1X && click.x() <= btn1X + btnW) {
-                        activeConfirmAction = ConfirmAction.SORT_COLOR;
+                        activeModal = ModalDialogComponent.builder()
+                                .parentBounds(0, 0, this.width, this.height)
+                                .size(Math.min(270, this.width - 24), 88)
+                                .type(ModalDialogComponent.ModalType.INFO)
+                                .title(Text.translatable("modal.itemorganizer.sort_color.title"))
+                                .message(Text.translatable("modal.itemorganizer.sort_color.desc"))
+                                .warning(Text.translatable("modal.itemorganizer.warning"))
+                                .confirmButton(Text.translatable("button.itemorganizer.confirm"), () -> {
+                                    executeSortByColor();
+                                    activeModal = null;
+                                })
+                                .cancelButton(Text.translatable("button.itemorganizer.cancel"), () -> activeModal = null)
+                                .closeOnBackdropClick(true)
+                                .build();
                         playClickSound();
                         return true;
                     }
                     if (click.x() >= btn2X && click.x() <= btn2X + btnW) {
-                        activeConfirmAction = ConfirmAction.COMPACT;
+                        activeModal = ModalDialogComponent.builder()
+                                .parentBounds(0, 0, this.width, this.height)
+                                .size(Math.min(270, this.width - 24), 88)
+                                .type(ModalDialogComponent.ModalType.SUCCESS)
+                                .title(Text.translatable("modal.itemorganizer.compact.title"))
+                                .message(Text.translatable("modal.itemorganizer.compact.desc"))
+                                .warning(Text.translatable("modal.itemorganizer.warning"))
+                                .confirmButton(Text.translatable("button.itemorganizer.confirm"), () -> {
+                                    executeCompactItems();
+                                    activeModal = null;
+                                })
+                                .cancelButton(Text.translatable("button.itemorganizer.cancel"), () -> activeModal = null)
+                                .closeOnBackdropClick(true)
+                                .build();
                         playClickSound();
                         return true;
                     }
@@ -461,6 +602,10 @@ public class OrganizerScreen extends Screen {
         if (leftTab == LeftTab.ORDENADO) {
             if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.BLOQUEADO) {
                 if (blockedGridWidget != null && blockedGridWidget.mouseClicked(click, bl)) {
+                    return true;
+                }
+            } else if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.CREAR_PALETA) {
+                if (createPaletteWidget != null && createPaletteWidget.mouseClicked(click)) {
                     return true;
                 }
             } else {
@@ -477,8 +622,21 @@ public class OrganizerScreen extends Screen {
         }
 
         RightTab rightTab = viewModel.getActiveRightTab();
-        if (rightTab == RightTab.PALETAS && paletteListWidget != null && paletteListWidget.mouseClicked(click, bl)) {
-            return true;
+        if (rightTab == RightTab.PALETAS) {
+            if (paletteListWidget != null && paletteListWidget.mouseClicked(click, bl)) {
+                return true;
+            }
+            if (paletteSearchFilterWidget != null && paletteSearchFilterWidget.mouseClicked(click, bl)) {
+                return true;
+            }
+        }
+        if (rightTab == RightTab.INF_PALETAS) {
+            if (infinitePaletteListWidget != null && infinitePaletteListWidget.mouseClicked(click, bl)) {
+                return true;
+            }
+            if (paletteSearchFilterWidget != null && paletteSearchFilterWidget.mouseClicked(click, bl)) {
+                return true;
+            }
         }
         if (rightTab == RightTab.POR_ORGANIZAR && unorganizedGridWidget != null && unorganizedGridWidget.mouseClicked(click, bl)) {
             return true;
@@ -491,49 +649,50 @@ public class OrganizerScreen extends Screen {
             return true;
         }
 
-        return super.mouseClicked(click, bl);
+        boolean handled = super.mouseClicked(click, bl);
+        if (!handled && dragManager.isDragging() && click.button() == 0) {
+            dragManager.startHolding(click.x(), click.y());
+        }
+        return handled;
     }
 
     @Override
     public boolean mouseReleased(net.minecraft.client.gui.Click click) {
         com.itemorganizer.gui.dragdrop.DragAndDropManager dragManager = com.itemorganizer.gui.dragdrop.DragAndDropManager.getInstance();
+        dragManager.onMouseRelease();
 
         if (dragManager.isDragging()) {
+            if (!dragManager.isDraggedBeyondThreshold()) {
+                return true;
+            }
+
+            // drop onto bottom search filter palette
+            if ((viewModel.getActiveRightTab() == RightTab.PALETAS || viewModel.getActiveRightTab() == RightTab.INF_PALETAS) && paletteSearchFilterWidget != null) {
+                int filterSlot = paletteSearchFilterWidget.getSlotAt(click.x(), click.y());
+                if (filterSlot >= 0) {
+                    com.itemorganizer.gui.dragdrop.DragPayload payload = dragManager.consumePayload();
+                    if (payload != null && payload.getItemId() != null) {
+                        java.util.List<String> before = new java.util.ArrayList<>(paletteSearchFilterWidget.getFilterPalette().getSlots());
+                        paletteSearchFilterWidget.getFilterPalette().setSlot(filterSlot, payload.getItemId());
+                        java.util.List<String> after = new java.util.ArrayList<>(paletteSearchFilterWidget.getFilterPalette().getSlots());
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                new com.itemorganizer.gui.undo.PaletteSearchFilterUndoAction(before, after)
+                        );
+                        SoundHelper.playClick();
+                        return true;
+                    }
+                }
+            }
+
             // drop onto bottom hotbar
             if (hotbarWidget != null) {
                 int hotbarSlot = hotbarWidget.getSlotAt(click.x(), click.y());
                 if (hotbarSlot >= 0 && client != null && client.player != null) {
                     com.itemorganizer.gui.dragdrop.DragPayload payload = dragManager.getActivePayload();
-                    if (payload != null) {
-                        if (payload.getSource() == com.itemorganizer.gui.dragdrop.DragSource.HOTBAR) {
-                            int sourceSlot = payload.getSourceIndex();
-                            int targetSlot = hotbarSlot;
-                            if (sourceSlot != targetSlot && sourceSlot >= 0 && sourceSlot < 9) {
-                                net.minecraft.entity.player.PlayerInventory inv = client.player.getInventory();
-                                net.minecraft.item.ItemStack sourceStack = inv.getStack(sourceSlot).copy();
-                                net.minecraft.item.ItemStack targetStack = inv.getStack(targetSlot).copy();
-                                inv.setStack(targetSlot, sourceStack);
-                                inv.setStack(sourceSlot, targetStack);
-                                if (client.getNetworkHandler() != null && client.player.isCreative()) {
-                                    client.getNetworkHandler().sendPacket(new net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket(36 + targetSlot, sourceStack));
-                                    client.getNetworkHandler().sendPacket(new net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket(36 + sourceSlot, targetStack));
-                                }
-                                client.getSoundManager().play(net.minecraft.client.sound.PositionedSoundInstance.master(net.minecraft.sound.SoundEvents.UI_BUTTON_CLICK, 1.0F));
-                            }
-                        } else if (client.player.isCreative()) {
-                            net.minecraft.item.ItemStack stack = new net.minecraft.item.ItemStack(
-                                    payload.getItemStack().getItem(),
-                                    1
-                            );
-                            client.player.getInventory().setStack(hotbarSlot, stack);
-                            if (client.getNetworkHandler() != null) {
-                                client.getNetworkHandler().sendPacket(new net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket(36 + hotbarSlot, stack));
-                            }
-                            client.getSoundManager().play(net.minecraft.client.sound.PositionedSoundInstance.master(net.minecraft.sound.SoundEvents.UI_BUTTON_CLICK, 1.0F));
-                        }
+                    if (payload != null && com.itemorganizer.gui.util.HotbarActionHelper.dropPayloadToSlot(client, payload, hotbarSlot)) {
+                        dragManager.consumePayload();
+                        return true;
                     }
-                    dragManager.consumePayload();
-                    return true;
                 }
             }
 
@@ -541,6 +700,9 @@ public class OrganizerScreen extends Screen {
             if (click.x() >= rightPanelX && click.x() <= rightPanelX + rightPanelWidth) {
                 RightTab rightTab = viewModel.getActiveRightTab();
                 if (rightTab == RightTab.PALETAS && paletteListWidget != null && paletteListWidget.mouseReleased(click)) {
+                    return true;
+                }
+                if (rightTab == RightTab.INF_PALETAS && infinitePaletteListWidget != null && infinitePaletteListWidget.mouseReleased(click)) {
                     return true;
                 }
                 if (rightTab == RightTab.POR_ORGANIZAR && unorganizedGridWidget != null && unorganizedGridWidget.mouseReleased(click)) {
@@ -557,6 +719,8 @@ public class OrganizerScreen extends Screen {
                 if (leftTab == LeftTab.ORDENADO) {
                     if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.BLOQUEADO) {
                         if (blockedGridWidget != null && blockedGridWidget.mouseReleased(click)) return true;
+                    } else if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.CREAR_PALETA) {
+                        if (createPaletteWidget != null && createPaletteWidget.mouseReleased(click)) return true;
                     } else {
                         if (orderedGridWidget != null && orderedGridWidget.mouseReleased(click)) return true;
                     }
@@ -578,6 +742,8 @@ public class OrganizerScreen extends Screen {
         if (leftTab == LeftTab.ORDENADO) {
             if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.BLOQUEADO) {
                 if (blockedGridWidget != null && blockedGridWidget.mouseReleased(click)) return true;
+            } else if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.CREAR_PALETA) {
+                if (createPaletteWidget != null && createPaletteWidget.mouseReleased(click)) return true;
             } else {
                 if (orderedGridWidget != null && orderedGridWidget.mouseReleased(click)) return true;
             }
@@ -593,6 +759,9 @@ public class OrganizerScreen extends Screen {
         if (rightTab == RightTab.PALETAS && paletteListWidget != null && paletteListWidget.mouseReleased(click)) {
             return true;
         }
+        if (rightTab == RightTab.INF_PALETAS && infinitePaletteListWidget != null && infinitePaletteListWidget.mouseReleased(click)) {
+            return true;
+        }
         if (rightTab == RightTab.POR_ORGANIZAR && unorganizedGridWidget != null && unorganizedGridWidget.mouseReleased(click)) {
             return true;
         }
@@ -600,15 +769,23 @@ public class OrganizerScreen extends Screen {
             return true;
         }
 
+        if (hotbarWidget != null) {
+            hotbarWidget.mouseReleased(click);
+        }
+
         return super.mouseReleased(click);
     }
 
     @Override
     public boolean mouseDragged(net.minecraft.client.gui.Click click, double deltaX, double deltaY) {
+        com.itemorganizer.gui.dragdrop.DragAndDropManager.getInstance().onMouseDrag(click.x(), click.y());
+
         LeftTab leftTab = viewModel.getActiveLeftTab();
         if (leftTab == LeftTab.ORDENADO) {
             if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.BLOQUEADO) {
                 if (blockedGridWidget != null && blockedGridWidget.mouseDragged(click, deltaX, deltaY)) return true;
+            } else if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.CREAR_PALETA) {
+                if (createPaletteWidget != null && createPaletteWidget.mouseDragged(click, deltaX, deltaY)) return true;
             } else {
                 if (orderedGridWidget != null && orderedGridWidget.mouseDragged(click, deltaX, deltaY)) return true;
             }
@@ -624,10 +801,17 @@ public class OrganizerScreen extends Screen {
         if (rightTab == RightTab.PALETAS && paletteListWidget != null && paletteListWidget.mouseDragged(click, deltaX, deltaY)) {
             return true;
         }
+        if (rightTab == RightTab.INF_PALETAS && infinitePaletteListWidget != null && infinitePaletteListWidget.mouseDragged(click, deltaX, deltaY)) {
+            return true;
+        }
         if (rightTab == RightTab.POR_ORGANIZAR && unorganizedGridWidget != null && unorganizedGridWidget.mouseDragged(click, deltaX, deltaY)) {
             return true;
         }
         if (rightTab == RightTab.POR_VERSION && versionCatalogWidget != null && versionCatalogWidget.mouseDragged(click, deltaX, deltaY)) {
+            return true;
+        }
+
+        if (hotbarWidget != null && hotbarWidget.mouseDragged(click, deltaX, deltaY)) {
             return true;
         }
 
@@ -640,6 +824,8 @@ public class OrganizerScreen extends Screen {
         if (leftTab == LeftTab.ORDENADO) {
             if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.BLOQUEADO) {
                 if (blockedGridWidget != null && blockedGridWidget.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) return true;
+            } else if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.CREAR_PALETA) {
+                if (createPaletteWidget != null && createPaletteWidget.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) return true;
             } else {
                 if (orderedGridWidget != null && orderedGridWidget.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) return true;
             }
@@ -655,6 +841,9 @@ public class OrganizerScreen extends Screen {
         if (rightTab == RightTab.PALETAS && paletteListWidget != null && paletteListWidget.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) {
             return true;
         }
+        if (rightTab == RightTab.INF_PALETAS && infinitePaletteListWidget != null && infinitePaletteListWidget.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) {
+            return true;
+        }
         if (rightTab == RightTab.POR_ORGANIZAR && unorganizedGridWidget != null && unorganizedGridWidget.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) {
             return true;
         }
@@ -668,22 +857,8 @@ public class OrganizerScreen extends Screen {
     @Override
     public boolean keyPressed(net.minecraft.client.input.KeyInput input) {
         // confirmation modal key handling
-        if (activeConfirmAction != ConfirmAction.NONE) {
-            if (input.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE) {
-                activeConfirmAction = ConfirmAction.NONE;
-                playClickSound();
-                return true;
-            }
-            if (input.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER || input.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_KP_ENTER) {
-                if (activeConfirmAction == ConfirmAction.SORT_COLOR) {
-                    executeSortByColor();
-                } else if (activeConfirmAction == ConfirmAction.COMPACT) {
-                    executeCompactItems();
-                }
-                activeConfirmAction = ConfirmAction.NONE;
-                return true;
-            }
-            return true;
+        if (activeModal != null) {
+            return activeModal.keyPressed(input);
         }
 
         // cancel drag with ESC
@@ -697,6 +872,8 @@ public class OrganizerScreen extends Screen {
         if (leftTab == LeftTab.ORDENADO) {
             if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.BLOQUEADO) {
                 if (blockedGridWidget != null && blockedGridWidget.keyPressed(input)) return true;
+            } else if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.CREAR_PALETA) {
+                if (createPaletteWidget != null && createPaletteWidget.keyPressed(input)) return true;
             } else {
                 if (orderedGridWidget != null && orderedGridWidget.keyPressed(input)) return true;
             }
@@ -712,6 +889,9 @@ public class OrganizerScreen extends Screen {
         if (rightTab == RightTab.PALETAS && paletteListWidget != null && paletteListWidget.keyPressed(input)) {
             return true;
         }
+        if (rightTab == RightTab.INF_PALETAS && infinitePaletteListWidget != null && infinitePaletteListWidget.keyPressed(input)) {
+            return true;
+        }
         if (rightTab == RightTab.POR_ORGANIZAR && unorganizedGridWidget != null && unorganizedGridWidget.keyPressed(input)) {
             return true;
         }
@@ -719,8 +899,48 @@ public class OrganizerScreen extends Screen {
             return true;
         }
 
+        // toggle close if open key is pressed
+        KeyBinding openKey = ItemOrganizerClient.getOpenKeyBinding();
+        if (openKey != null && openKey.matchesKey(input)) {
+            if (!isAnyInputFocused()) {
+                this.close();
+                return true;
+            }
+        }
+
+        InputUtil.Key pressedKey = InputUtil.fromKeyCode(input);
+        String openKeyStr = viewModel.getConfig().getKeyOpenClose();
+        if (pressedKey != null && openKeyStr != null && pressedKey.getTranslationKey().equalsIgnoreCase(openKeyStr)) {
+            if (!isAnyInputFocused()) {
+                this.close();
+                return true;
+            }
+        }
+
+        // undo / redo action (Ctrl + Z, Ctrl + Shift + Z, Ctrl + Y)
+        if (com.itemorganizer.gui.util.HotbarActionHelper.hasControlDown()) {
+            String undoKeyStr = viewModel.getConfig().getKeyUndo();
+            String redoKeyStr = viewModel.getConfig().getKeyRedo();
+            if (pressedKey != null) {
+                if (com.itemorganizer.gui.util.HotbarActionHelper.hasShiftDown()) {
+                    if (undoKeyStr != null && pressedKey.getTranslationKey().equalsIgnoreCase(undoKeyStr)) {
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().redo(this.client, viewModel);
+                        return true;
+                    }
+                } else {
+                    if (undoKeyStr != null && pressedKey.getTranslationKey().equalsIgnoreCase(undoKeyStr)) {
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().undo(this.client, viewModel);
+                        return true;
+                    }
+                }
+                if (redoKeyStr != null && pressedKey.getTranslationKey().equalsIgnoreCase(redoKeyStr)) {
+                    com.itemorganizer.gui.undo.UndoManager.getInstance().redo(this.client, viewModel);
+                    return true;
+                }
+            }
+        }
+
         // quick append key to organized grid
-        net.minecraft.client.util.InputUtil.Key pressedKey = net.minecraft.client.util.InputUtil.fromKeyCode(input);
         String appendKey = viewModel.getConfig().getKeyQuickAppend();
         if (pressedKey != null && pressedKey.getTranslationKey().equalsIgnoreCase(appendKey)) {
             String hoveredItem = null;
@@ -749,17 +969,14 @@ public class OrganizerScreen extends Screen {
 
         // do not append if blocker is active
         if (viewModel.isBlockerActive()) {
-            if (client != null && client.getSoundManager() != null) {
-                client.getSoundManager().play(
-                        net.minecraft.client.sound.PositionedSoundInstance.master(net.minecraft.sound.SoundEvents.BLOCK_CHEST_LOCKED, 1.0F)
-                );
-            }
+            SoundHelper.playLock();
             return;
         }
 
         com.itemorganizer.core.model.ProfileData profile = viewModel.getActiveProfile();
         if (profile == null) return;
 
+        com.itemorganizer.core.model.ProfileData before = profile.snapshot();
         // remove existing copy before re-appending to end
         profile.removeItem(itemId);
 
@@ -784,16 +1001,19 @@ public class OrganizerScreen extends Screen {
         profile.setItemAt(itemId, targetX, targetY);
         com.itemorganizer.storage.StorageManager.getInstance().getProfileRepository().saveProfile(profile);
         viewModel.recomputeUnorganizedItems();
+        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+        );
 
-        if (client != null && client.getSoundManager() != null) {
-            client.getSoundManager().play(
-                    net.minecraft.client.sound.PositionedSoundInstance.master(net.minecraft.sound.SoundEvents.ENTITY_ITEM_PICKUP, 1.0F)
-            );
-        }
+        SoundHelper.playPickup();
     }
 
     @Override
     public boolean charTyped(net.minecraft.client.input.CharInput input) {
+        if (activeModal != null) {
+            return activeModal.charTyped(input);
+        }
+
         LeftTab leftTab = viewModel.getActiveLeftTab();
         if (leftTab == LeftTab.PERFILES && profileManagerWidget != null && profileManagerWidget.charTyped(input)) {
             return true;
@@ -806,6 +1026,9 @@ public class OrganizerScreen extends Screen {
         if (rightTab == RightTab.PALETAS && paletteListWidget != null && paletteListWidget.charTyped(input)) {
             return true;
         }
+        if (rightTab == RightTab.INF_PALETAS && infinitePaletteListWidget != null && infinitePaletteListWidget.charTyped(input)) {
+            return true;
+        }
 
         return super.charTyped(input);
     }
@@ -815,163 +1038,112 @@ public class OrganizerScreen extends Screen {
         return false;
     }
 
+    private boolean isAnyInputFocused() {
+        if (activeModal != null) return true;
+        if (viewModel.getActiveRightTab() == RightTab.PALETAS && paletteListWidget != null) {
+            if (paletteListWidget.isEditingOrSearching()) return true;
+        }
+        if (viewModel.getActiveRightTab() == RightTab.INF_PALETAS && infinitePaletteListWidget != null) {
+            if (infinitePaletteListWidget.isEditingOrSearching()) return true;
+        }
+        if (viewModel.getActiveLeftTab() == LeftTab.PERFILES && profileManagerWidget != null) {
+            if (profileManagerWidget.isEditingOrSearching()) return true;
+        }
+        if (viewModel.getActiveLeftTab() == LeftTab.CONFIG && configWidget != null) {
+            if (configWidget.isEditingOrSearching()) return true;
+        }
+        return false;
+    }
+
     public OrganizerViewModel getViewModel() {
         return viewModel;
     }
 
     private void renderOrdenadoToolbar(DrawContext context, net.minecraft.client.font.TextRenderer tr, int mouseX, int mouseY) {
         float textScale = viewModel.getConfig().getTextScale();
+        float subTabScale = Math.min(0.68f, textScale * 0.78f);
         int tabHeight = Math.max(16, Math.round(16 * textScale));
         int toolbarY = leftPanelY + tabHeight + 3;
         int toolbarH = 11;
         int gap = 3;
 
-        int sub1W = Math.min(58, Math.max(46, (leftPanelWidth - 20) / 5));
-        int sub2W = Math.min(68, Math.max(52, (leftPanelWidth - 20) / 5));
-
-        // subtab 1: organized
-        int sub1X = leftPanelX;
-        boolean isSub1Active = (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.ORGANIZADO);
-        boolean hoverSub1 = (activeConfirmAction == ConfirmAction.NONE && mouseX >= sub1X && mouseX <= sub1X + sub1W && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
-        int bgSub1 = isSub1Active ? 0x3338BDF8 : (hoverSub1 ? 0x22FFFFFF : 0x14FFFFFF);
-        int borderSub1 = isSub1Active ? 0xFF38BDF8 : (hoverSub1 ? 0x4DFFFFFF : 0x25FFFFFF);
-        int textSub1 = isSub1Active ? 0xFF38BDF8 : (hoverSub1 ? 0xFFFFFFFF : 0xFFCBD5E1);
-
-        context.fill(sub1X, toolbarY, sub1X + sub1W, toolbarY + toolbarH, bgSub1);
-        RenderHelper.drawBorder(context, sub1X, toolbarY, sub1W, toolbarH, borderSub1);
         Text sub1Text = Text.literal("▦ ").append(OrdenadoSubTab.ORGANIZADO.getText());
-        TextScaleHelper.drawVerticallyCenteredScaledText(
-                context, tr, sub1Text, sub1X + sub1W / 2, toolbarY + toolbarH / 2, textSub1, true, Math.min(0.70f, textScale * 0.80f)
-        );
-
-        // subtab 2: blocked
         int blockedCount = (viewModel.getActiveProfile() != null) ? viewModel.getActiveProfile().getBlockedItems().size() : 0;
         Text sub2Text = (blockedCount > 0)
                 ? Text.literal("🔒 ").append(OrdenadoSubTab.BLOQUEADO.getText()).append(" (" + blockedCount + ")")
                 : Text.literal("🔒 ").append(OrdenadoSubTab.BLOQUEADO.getText());
+        Text sub3Text = Text.literal("🎨 ").append(OrdenadoSubTab.CREAR_PALETA.getText());
+
+        int sub1W = Math.max(46, Math.round(tr.getWidth(sub1Text) * subTabScale) + 8);
+        int sub2W = Math.max(52, Math.round(tr.getWidth(sub2Text) * subTabScale) + 8);
+        int sub3W = Math.max(54, Math.round(tr.getWidth(sub3Text) * subTabScale) + 8);
+
+        // subtab 1: organized
+        int sub1X = leftPanelX;
+        boolean isSub1Active = (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.ORGANIZADO);
+        boolean hoverSub1 = (activeModal == null && mouseX >= sub1X && mouseX <= sub1X + sub1W && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
+        int bgSub1 = isSub1Active ? UITheme.PRIMARY_BG : (hoverSub1 ? UITheme.BG_HOVER : UITheme.BG_SURFACE_HOVER);
+        int borderSub1 = isSub1Active ? UITheme.PRIMARY : (hoverSub1 ? UITheme.BORDER_HOVER : UITheme.BORDER_SUBTLE);
+        int textSub1 = isSub1Active ? UITheme.PRIMARY : (hoverSub1 ? UITheme.TEXT_WHITE : UITheme.TEXT_SECONDARY);
+
+        RenderHelper.drawButton(context, tr, sub1X, toolbarY, sub1W, toolbarH, sub1Text, hoverSub1,
+                bgSub1, bgSub1, borderSub1, borderSub1, textSub1, textSub1, subTabScale);
+
+        // subtab 2: blocked
         int sub2X = sub1X + sub1W + gap;
         boolean isSub2Active = (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.BLOQUEADO);
-        boolean hoverSub2 = (activeConfirmAction == ConfirmAction.NONE && mouseX >= sub2X && mouseX <= sub2X + sub2W && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
-        int bgSub2 = isSub2Active ? 0x3338BDF8 : (hoverSub2 ? 0x22FFFFFF : 0x14FFFFFF);
-        int borderSub2 = isSub2Active ? 0xFF38BDF8 : (hoverSub2 ? 0x4DFFFFFF : 0x25FFFFFF);
-        int textSub2 = isSub2Active ? 0xFF38BDF8 : (hoverSub2 ? 0xFFFFFFFF : 0xFFCBD5E1);
+        boolean hoverSub2 = (activeModal == null && mouseX >= sub2X && mouseX <= sub2X + sub2W && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
+        int bgSub2 = isSub2Active ? UITheme.PRIMARY_BG : (hoverSub2 ? UITheme.BG_HOVER : UITheme.BG_SURFACE_HOVER);
+        int borderSub2 = isSub2Active ? UITheme.PRIMARY : (hoverSub2 ? UITheme.BORDER_HOVER : UITheme.BORDER_SUBTLE);
+        int textSub2 = isSub2Active ? UITheme.PRIMARY : (hoverSub2 ? UITheme.TEXT_WHITE : UITheme.TEXT_SECONDARY);
 
-        context.fill(sub2X, toolbarY, sub2X + sub2W, toolbarY + toolbarH, bgSub2);
-        RenderHelper.drawBorder(context, sub2X, toolbarY, sub2W, toolbarH, borderSub2);
-        TextScaleHelper.drawVerticallyCenteredScaledText(
-                context, tr, sub2Text, sub2X + sub2W / 2, toolbarY + toolbarH / 2, textSub2, true, Math.min(0.68f, textScale * 0.78f)
-        );
+        RenderHelper.drawButton(context, tr, sub2X, toolbarY, sub2W, toolbarH, sub2Text, hoverSub2,
+                bgSub2, bgSub2, borderSub2, borderSub2, textSub2, textSub2, subTabScale);
+
+        // subtab 3: crear paleta
+        int sub3X = sub2X + sub2W + gap;
+        boolean isSub3Active = (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.CREAR_PALETA);
+        boolean hoverSub3 = (activeModal == null && mouseX >= sub3X && mouseX <= sub3X + sub3W && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
+        int bgSub3 = isSub3Active ? UITheme.PRIMARY_BG : (hoverSub3 ? UITheme.BG_HOVER : UITheme.BG_SURFACE_HOVER);
+        int borderSub3 = isSub3Active ? UITheme.PRIMARY : (hoverSub3 ? UITheme.BORDER_HOVER : UITheme.BORDER_SUBTLE);
+        int textSub3 = isSub3Active ? UITheme.PRIMARY : (hoverSub3 ? UITheme.TEXT_WHITE : UITheme.TEXT_SECONDARY);
+
+        RenderHelper.drawButton(context, tr, sub3X, toolbarY, sub3W, toolbarH, sub3Text, hoverSub3,
+                bgSub3, bgSub3, borderSub3, borderSub3, textSub3, textSub3, subTabScale);
 
         if (isSub1Active) {
             // action buttons
-            int remainingW = (leftPanelX + leftPanelWidth) - (sub2X + sub2W + gap * 2);
-            int btnW = Math.min(78, Math.max(48, (remainingW - gap) / 2));
-            int btn1X = sub2X + sub2W + gap * 2;
+            int remainingW = (leftPanelX + leftPanelWidth) - (sub3X + sub3W + gap * 2);
+            int btnW = Math.min(78, Math.max(44, (remainingW - gap) / 2));
+            int btn1X = sub3X + sub3W + gap * 2;
 
             // gradient sort button
-            boolean hover1 = (activeConfirmAction == ConfirmAction.NONE && mouseX >= btn1X && mouseX <= btn1X + btnW && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
-            int bg1 = hover1 ? 0x4D2A4A6A : 0x22FFFFFF;
-            int border1 = hover1 ? 0xFF38BDF8 : 0x33FFFFFF;
-            int text1 = hover1 ? 0xFFFFFFFF : 0xFFCBD5E1;
-
-            context.fill(btn1X, toolbarY, btn1X + btnW, toolbarY + toolbarH, bg1);
-            RenderHelper.drawBorder(context, btn1X, toolbarY, btnW, toolbarH, border1);
+            boolean hover1 = (activeModal == null && mouseX >= btn1X && mouseX <= btn1X + btnW && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
             Text gradientBtnText = Text.literal("🎨 ").append(Text.translatable("button.itemorganizer.gradient"));
-            TextScaleHelper.drawVerticallyCenteredScaledText(
-                    context, tr, gradientBtnText, btn1X + btnW / 2, toolbarY + toolbarH / 2, text1, true, Math.min(0.70f, textScale * 0.80f)
-            );
+            RenderHelper.drawButton(context, tr, btn1X, toolbarY, btnW, toolbarH, gradientBtnText, hover1,
+                    UITheme.BG_SURFACE_HOVER, UITheme.PRIMARY_BG, UITheme.BORDER_SUBTLE, UITheme.PRIMARY,
+                    UITheme.TEXT_SECONDARY, UITheme.TEXT_WHITE, Math.min(0.70f, textScale * 0.80f));
             if (hover1) {
                 activeToolbarTooltip = Text.translatable("tooltip.itemorganizer.gradient").getString();
             }
 
             // compact button
             int btn2X = btn1X + btnW + gap;
-            boolean hover2 = (activeConfirmAction == ConfirmAction.NONE && mouseX >= btn2X && mouseX <= btn2X + btnW && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
-            int bg2 = hover2 ? 0x4D2E5538 : 0x22FFFFFF;
-            int border2 = hover2 ? 0xFF34D399 : 0x33FFFFFF;
-            int text2 = hover2 ? 0xFFFFFFFF : 0xFFCBD5E1;
-
-            context.fill(btn2X, toolbarY, btn2X + btnW, toolbarY + toolbarH, bg2);
-            RenderHelper.drawBorder(context, btn2X, toolbarY, btnW, toolbarH, border2);
+            boolean hover2 = (activeModal == null && mouseX >= btn2X && mouseX <= btn2X + btnW && mouseY >= toolbarY && mouseY <= toolbarY + toolbarH);
             Text compactBtnText = Text.literal("🧹 ").append(Text.translatable("button.itemorganizer.compact"));
-            TextScaleHelper.drawVerticallyCenteredScaledText(
-                    context, tr, compactBtnText, btn2X + btnW / 2, toolbarY + toolbarH / 2, text2, true, Math.min(0.70f, textScale * 0.80f)
-            );
+            RenderHelper.drawButton(context, tr, btn2X, toolbarY, btnW, toolbarH, compactBtnText, hover2,
+                    UITheme.BG_SURFACE_HOVER, UITheme.SUCCESS_BG, UITheme.BORDER_SUBTLE, UITheme.SUCCESS,
+                    UITheme.TEXT_SECONDARY, UITheme.TEXT_WHITE, Math.min(0.70f, textScale * 0.80f));
             if (hover2) {
                 activeToolbarTooltip = Text.translatable("tooltip.itemorganizer.compact").getString();
             }
-        } else {
+        } else if (isSub2Active) {
             // hint for unlocking
-            int tipX = sub2X + sub2W * 2 + gap;
+            int tipX = sub3X + sub3W + gap * 2;
             TextScaleHelper.drawVerticallyCenteredScaledText(
-                    context, tr, Text.translatable("tip.itemorganizer.unlock_hint"), tipX, toolbarY + toolbarH / 2, 0xFF94A3B8, false, Math.min(0.70f, textScale * 0.78f)
+                    context, tr, Text.translatable("tip.itemorganizer.unlock_hint"), tipX, toolbarY + toolbarH / 2, UITheme.TEXT_MUTED, false, Math.min(0.70f, textScale * 0.78f)
             );
         }
-    }
-
-    private void renderConfirmModal(DrawContext context, net.minecraft.client.font.TextRenderer tr, int mouseX, int mouseY) {
-        float textScale = viewModel.getConfig().getTextScale();
-
-        // dark backdrop
-        context.fill(0, 0, this.width, this.height, 0x99000000);
-
-        // modal dialog box
-        int modalW = Math.min(270, this.width - 24);
-        int modalH = 88;
-        int modalX = (this.width - modalW) / 2;
-        int modalY = (this.height - modalH) / 2;
-
-        context.fill(modalX, modalY, modalX + modalW, modalY + modalH, 0xFF141820);
-
-        int borderColor = (activeConfirmAction == ConfirmAction.SORT_COLOR) ? 0xFF38BDF8 : 0xFF34D399;
-        RenderHelper.drawBorder(context, modalX, modalY, modalW, modalH, borderColor);
-
-        // title
-        Text title = (activeConfirmAction == ConfirmAction.SORT_COLOR)
-                ? Text.translatable("modal.itemorganizer.sort_color.title")
-                : Text.translatable("modal.itemorganizer.compact.title");
-        int titleColor = (activeConfirmAction == ConfirmAction.SORT_COLOR) ? 0xFF38BDF8 : 0xFF34D399;
-        TextScaleHelper.drawCenteredScaledText(
-                context, tr, title, modalX + modalW / 2, modalY + 8, titleColor, textScale
-        );
-
-        // description
-        Text desc = (activeConfirmAction == ConfirmAction.SORT_COLOR)
-                ? Text.translatable("modal.itemorganizer.sort_color.desc")
-                : Text.translatable("modal.itemorganizer.compact.desc");
-        TextScaleHelper.drawCenteredScaledText(
-                context, tr, desc, modalX + modalW / 2, modalY + 24, 0xFFD1D5DB, textScale * 0.9f
-        );
-
-        Text warning = Text.translatable("modal.itemorganizer.warning");
-        TextScaleHelper.drawCenteredScaledText(
-                context, tr, warning, modalX + modalW / 2, modalY + 38, 0xFF94A3B8, textScale * 0.85f
-        );
-
-        // confirm and cancel buttons
-        int btnW = (modalW - 28) / 2;
-        int btnH = 18;
-        int btnY = modalY + modalH - 24;
-
-        int confirmBtnX = modalX + 10;
-        boolean hoverConfirm = (mouseX >= confirmBtnX && mouseX <= confirmBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH);
-        int confirmBg = hoverConfirm ? ((activeConfirmAction == ConfirmAction.SORT_COLOR) ? 0xDD1E40AF : 0xDD065F46) : 0xAA1E293B;
-        int confirmBorder = hoverConfirm ? ((activeConfirmAction == ConfirmAction.SORT_COLOR) ? 0xFF60A5FA : 0xFF34D399) : 0xFF475569;
-        context.fill(confirmBtnX, btnY, confirmBtnX + btnW, btnY + btnH, confirmBg);
-        RenderHelper.drawBorder(context, confirmBtnX, btnY, btnW, btnH, confirmBorder);
-        TextScaleHelper.drawCenteredScaledText(
-                context, tr, Text.translatable("button.itemorganizer.confirm"), confirmBtnX + btnW / 2, btnY + 5, 0xFFFFFFFF, textScale
-        );
-
-        int cancelBtnX = confirmBtnX + btnW + 8;
-        boolean hoverCancel = (mouseX >= cancelBtnX && mouseX <= cancelBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH);
-        int cancelBg = hoverCancel ? 0xDD7F1D1D : 0xAA2A2A2A;
-        int cancelBorder = hoverCancel ? 0xFFEF4444 : 0xFF555555;
-        context.fill(cancelBtnX, btnY, cancelBtnX + btnW, btnY + btnH, cancelBg);
-        RenderHelper.drawBorder(context, cancelBtnX, btnY, btnW, btnH, cancelBorder);
-        TextScaleHelper.drawCenteredScaledText(
-                context, tr, Text.translatable("button.itemorganizer.cancel"), cancelBtnX + btnW / 2, btnY + 5, 0xFFFFFFFF, textScale
-        );
     }
 
     private void executeSortByColor() {
@@ -982,6 +1154,7 @@ public class OrganizerScreen extends Screen {
         com.itemorganizer.core.model.ProfileData profile = viewModel.getActiveProfile();
         if (profile == null || profile.getItems().isEmpty()) return;
 
+        com.itemorganizer.core.model.ProfileData before = profile.snapshot();
         int cols = profile.getColumnCount() > 0 ? profile.getColumnCount() : (orderedGridWidget != null ? orderedGridWidget.getColumnCount() : 9);
         cols = Math.max(1, cols);
 
@@ -992,6 +1165,9 @@ public class OrganizerScreen extends Screen {
             if (orderedGridWidget != null) {
                 orderedGridWidget.reflowIfNeeded();
             }
+            com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                    new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+            );
             playSuccessSound();
         } catch (Throwable t) {
             com.itemorganizer.ItemOrganizer.LOGGER.error("Error sorting items by color: ", t);
@@ -1007,6 +1183,7 @@ public class OrganizerScreen extends Screen {
         com.itemorganizer.core.model.ProfileData profile = viewModel.getActiveProfile();
         if (profile == null || profile.getItems().isEmpty()) return;
 
+        com.itemorganizer.core.model.ProfileData before = profile.snapshot();
         int cols = profile.getColumnCount() > 0 ? profile.getColumnCount() : (orderedGridWidget != null ? orderedGridWidget.getColumnCount() : 9);
         cols = Math.max(1, cols);
 
@@ -1017,6 +1194,9 @@ public class OrganizerScreen extends Screen {
             if (orderedGridWidget != null) {
                 orderedGridWidget.reflowIfNeeded();
             }
+            com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                    new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+            );
             playSuccessSound();
         } catch (Throwable t) {
             com.itemorganizer.ItemOrganizer.LOGGER.error("Error compacting items: ", t);
@@ -1025,26 +1205,14 @@ public class OrganizerScreen extends Screen {
     }
 
     private void playClickSound() {
-        if (client != null && client.getSoundManager() != null) {
-            client.getSoundManager().play(
-                    net.minecraft.client.sound.PositionedSoundInstance.master(net.minecraft.sound.SoundEvents.UI_BUTTON_CLICK, 1.0F)
-            );
-        }
+        SoundHelper.playClick();
     }
 
     private void playSuccessSound() {
-        if (client != null && client.getSoundManager() != null) {
-            client.getSoundManager().play(
-                    net.minecraft.client.sound.PositionedSoundInstance.master(net.minecraft.sound.SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, 1.0F)
-            );
-        }
+        SoundHelper.playChime();
     }
 
     private void playLockedSound() {
-        if (client != null && client.getSoundManager() != null) {
-            client.getSoundManager().play(
-                    net.minecraft.client.sound.PositionedSoundInstance.master(net.minecraft.sound.SoundEvents.BLOCK_CHEST_LOCKED, 1.0F)
-            );
-        }
+        SoundHelper.playLock();
     }
 }

@@ -1,9 +1,14 @@
 package com.itemorganizer.gui.widget;
 
+import com.itemorganizer.core.model.ProfileData;
 import com.itemorganizer.core.model.VersionCatalog;
+import com.itemorganizer.storage.StorageManager;
+import com.itemorganizer.gui.component.ScrollbarComponent;
 import com.itemorganizer.gui.dragdrop.DragAndDropManager;
 import com.itemorganizer.gui.dragdrop.DragPayload;
 import com.itemorganizer.gui.dragdrop.DragSource;
+import com.itemorganizer.gui.theme.UITheme;
+import com.itemorganizer.gui.util.HotbarActionHelper;
 import com.itemorganizer.gui.util.RenderHelper;
 import com.itemorganizer.gui.viewmodel.OrganizerViewModel;
 import net.minecraft.client.MinecraftClient;
@@ -14,15 +19,9 @@ import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.Selectable;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.input.KeyInput;
-import net.minecraft.client.sound.PositionedSoundInstance;
-import net.minecraft.item.Item;
+import com.itemorganizer.gui.util.SoundHelper;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.network.packet.c2s.play.CreativeInventoryActionC2SPacket;
-import net.minecraft.registry.Registries;
-import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
 
 import java.util.List;
 import java.util.Map;
@@ -40,9 +39,10 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
     private int width;
     private int height;
 
-    private final VerticalScrollbar scrollbar;
+    private final ScrollbarComponent scrollbar;
     private String hoveredItemId = null;
     private ItemStack hoveredStack = ItemStack.EMPTY;
+    private String lastShiftItemId = null;
 
     public VersionCatalogWidget(OrganizerViewModel viewModel, int x, int y, int width, int height) {
         this.viewModel = viewModel;
@@ -52,7 +52,7 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
         this.height = height;
 
         // scrollbar on right edge
-        this.scrollbar = new VerticalScrollbar(x + width - SCROLLBAR_WIDTH - 2, y + 2, SCROLLBAR_WIDTH, height - 4);
+        this.scrollbar = new ScrollbarComponent(x + width - SCROLLBAR_WIDTH - 2, y + 2, SCROLLBAR_WIDTH, height - 4);
     }
 
     public void setBounds(int x, int y, int width, int height) {
@@ -153,29 +153,13 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
                         String itemId = items.get(i);
                         boolean isHovered = itemId.equals(hoveredItemId) && isMouseOver(mouseX, mouseY);
 
-                        // slot background
-                        int bgColor = isHovered ? 0x301E293B : 0x00000000;
-                        context.fill(slotX, slotY, slotX + slotSize, slotY + slotSize, bgColor);
+                        int bgColor = isHovered ? UITheme.BG_ACTIVE : 0x00000000;
+                        int borderColor = isHovered ? UITheme.PRIMARY : 0x00000000;
 
-                        // slot border
-                        int borderColor = isHovered ? 0xFF38BDF8 : 0x00000000;
-                        RenderHelper.drawBorder(context, slotX, slotY, slotSize, slotSize, borderColor);
-
-                        ItemStack stack = getItemStackFromId(itemId);
-                        if (!stack.isEmpty()) {
-                            float effectiveScale = ((float) slotSize / 18.0f) * viewModel.getConfig().getItemScale();
-                            float cx = slotX + (slotSize - 1) / 2.0f;
-                            float cy = slotY + (slotSize - 1) / 2.0f;
-
-                            context.getMatrices().pushMatrix();
-                            context.getMatrices().translate(cx, cy);
-                            context.getMatrices().scale(effectiveScale, effectiveScale);
-
-                            context.drawItem(stack, -8, -8);
-                            context.drawStackOverlay(client.textRenderer, stack, -8, -8);
-
-                            context.getMatrices().popMatrix();
-                        }
+                        ItemStack stack = RenderHelper.getItemStack(itemId);
+                        float itemScale = viewModel.getConfig().getItemScale();
+                        RenderHelper.renderSlot(context, client.textRenderer, stack, slotX, slotY, slotSize, itemScale,
+                                false, bgColor, bgColor, borderColor, borderColor);
                     }
                 }
             }
@@ -226,7 +210,7 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
                     int index = row * cols + col;
                     if (index >= 0 && index < items.size()) {
                         hoveredItemId = items.get(index);
-                        hoveredStack = getItemStackFromId(hoveredItemId);
+                        hoveredStack = RenderHelper.getItemStack(hoveredItemId);
                         return;
                     }
                 }
@@ -241,15 +225,7 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
     }
 
     public ItemStack getItemStackFromId(String itemId) {
-        if (itemId == null || itemId.isEmpty()) return ItemStack.EMPTY;
-        Identifier id = Identifier.tryParse(itemId);
-        if (id != null) {
-            Item item = Registries.ITEM.get(id);
-            if (item != null && item != Items.AIR) {
-                return new ItemStack(item);
-            }
-        }
-        return ItemStack.EMPTY;
+        return RenderHelper.getItemStack(itemId);
     }
 
     @Override
@@ -258,10 +234,36 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
             return true;
         }
 
-        // start drag with left click (catalog items copy by default)
+        if (isMouseOver(click.x(), click.y())) {
+            DragAndDropManager dragManager = DragAndDropManager.getInstance();
+            if (dragManager.isDragging() && click.button() == 0) {
+                DragPayload payload = dragManager.consumePayload();
+                if (payload != null && payload.getSource() == DragSource.ORDENADO && !payload.isCopy()) {
+                    ProfileData profile = viewModel.getActiveProfile();
+                    if (profile != null) {
+                        ProfileData before = profile.snapshot();
+                        profile.removeAt(payload.getSourceCol(), payload.getSourceRow());
+                        StorageManager.getInstance().getProfileRepository().saveProfile(profile);
+                        viewModel.recomputeUnorganizedItems();
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+                        );
+                    }
+                }
+                SoundHelper.playClick();
+                return true;
+            }
+        }
+
+        // start drag or shift-click with left click (catalog items copy by default)
         if (click.button() == 0 && hoveredItemId != null && !hoveredStack.isEmpty()) {
+            if (HotbarActionHelper.hasShiftDown(click)) {
+                HotbarActionHelper.quickMoveToHotbar(MinecraftClient.getInstance(), hoveredStack);
+                lastShiftItemId = hoveredItemId;
+                return true;
+            }
             DragPayload payload = DragPayload.ofIndexed(hoveredItemId, hoveredStack, DragSource.POR_VERSION, 0, true);
-            DragAndDropManager.getInstance().startDrag(payload);
+            DragAndDropManager.getInstance().startDrag(payload, click.x(), click.y());
             return true;
         }
 
@@ -270,9 +272,35 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
 
     @Override
     public boolean mouseReleased(Click click) {
+        lastShiftItemId = null;
         if (scrollbar.mouseReleased(click)) {
             return true;
         }
+
+        DragAndDropManager dragManager = DragAndDropManager.getInstance();
+        if (dragManager.isDragging()) {
+            if (!dragManager.isDraggedBeyondThreshold()) {
+                return false;
+            }
+            if (isMouseOver(click.x(), click.y())) {
+                DragPayload payload = dragManager.consumePayload();
+                if (payload != null && payload.getSource() == DragSource.ORDENADO && !payload.isCopy()) {
+                    ProfileData profile = viewModel.getActiveProfile();
+                    if (profile != null) {
+                        ProfileData before = profile.snapshot();
+                        profile.removeAt(payload.getSourceCol(), payload.getSourceRow());
+                        StorageManager.getInstance().getProfileRepository().saveProfile(profile);
+                        viewModel.recomputeUnorganizedItems();
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+                        );
+                    }
+                }
+                SoundHelper.playClick();
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -281,6 +309,19 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
         if (scrollbar.mouseDragged(click, deltaX, deltaY)) {
             return true;
         }
+
+        if (click.button() == 0 && HotbarActionHelper.hasShiftDown(click)) {
+            VersionCatalog catalog = viewModel.getVersionCatalog();
+            if (catalog != null) {
+                updateHover(click.x(), click.y(), catalog);
+                if (hoveredItemId != null && !hoveredItemId.equals(lastShiftItemId) && !hoveredStack.isEmpty()) {
+                    lastShiftItemId = hoveredItemId;
+                    HotbarActionHelper.quickMoveToHotbar(MinecraftClient.getInstance(), hoveredStack);
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 
@@ -296,21 +337,9 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
     public boolean keyPressed(KeyInput input) {
         MinecraftClient client = MinecraftClient.getInstance();
 
-        // quick assign to hotbar (keys 1-9 in creative)
-        if (!hoveredStack.isEmpty() && client.player != null) {
-            for (int i = 0; i < 9; i++) {
-                if (client.options.hotbarKeys[i].matchesKey(input)) {
-                    if (client.player.isCreative()) {
-                        ItemStack giveStack = new ItemStack(hoveredStack.getItem(), 1);
-                        client.player.getInventory().setStack(i, giveStack);
-                        if (client.getNetworkHandler() != null) {
-                            client.getNetworkHandler().sendPacket(new CreativeInventoryActionC2SPacket(36 + i, giveStack));
-                        }
-                        client.getSoundManager().play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-                        return true;
-                    }
-                }
-            }
+        // 1-9 hotbar keys
+        if (HotbarActionHelper.handleHotbarKeyPress(client, input, hoveredStack)) {
+            return true;
         }
         return false;
     }
@@ -336,5 +365,13 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
 
     @Override
     public void appendNarrations(NarrationMessageBuilder builder) {
+    }
+
+    public double getScrollOffset() {
+        return scrollbar.getScrollOffset();
+    }
+
+    public void setScrollOffset(double offset) {
+        scrollbar.setScrollOffset(offset);
     }
 }

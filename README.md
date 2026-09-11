@@ -1,94 +1,93 @@
-﻿# Item Organizer
+# Item Organizer 🎨
 
 <p align="center">
-  <img src="src/main/resources/assets/item-organizer/icon.png" alt="Item Organizer Logo" width="128" height="128">
+  <img src="https://github.com/PrimityArtur/MC-Item-Organizer/blob/1.21.11/src/main/resources/assets/item-organizer/icon.png?raw=true" alt="Item Organizer Logo" width="128" height="128">
 </p>
 
 <p align="center">
-  <strong>A visual inventory and palette manager for Minecraft Fabric.</strong><br>
-  Sort blocks and items by chromatic color gradient, manage hotbar palettes, and customize your creative workflow.
+  <strong>Visual inventory, palette manager, and builder workspace for Minecraft Fabric.</strong><br>
+  Customizable layouts, chromatic color gradients, and hotbar building palettes.
 </p>
 
 <p align="center">
   <a href="https://github.com/PrimityArtur/MC-Item-Organizer/releases"><img src="https://img.shields.io/github/v/release/PrimityArtur/MC-Item-Organizer?color=brightgreen&label=release" alt="Release"></a>
   <a href="https://fabricmc.net/"><img src="https://img.shields.io/badge/Loader-Fabric-blue" alt="Fabric"></a>
-  <a href="https://minecraft.net/"><img src="https://img.shields.io/badge/Minecraft-1.21.10-orange" alt="Minecraft 1.21.10"></a>
+  <a href="https://minecraft.net/"><img src="https://img.shields.io/badge/Minecraft-1.21.11-orange" alt="Minecraft 1.21.11"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="License"></a>
+</p>
+
+<p align="center">
+  <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/v0TQolDc2f4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 </p>
 
 ---
 
-## Overview
+## 📖 What the Mod Does
 
-**Item Organizer** is a client-side Fabric mod designed for builders, creators, and organizers. It analyzes the perceptual color and shape of blocks and items—including modded items—to arrange them in a smooth chromatic color gradient.
+**Item Organizer** is a client-side Fabric mod that replaces the creative inventory with an organized builder workspace. It features custom grid layouts, texture-based color sorting, and hotbar palette management. In Survival mode, it serves as a visual item catalog and reference guide.
 
-Whether you need quick hotbar palettes for building gradients or want a structured overview of all blocks in the game, Item Organizer streamlines your workflow.
+### 🌟 Core Features & Panels
 
----
-
-## Features
-
-- **Chromatic Color Sorting**: Automatically sorts blocks and items by perceptual hue, saturation, and luminance.
-- **Dynamic Model & Texture Inspection**: Intelligently identifies non-cube items, glass panes, bars, pottery sherds, mob heads, slabs, and stairs without requiring hardcoded lists.
-- **Hotbar Palette Manager**:
-  - Build and store custom palettes.
-  - Search filter to quickly locate specific palettes.
-  - One-click load directly to your player hotbar.
-  - Compact controls to reorder, duplicate, rename, or delete palettes.
-- **Profile System**:
-  - Create multiple organization profiles.
-  - Clone active setups with all locked items preserved.
-  - Easily switch between building palettes and resource layouts.
-- **Item Locking (Blocker)**:
-  - Double right-click any item to lock or unlock it.
-  - Keep unwanted items from cluttering your organized workspace.
-- **Deep Visual Customization**:
-  - **Custom Blur**: Adjustable background blur from subtle glassmorphism to ultra-deep blur (up to 500% / 50px).
-  - **Hex Color & Transparency**: Full control over UI background color and opacity.
-  - **Grid & Item Scaling**: Independent sliders for Grid Zoom, Item Scale, Palette Scale, and Text Scale.
-  - **Centered Grid Slots**: All items and interactive buttons are precisely aligned to their grid slots.
-- **Server Safe (Client-Side)**: 100% client-side. Works on singleplayer, LAN, and multiplayer servers (vanilla, Fabric, Paper, Purpur) without server installation.
-- **Multilingual Support**: Available in English (`en_us`) and Spanish (`es_es`).
+* 📋 **Ordered Panel**: Organize blocks in a grid with adjustable columns, hide unwanted items via the Blocked list, sort by texture color gradients (hue, saturation, brightness), and compact empty slots.
+* 📦 **Unorganized Panel**: Displays all items not yet placed in the Ordered grid or added to the Blocked list.
+* 📁 **Profiles Panel**: Create, load, rename, duplicate, and delete layout profiles for different projects or themes.
+* 🎨 **Palettes Panel**: Save 9-slot block combinations to hotbar cards to move, duplicate, load into/copy from your hotbar, or place horizontally in the world.
+* 🔍 **Palette Search & Sorting**: Search palettes by text or index, add new palettes instantly (`+ New`), and sort columns by color gradient without modifying saved JSON files.
+* 🎯 **Slot-Based Search Filter**: Place items into search slots to filter palettes by exact slot position, row presence, or color similarity.
+* ♾️ **Infinite Palette Panel**: Multi-row palettes for large block collections, supporting sequential hotbar pasting and slot search filtering.
+* ⏳ **By Version Panel**: Browse items chronologically by Minecraft release version.
+* 🛡️ **Blocker Mode**: Locks the grid to prevent accidental item moving, blocking, or layout changes while building.
+* ⚙️ **Config Panel**: In-game keybinding reference and interface scaling (background blur, grid zoom, slot size, palette scale, and text scale).
+* 🔄 **Undo & Redo System**: Full `Ctrl + Z` (Undo) and `Ctrl + Y` (Redo) support across all panels and layout edits.
 
 ---
 
-## Controls & Keybindings
+## 💡 Why You Should Use This Mod
+
+* 🎯 **Faster Workflow**: Keep frequently used palettes one click away instead of manually searching creative tabs or chests.
+* 🌈 **Texture-Based Gradients**: Automatically extracts block colors to generate smooth palette transitions without manual testing.
+* 🏗️ **Direct World Placement**: Place palette rows directly in-game without placing support blocks underneath.
+* 🔀 **Flexible Controls**: Move items using drag-and-drop or single-click carry-and-place.
+* 🔒 **Safe Editing**: Protect layouts with grid locking (Blocker Mode) and multi-level Undo/Redo (`Ctrl + Z` / `Ctrl + Y`).
+
+---
+
+## ⚠️ Information Before Downloading
+
+* 🖥️ **Client-Side Only**: Does not need to be installed on servers; works on multiplayer networks.
+* 🧩 **Dependencies**: Requires [Fabric Loader](https://fabricmc.net/) and [Fabric API](https://modrinth.com/mod/fabric-api).
+* 🎮 **Default Keybind**: Press **`O`** to open the interface (rebindable in `Options > Controls > Key Binds` or in the Config panel).
+
+---
+
+## 🎮 Controls & Keybindings
 
 | Key / Action | Function |
 | :--- | :--- |
-| **`O`** *(default)* | Open Item Organizer screen |
-| **`Left Click`** | Select or drag an item / click buttons |
-| **`Double Right Click`** | Lock / unlock item to Blocker list |
-| **`Escape`** | Close the screen |
-
-*All keybindings can be customized in the in-game **Config** tab or in the standard Minecraft Controls menu.*
-
----
-
-## Installation
-
-1. Install [Fabric Loader](https://fabricmc.net/use/installer/) for Minecraft 1.21.10.
-2. Download the latest version of [Fabric API](https://modrinth.com/mod/fabric-api).
-3. Download **Item Organizer** from [Modrinth](https://modrinth.com/mod/item-organizer) or [GitHub Releases](https://github.com/PrimityArtur/MC-Item-Organizer/releases).
-4. Place both `.jar` files into your `.minecraft/mods` folder.
-5. Launch Minecraft and press `O` to open the organizer.
+| **`O`** | Open or close the Item Organizer interface |
+| **`Ctrl + Z`** | **Undo** last change (grid layout, blocking, palette edit/deletion, filter) |
+| **`Ctrl + Y`** / **`Ctrl + Shift + Z`** | **Redo** last undone action |
+| **`Left Click`** | Click UI buttons, drag & drop items, or click to carry item on cursor and click again to place |
+| **`Shift + Left Click`** | **Item Panels**: Send item directly to hotbar<br>**Hotbar**: Remove item from hotbar |
+| **`Hotbar Keys (1 - 9)`** | Assign hovered item directly into that hotbar slot |
+| **`Right Click`** | Select an item in the **Ordered** grid |
+| **`Arrow Keys`** | Move the selected item around the Ordered grid |
+| **`Right Click + DEL / Backspace`** | Remove selected item from Ordered grid (returns to Unorganized) |
+| **`Double Right Click`** | **Ordered / Unorganized**: Send item to **Blocked** list<br>**Blocked**: Unblock item |
+| **`A`** | Append hovered item into the **Ordered** grid |
+| **`Escape`** | Close current modal or exit Item Organizer screen |
 
 ---
 
-## Building from Source
+## 📥 Installation
 
-To compile the mod locally:
-
-```bash
-git clone https://github.com/PrimityArtur/MC-Item-Organizer.git
-cd MC-Item-Organizer
-./gradlew build
-```
-
-The compiled mod JAR will be located in `build/libs/`.
+1. Install **Minecraft Fabric**.
+2. Download and place the latest **[Fabric API](https://modrinth.com/mod/fabric-api)** into your `.minecraft/mods` folder.
+3. Download **Item Organizer** from Modrinth and place the `.jar` into your `.minecraft/mods` folder.
+4. Launch the game, join a world or server, and press **`O`**.
 
 ---
 
-## License
+## 📄 License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the **MIT License**.

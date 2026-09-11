@@ -22,11 +22,22 @@ import java.util.Set;
 
 // central viewmodel holding state and coordinating tabs
 public class OrganizerViewModel {
+    public static final String AREA_ORGANIZED = "organized";
+    public static final String AREA_PROFILES = "profiles";
+    public static final String AREA_CONFIG = "config";
+    public static final String AREA_BLOCKER = "blocker";
+    public static final String AREA_PALETTES = "palettes";
+    public static final String AREA_INF_PALETTE = "inf_palette";
+    public static final String AREA_UNORGANIZED = "unorganized";
+    public static final String AREA_VERSION = "by version";
+    public static final String AREA_CREATE_PALETTE = "create_palette";
+
     private final StorageManager storageManager;
 
     private ModConfig config;
     private ProfileData activeProfile;
     private PaletteData paletteData;
+    private PaletteData infinitePaletteData;
     private VersionCatalog versionCatalog;
 
     private LeftTab activeLeftTab = LeftTab.ORDENADO;
@@ -37,13 +48,30 @@ public class OrganizerViewModel {
     private final List<String> unorganizedItems = new ArrayList<>();
     private final List<Runnable> changeListeners = new ArrayList<>();
 
+    private final java.util.Map<String, Double> sessionScrollOffsets = new java.util.HashMap<>();
+    private String paletteSearchQuery = "";
+    private String infinitePaletteSearchQuery = "";
+    private final com.itemorganizer.core.model.PaletteRow paletteFilterRow = new com.itemorganizer.core.model.PaletteRow();
+    private final com.itemorganizer.gui.palette.CreatePaletteState createPaletteState = new com.itemorganizer.gui.palette.CreatePaletteState();
+
+    public com.itemorganizer.gui.palette.CreatePaletteState getCreatePaletteState() {
+        return createPaletteState;
+    }
+
     public OrganizerViewModel() {
-        this.storageManager = StorageManager.getInstance();
-        loadInitialData();
+        this(StorageManager.getInstance(), true);
+    }
+
+    public OrganizerViewModel(StorageManager storageManager, boolean loadData) {
+        this.storageManager = storageManager;
+        if (loadData && storageManager != null) {
+            loadInitialData();
+        }
     }
 
     public void loadInitialData() {
         this.config = storageManager.getConfigRepository().getConfig();
+        this.blockerActive = (config != null) && config.isBlockerActive();
         String savedProfile = (config != null) ? config.getSelectedProfile() : ProfileRepository.DEFAULT_PROFILE_NAME;
         List<String> available = storageManager.getProfileRepository().listProfiles();
         String profileToLoad = (savedProfile != null && available.contains(savedProfile))
@@ -55,6 +83,7 @@ public class OrganizerViewModel {
             storageManager.getConfigRepository().save(config);
         }
         this.paletteData = storageManager.getPaletteRepository().getData();
+        this.infinitePaletteData = storageManager.getInfinitePaletteRepository().getData();
         this.versionCatalog = storageManager.getVersionCatalogRepository().getCatalog();
         recomputeUnorganizedItems();
     }
@@ -69,13 +98,36 @@ public class OrganizerViewModel {
             blockedSet.addAll(activeProfile.getBlockedItems());
         }
 
-        for (Item item : Registries.ITEM) {
-            if (item == Items.AIR) continue;
-            Identifier id = Registries.ITEM.getId(item);
-            String idStr = id.toString();
-            if (!organizedSet.contains(idStr) && !blockedSet.contains(idStr)) {
-                unorganizedItems.add(idStr);
+        try {
+            for (Item item : Registries.ITEM) {
+                if (item == Items.AIR) continue;
+                Identifier id = Registries.ITEM.getId(item);
+                String idStr = id.toString();
+                if (item == Items.TEST_BLOCK) {
+                    for (net.minecraft.block.enums.TestBlockMode mode : net.minecraft.block.enums.TestBlockMode.values()) {
+                        String varId = "minecraft:test_block[mode=" + mode.asString() + "]";
+                        if (!organizedSet.contains(varId) && !blockedSet.contains(varId)) {
+                            unorganizedItems.add(varId);
+                        }
+                    }
+                    continue;
+                }
+
+                if (item == Items.LIGHT) {
+                    for (int lvl = 15; lvl >= 0; lvl--) {
+                        String varId = "minecraft:light[level=" + lvl + "]";
+                        if (!organizedSet.contains(varId) && !blockedSet.contains(varId)) {
+                            unorganizedItems.add(varId);
+                        }
+                    }
+                    continue;
+                }
+
+                if (!organizedSet.contains(idStr) && !blockedSet.contains(idStr)) {
+                    unorganizedItems.add(idStr);
+                }
             }
+        } catch (Throwable ignored) {
         }
         notifyChanges();
     }
@@ -156,12 +208,15 @@ public class OrganizerViewModel {
 
     public void setBlockerActive(boolean blockerActive) {
         this.blockerActive = blockerActive;
+        if (config != null && storageManager != null && storageManager.getConfigRepository() != null) {
+            config.setBlockerActive(blockerActive);
+            storageManager.getConfigRepository().save(config);
+        }
         notifyChanges();
     }
 
     public void toggleBlocker() {
-        this.blockerActive = !this.blockerActive;
-        notifyChanges();
+        setBlockerActive(!this.blockerActive);
     }
 
     public List<String> getUnorganizedItems() {
@@ -253,6 +308,38 @@ public class OrganizerViewModel {
             storageManager.getConfigRepository().save(config);
             notifyChanges();
         }
+    }
+
+    public double getScrollOffset(String area) {
+        return sessionScrollOffsets.getOrDefault(area, 0.0);
+    }
+
+    public void setScrollOffset(String area, double offset) {
+        sessionScrollOffsets.put(area, Math.max(0.0, offset));
+    }
+
+    public String getPaletteSearchQuery() {
+        return paletteSearchQuery;
+    }
+
+    public void setPaletteSearchQuery(String query) {
+        this.paletteSearchQuery = (query != null) ? query : "";
+    }
+
+    public com.itemorganizer.core.model.PaletteRow getPaletteFilterRow() {
+        return paletteFilterRow;
+    }
+
+    public PaletteData getInfinitePaletteData() {
+        return infinitePaletteData;
+    }
+
+    public String getInfinitePaletteSearchQuery() {
+        return infinitePaletteSearchQuery;
+    }
+
+    public void setInfinitePaletteSearchQuery(String query) {
+        this.infinitePaletteSearchQuery = (query != null) ? query : "";
     }
 }
 
