@@ -87,11 +87,12 @@ public class PalettePlacementTest {
         // NOTIFY_NEIGHBORS must be excluded to avoid triggering physics or falling sand
         assertEquals(0, flags & Block.NOTIFY_NEIGHBORS);
 
-        // listeners, force state, skip drops, and moved flags must be enabled
+        // listeners, force state, skip drops, skip block added callbacks, and moved flags must be enabled
         assertNotEquals(0, flags & Block.NOTIFY_LISTENERS);
         assertNotEquals(0, flags & Block.FORCE_STATE);
         assertNotEquals(0, flags & Block.SKIP_DROPS);
         assertNotEquals(0, flags & Block.MOVED);
+        assertNotEquals(0, flags & Block.SKIP_BLOCK_ADDED_CALLBACK);
     }
 
     @Test

@@ -117,6 +117,7 @@
   "config.itemorganizer.open_key": "Open Interface",
   "config.itemorganizer.quick_append_key": "Quick Insert",
   "config.itemorganizer.undo_key": "Undo Shortcut",
+  "config.itemorganizer.redo_key": "Redo Shortcut",
   "config.itemorganizer.reset_defaults": "Reset Defaults",
   "config.itemorganizer.reset_defaults.confirm_title": "Reset Defaults?",
   "config.itemorganizer.reset_defaults.confirm_desc": "Restore all visual settings, scales and keybinds?",

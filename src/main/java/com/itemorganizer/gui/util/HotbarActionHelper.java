@@ -89,7 +89,7 @@ public final class HotbarActionHelper {
 
         ItemStack previousStack = inventory.getStack(emptySlot).copy();
         com.itemorganizer.gui.undo.UndoManager.getInstance().record(
-                new com.itemorganizer.gui.undo.HotbarSlotUndoAction(emptySlot, previousStack)
+                new com.itemorganizer.gui.undo.HotbarSlotUndoAction(emptySlot, previousStack, stack.copy())
         );
 
         assignItemToSlot(client, emptySlot, stack);
@@ -107,9 +107,8 @@ public final class HotbarActionHelper {
             int sourceSlot = payload.getSourceIndex();
             if (sourceSlot >= 0 && sourceSlot < 9) {
                 if (sourceSlot != targetSlot) {
-                    com.itemorganizer.gui.undo.UndoManager.getInstance().record(
-                            com.itemorganizer.gui.undo.HotbarFullUndoAction.capture(client)
-                    );
+                    com.itemorganizer.gui.undo.HotbarFullUndoAction undoAction =
+                            com.itemorganizer.gui.undo.HotbarFullUndoAction.capture(client);
 
                     PlayerInventory inv = client.player.getInventory();
                     ItemStack sourceStack = inv.getStack(sourceSlot).copy();
@@ -119,6 +118,9 @@ public final class HotbarActionHelper {
 
                     assignItemToSlot(client, targetSlot, sourceStack);
                     assignItemToSlot(client, sourceSlot, targetStack);
+
+                    undoAction.setNewStacks(com.itemorganizer.gui.undo.HotbarFullUndoAction.captureCurrent(client));
+                    com.itemorganizer.gui.undo.UndoManager.getInstance().record(undoAction);
                     SoundHelper.playClick();
                 }
                 return true;
@@ -134,7 +136,7 @@ public final class HotbarActionHelper {
         if (stack != null && !stack.isEmpty()) {
             ItemStack previous = client.player.getInventory().getStack(targetSlot).copy();
             com.itemorganizer.gui.undo.UndoManager.getInstance().record(
-                    new com.itemorganizer.gui.undo.HotbarSlotUndoAction(targetSlot, previous)
+                    new com.itemorganizer.gui.undo.HotbarSlotUndoAction(targetSlot, previous, stack.copy())
             );
 
             assignItemToSlot(client, targetSlot, stack);
@@ -159,7 +161,7 @@ public final class HotbarActionHelper {
             if (matches) {
                 ItemStack previous = client.player.getInventory().getStack(i).copy();
                 com.itemorganizer.gui.undo.UndoManager.getInstance().record(
-                        new com.itemorganizer.gui.undo.HotbarSlotUndoAction(i, previous)
+                        new com.itemorganizer.gui.undo.HotbarSlotUndoAction(i, previous, hoveredStack.copy())
                 );
                 assignItemToSlot(client, i, hoveredStack);
                 SoundHelper.playClick();
@@ -170,6 +172,10 @@ public final class HotbarActionHelper {
     }
 
     // checks whether the shift key is currently pressed
+    public static boolean hasShiftDown() {
+        return hasShiftDown((Click) null);
+    }
+
     public static boolean hasShiftDown(Click click) {
         if (click != null && click.hasShift()) {
             return true;

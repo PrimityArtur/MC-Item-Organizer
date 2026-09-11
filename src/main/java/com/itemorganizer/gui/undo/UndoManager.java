@@ -13,6 +13,7 @@ public class UndoManager {
     private static final int MAX_HISTORY = 100;
 
     private final Deque<UndoAction> undoStack = new ArrayDeque<>();
+    private final Deque<UndoAction> redoStack = new ArrayDeque<>();
 
     private UndoManager() {
     }
@@ -27,10 +28,15 @@ public class UndoManager {
             undoStack.removeLast();
         }
         undoStack.push(action);
+        redoStack.clear();
     }
 
     public boolean canUndo() {
         return !undoStack.isEmpty();
+    }
+
+    public boolean canRedo() {
+        return !redoStack.isEmpty();
     }
 
     public boolean undo(MinecraftClient client, OrganizerViewModel viewModel) {
@@ -40,6 +46,27 @@ public class UndoManager {
 
         UndoAction action = undoStack.pop();
         action.undo(client, viewModel);
+        if (redoStack.size() >= MAX_HISTORY) {
+            redoStack.removeLast();
+        }
+        redoStack.push(action);
+        if (client != null) {
+            SoundHelper.playClick();
+        }
+        return true;
+    }
+
+    public boolean redo(MinecraftClient client, OrganizerViewModel viewModel) {
+        if (redoStack.isEmpty()) {
+            return false;
+        }
+
+        UndoAction action = redoStack.pop();
+        action.redo(client, viewModel);
+        if (undoStack.size() >= MAX_HISTORY) {
+            undoStack.removeLast();
+        }
+        undoStack.push(action);
         if (client != null) {
             SoundHelper.playClick();
         }
@@ -48,9 +75,14 @@ public class UndoManager {
 
     public void clear() {
         undoStack.clear();
+        redoStack.clear();
     }
 
     public int getHistorySize() {
         return undoStack.size();
+    }
+
+    public int getRedoHistorySize() {
+        return redoStack.size();
     }
 }

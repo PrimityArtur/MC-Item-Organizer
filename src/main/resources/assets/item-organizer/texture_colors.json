@@ -2166,5 +2166,11 @@
   "charcoal": "0x2A2723",
   "lapis_lazuli": "0x1D45A6",
   "amethyst_shard": "0x9A5CC6",
-  "quartz": "0xECE6DE"
+  "quartz": "0xECE6DE",
+  "minecraft:test_block": "0x29A5D6",
+  "minecraft:test_block[mode=start]": "0x29A5D6",
+  "minecraft:test_block[mode=log]": "0xE8A825",
+  "minecraft:test_block[mode=fail]": "0xDE3226",
+  "minecraft:test_block[mode=accept]": "0x38BD4C",
+  "test_block": "0x29A5D6"
 }

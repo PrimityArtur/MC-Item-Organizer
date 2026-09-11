@@ -4,6 +4,9 @@ import com.itemorganizer.core.model.PaletteRow;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.block.*;
+import net.minecraft.block.enums.BedPart;
+import net.minecraft.block.enums.DoubleBlockHalf;
+import net.minecraft.block.enums.TestBlockMode;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
@@ -26,7 +29,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 // handles palette block placement in the world with physics bypass and chat silence
 public class PalettePlacementManager {
     public static final int SINGLEPLAYER_BLOCK_FLAGS =
-            Block.NOTIFY_LISTENERS | Block.FORCE_STATE | Block.SKIP_DROPS | Block.MOVED;
+            Block.NOTIFY_LISTENERS | Block.FORCE_STATE_AND_SKIP_CALLBACKS_AND_DROPS | Block.MOVED;
 
     private static final PalettePlacementManager INSTANCE = new PalettePlacementManager();
 
@@ -116,27 +119,8 @@ public class PalettePlacementManager {
         }
     }
 
-    // check if worldedit or fawe commands are registered on the server
-    public static boolean isWorldEditAvailable(MinecraftClient client) {
-        if (client == null || client.getNetworkHandler() == null) return false;
-        try {
-            var dispatcher = client.getNetworkHandler().getCommandDispatcher();
-            if (dispatcher != null && dispatcher.getRoot() != null) {
-                var root = dispatcher.getRoot();
-                return root.getChild("/set") != null
-                        || root.getChild("//set") != null
-                        || root.getChild("set") != null
-                        || root.getChild("worldedit") != null
-                        || root.getChild("worldedit:/set") != null
-                        || root.getChild("/pos1") != null
-                        || root.getChild("//pos1") != null;
-            }
-        } catch (Throwable ignored) {
-        }
-        return false;
-    }
 
-    // resolves placeable block state for item id, supporting water and lava
+    // resolves placeable block state for item id, supporting water, lava, and blockstate properties
     public static BlockState getBlockStateForPlacement(String itemId) {
         if (itemId == null || itemId.trim().isEmpty()) return null;
         String idStr = itemId.trim().toLowerCase(Locale.ROOT);
@@ -156,13 +140,40 @@ public class PalettePlacementManager {
             }
         }
 
-        Identifier id = Identifier.tryParse(idStr);
+        String baseId = idStr;
+        String properties = null;
+        int bracketStart = idStr.indexOf('[');
+        int bracketEnd = idStr.lastIndexOf(']');
+        if (bracketStart != -1 && bracketEnd > bracketStart) {
+            baseId = idStr.substring(0, bracketStart).trim();
+            properties = idStr.substring(bracketStart + 1, bracketEnd).trim();
+        }
+
+        Identifier id = Identifier.tryParse(baseId);
         if (id == null) return null;
 
         try {
             Item item = Registries.ITEM.get(id);
             if (item instanceof BlockItem blockItem) {
-                return blockItem.getBlock().getDefaultState();
+                BlockState state = blockItem.getBlock().getDefaultState();
+                if (properties != null) {
+                    if (state.getBlock() instanceof TestBlock) {
+                        for (TestBlockMode mode : TestBlockMode.values()) {
+                            if (properties.contains(mode.asString())) {
+                                state = state.with(TestBlock.MODE, mode);
+                                break;
+                            }
+                        }
+                    } else if (state.getBlock() instanceof LightBlock) {
+                        for (int lvl = 15; lvl >= 0; lvl--) {
+                            if (properties.contains(String.valueOf(lvl))) {
+                                state = state.with(LightBlock.LEVEL_15, lvl);
+                                break;
+                            }
+                        }
+                    }
+                }
+                return state;
             }
         } catch (Throwable ignored) {
         }
@@ -187,7 +198,7 @@ public class PalettePlacementManager {
         startSuppression(4000);
 
         if (server != null) {
-            // singleplayer: direct server execution without physics or neighbor updates
+            // singleplayer: direct forced server placement without physics or neighbor updates
             RegistryKey<World> key = client.world.getRegistryKey();
             server.execute(() -> {
                 ServerWorld serverWorld = server.getWorld(key);
@@ -197,7 +208,19 @@ public class PalettePlacementManager {
                         BlockState state = getBlockStateForPlacement(itemId);
                         if (state != null) {
                             BlockPos targetPos = startPos.offset(facing, i);
-                            serverWorld.setBlockState(targetPos, state, SINGLEPLAYER_BLOCK_FLAGS);
+
+                            if (state.getBlock() instanceof DoorBlock) {
+                                serverWorld.setBlockState(targetPos, state.with(DoorBlock.HALF, DoubleBlockHalf.LOWER).with(DoorBlock.FACING, facing), SINGLEPLAYER_BLOCK_FLAGS);
+                                serverWorld.setBlockState(targetPos.up(), state.with(DoorBlock.HALF, DoubleBlockHalf.UPPER).with(DoorBlock.FACING, facing), SINGLEPLAYER_BLOCK_FLAGS);
+                            } else if (state.getBlock() instanceof TallPlantBlock) {
+                                serverWorld.setBlockState(targetPos, state.with(TallPlantBlock.HALF, DoubleBlockHalf.LOWER), SINGLEPLAYER_BLOCK_FLAGS);
+                                serverWorld.setBlockState(targetPos.up(), state.with(TallPlantBlock.HALF, DoubleBlockHalf.UPPER), SINGLEPLAYER_BLOCK_FLAGS);
+                            } else if (state.getBlock() instanceof BedBlock) {
+                                serverWorld.setBlockState(targetPos, state.with(BedBlock.PART, BedPart.FOOT).with(BedBlock.FACING, facing), SINGLEPLAYER_BLOCK_FLAGS);
+                                serverWorld.setBlockState(targetPos.offset(facing), state.with(BedBlock.PART, BedPart.HEAD).with(BedBlock.FACING, facing), SINGLEPLAYER_BLOCK_FLAGS);
+                            } else {
+                                serverWorld.setBlockState(targetPos, state, SINGLEPLAYER_BLOCK_FLAGS);
+                            }
                         }
                     }
                 }
@@ -213,7 +236,18 @@ public class PalettePlacementManager {
                 BlockState state = getBlockStateForPlacement(itemId);
                 if (state != null) {
                     BlockPos targetPos = startPos.offset(facing, i);
-                    client.world.setBlockState(targetPos, state, Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                    if (state.getBlock() instanceof DoorBlock) {
+                        client.world.setBlockState(targetPos, state.with(DoorBlock.HALF, DoubleBlockHalf.LOWER).with(DoorBlock.FACING, facing), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                        client.world.setBlockState(targetPos.up(), state.with(DoorBlock.HALF, DoubleBlockHalf.UPPER).with(DoorBlock.FACING, facing), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                    } else if (state.getBlock() instanceof TallPlantBlock) {
+                        client.world.setBlockState(targetPos, state.with(TallPlantBlock.HALF, DoubleBlockHalf.LOWER), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                        client.world.setBlockState(targetPos.up(), state.with(TallPlantBlock.HALF, DoubleBlockHalf.UPPER), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                    } else if (state.getBlock() instanceof BedBlock) {
+                        client.world.setBlockState(targetPos, state.with(BedBlock.PART, BedPart.FOOT).with(BedBlock.FACING, facing), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                        client.world.setBlockState(targetPos.offset(facing), state.with(BedBlock.PART, BedPart.HEAD).with(BedBlock.FACING, facing), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                    } else {
+                        client.world.setBlockState(targetPos, state, Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                    }
                 }
             }
             client.player.setPosition(newX, newY, newZ);
@@ -222,10 +256,9 @@ public class PalettePlacementManager {
             return;
         }
 
-        // multiplayer: paced queue using WorldEdit/FAWE if available, else setblock fallback
+        // multiplayer: paced queue using native setblock strict mode without support blocks
         actionQueue.clear();
         pendingCompletionNotice = true;
-        boolean useWorldEdit = isWorldEditAvailable(client);
 
         for (int i = 0; i < slotCount; i++) {
             String itemId = row.getSlot(i);
@@ -235,27 +268,23 @@ public class PalettePlacementManager {
             BlockPos targetPos = startPos.offset(facing, i);
             String cleanId = itemId.trim();
 
-            if (useWorldEdit) {
-                actionQueue.add(() -> {
-                    if (client.getNetworkHandler() != null) {
-                        client.getNetworkHandler().sendChatCommand(
-                                String.format(Locale.ROOT, "/pos1 %d,%d,%d", targetPos.getX(), targetPos.getY(), targetPos.getZ())
-                        );
-                        client.getNetworkHandler().sendChatCommand(
-                                String.format(Locale.ROOT, "/pos2 %d,%d,%d", targetPos.getX(), targetPos.getY(), targetPos.getZ())
-                        );
-                        client.getNetworkHandler().sendChatCommand("/set " + cleanId);
-                    }
+            actionQueue.add(() -> {
+                if (client.getNetworkHandler() != null) {
+                    sendSetblockCommand(client, targetPos, cleanId, clientState, facing);
+                }
+                if (clientState.getBlock() instanceof DoorBlock) {
+                    client.world.setBlockState(targetPos, clientState.with(DoorBlock.HALF, DoubleBlockHalf.LOWER).with(DoorBlock.FACING, facing), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                    client.world.setBlockState(targetPos.up(), clientState.with(DoorBlock.HALF, DoubleBlockHalf.UPPER).with(DoorBlock.FACING, facing), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                } else if (clientState.getBlock() instanceof TallPlantBlock) {
+                    client.world.setBlockState(targetPos, clientState.with(TallPlantBlock.HALF, DoubleBlockHalf.LOWER), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                    client.world.setBlockState(targetPos.up(), clientState.with(TallPlantBlock.HALF, DoubleBlockHalf.UPPER), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                } else if (clientState.getBlock() instanceof BedBlock) {
+                    client.world.setBlockState(targetPos, clientState.with(BedBlock.PART, BedPart.FOOT).with(BedBlock.FACING, facing), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                    client.world.setBlockState(targetPos.offset(facing), clientState.with(BedBlock.PART, BedPart.HEAD).with(BedBlock.FACING, facing), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                } else {
                     client.world.setBlockState(targetPos, clientState, Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
-                });
-            } else {
-                actionQueue.add(() -> {
-                    if (client.getNetworkHandler() != null) {
-                        sendSetblockCommand(client, targetPos, cleanId, clientState, facing);
-                    }
-                    client.world.setBlockState(targetPos, clientState, Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
-                });
-            }
+                }
+            });
         }
 
         // teleport player at the end of placement queue
@@ -270,27 +299,39 @@ public class PalettePlacementManager {
     }
 
     private static void sendSetblockCommand(MinecraftClient client, BlockPos pos, String itemId, BlockState state, Direction facing) {
+        if (client == null || client.getNetworkHandler() == null || state == null) return;
+
         if (state.getBlock() instanceof DoorBlock) {
             client.getNetworkHandler().sendChatCommand(
-                    String.format(Locale.ROOT, "setblock %d %d %d %s[half=lower,facing=%s] replace",
+                    String.format(Locale.ROOT, "setblock %d %d %d %s[half=lower,facing=%s] strict",
                             pos.getX(), pos.getY(), pos.getZ(), itemId, facing.asString())
             );
             client.getNetworkHandler().sendChatCommand(
-                    String.format(Locale.ROOT, "setblock %d %d %d %s[half=upper,facing=%s] replace",
+                    String.format(Locale.ROOT, "setblock %d %d %d %s[half=upper,facing=%s] strict",
                             pos.getX(), pos.getY() + 1, pos.getZ(), itemId, facing.asString())
             );
         } else if (state.getBlock() instanceof TallPlantBlock) {
             client.getNetworkHandler().sendChatCommand(
-                    String.format(Locale.ROOT, "setblock %d %d %d %s[half=lower] replace",
+                    String.format(Locale.ROOT, "setblock %d %d %d %s[half=lower] strict",
                             pos.getX(), pos.getY(), pos.getZ(), itemId)
             );
             client.getNetworkHandler().sendChatCommand(
-                    String.format(Locale.ROOT, "setblock %d %d %d %s[half=upper] replace",
+                    String.format(Locale.ROOT, "setblock %d %d %d %s[half=upper] strict",
                             pos.getX(), pos.getY() + 1, pos.getZ(), itemId)
+            );
+        } else if (state.getBlock() instanceof CropBlock) {
+            client.getNetworkHandler().sendChatCommand(
+                    String.format(Locale.ROOT, "setblock %d %d %d %s[age=7] strict",
+                            pos.getX(), pos.getY(), pos.getZ(), itemId)
+            );
+        } else if (state.getBlock() instanceof NetherWartBlock) {
+            client.getNetworkHandler().sendChatCommand(
+                    String.format(Locale.ROOT, "setblock %d %d %d %s[age=3] strict",
+                            pos.getX(), pos.getY(), pos.getZ(), itemId)
             );
         } else {
             client.getNetworkHandler().sendChatCommand(
-                    String.format(Locale.ROOT, "setblock %d %d %d %s replace",
+                    String.format(Locale.ROOT, "setblock %d %d %d %s strict",
                             pos.getX(), pos.getY(), pos.getZ(), itemId)
             );
         }

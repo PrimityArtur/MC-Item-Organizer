@@ -135,7 +135,7 @@ public class HotbarWidget implements Drawable, Element, Selectable {
                     ItemStack stack = inv.getStack(slot);
                     if (!stack.isEmpty()) {
                         com.itemorganizer.gui.undo.UndoManager.getInstance().record(
-                                new com.itemorganizer.gui.undo.HotbarSlotUndoAction(slot, stack.copy())
+                                new com.itemorganizer.gui.undo.HotbarSlotUndoAction(slot, stack.copy(), ItemStack.EMPTY)
                         );
                         inv.setStack(slot, ItemStack.EMPTY);
                         HotbarActionHelper.assignItemToSlot(client, slot, ItemStack.EMPTY);
@@ -160,7 +160,7 @@ public class HotbarWidget implements Drawable, Element, Selectable {
                 if (!stack.isEmpty()) {
                     String itemId = Registries.ITEM.getId(stack.getItem()).toString();
                     DragPayload payload = DragPayload.ofIndexed(itemId, stack.copy(), DragSource.HOTBAR, slot, false);
-                    dragManager.startDrag(payload);
+                    dragManager.startDrag(payload, click.x(), click.y());
                     return true;
                 }
             }
@@ -181,7 +181,7 @@ public class HotbarWidget implements Drawable, Element, Selectable {
                     ItemStack stack = inv.getStack(slot);
                     if (!stack.isEmpty()) {
                         com.itemorganizer.gui.undo.UndoManager.getInstance().record(
-                                new com.itemorganizer.gui.undo.HotbarSlotUndoAction(slot, stack.copy())
+                                new com.itemorganizer.gui.undo.HotbarSlotUndoAction(slot, stack.copy(), ItemStack.EMPTY)
                         );
                         inv.setStack(slot, ItemStack.EMPTY);
                         HotbarActionHelper.assignItemToSlot(client, slot, ItemStack.EMPTY);
@@ -214,14 +214,16 @@ public class HotbarWidget implements Drawable, Element, Selectable {
                         ItemStack stackHovered = inv.getStack(hoveredSlot).copy();
                         ItemStack stackTarget = inv.getStack(i).copy();
 
-                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
-                                com.itemorganizer.gui.undo.HotbarFullUndoAction.capture(client)
-                        );
+                        com.itemorganizer.gui.undo.HotbarFullUndoAction undoAction =
+                                com.itemorganizer.gui.undo.HotbarFullUndoAction.capture(client);
                         inv.setStack(i, stackHovered);
                         inv.setStack(hoveredSlot, stackTarget);
 
                         HotbarActionHelper.assignItemToSlot(client, i, stackHovered);
                         HotbarActionHelper.assignItemToSlot(client, hoveredSlot, stackTarget);
+
+                        undoAction.setNewStacks(com.itemorganizer.gui.undo.HotbarFullUndoAction.captureCurrent(client));
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(undoAction);
 
                         SoundHelper.playClick();
                         return true;

@@ -1,6 +1,8 @@
 package com.itemorganizer.gui.widget;
 
+import com.itemorganizer.core.model.ProfileData;
 import com.itemorganizer.core.model.VersionCatalog;
+import com.itemorganizer.storage.StorageManager;
 import com.itemorganizer.gui.component.ScrollbarComponent;
 import com.itemorganizer.gui.dragdrop.DragAndDropManager;
 import com.itemorganizer.gui.dragdrop.DragPayload;
@@ -232,6 +234,27 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
             return true;
         }
 
+        if (isMouseOver(click.x(), click.y())) {
+            DragAndDropManager dragManager = DragAndDropManager.getInstance();
+            if (dragManager.isDragging() && click.button() == 0) {
+                DragPayload payload = dragManager.consumePayload();
+                if (payload != null && payload.getSource() == DragSource.ORDENADO && !payload.isCopy()) {
+                    ProfileData profile = viewModel.getActiveProfile();
+                    if (profile != null) {
+                        ProfileData before = profile.snapshot();
+                        profile.removeAt(payload.getSourceCol(), payload.getSourceRow());
+                        StorageManager.getInstance().getProfileRepository().saveProfile(profile);
+                        viewModel.recomputeUnorganizedItems();
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+                        );
+                    }
+                }
+                SoundHelper.playClick();
+                return true;
+            }
+        }
+
         // start drag or shift-click with left click (catalog items copy by default)
         if (click.button() == 0 && hoveredItemId != null && !hoveredStack.isEmpty()) {
             if (HotbarActionHelper.hasShiftDown(click)) {
@@ -240,7 +263,7 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
                 return true;
             }
             DragPayload payload = DragPayload.ofIndexed(hoveredItemId, hoveredStack, DragSource.POR_VERSION, 0, true);
-            DragAndDropManager.getInstance().startDrag(payload);
+            DragAndDropManager.getInstance().startDrag(payload, click.x(), click.y());
             return true;
         }
 
@@ -253,6 +276,31 @@ public class VersionCatalogWidget implements Drawable, Element, Selectable {
         if (scrollbar.mouseReleased(click)) {
             return true;
         }
+
+        DragAndDropManager dragManager = DragAndDropManager.getInstance();
+        if (dragManager.isDragging()) {
+            if (!dragManager.isDraggedBeyondThreshold()) {
+                return false;
+            }
+            if (isMouseOver(click.x(), click.y())) {
+                DragPayload payload = dragManager.consumePayload();
+                if (payload != null && payload.getSource() == DragSource.ORDENADO && !payload.isCopy()) {
+                    ProfileData profile = viewModel.getActiveProfile();
+                    if (profile != null) {
+                        ProfileData before = profile.snapshot();
+                        profile.removeAt(payload.getSourceCol(), payload.getSourceRow());
+                        StorageManager.getInstance().getProfileRepository().saveProfile(profile);
+                        viewModel.recomputeUnorganizedItems();
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+                        );
+                    }
+                }
+                SoundHelper.playClick();
+                return true;
+            }
+        }
+
         return false;
     }
 

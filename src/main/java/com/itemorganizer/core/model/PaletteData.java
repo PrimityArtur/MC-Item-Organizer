@@ -28,6 +28,13 @@ public class PaletteData {
         }
     }
 
+    public void insertRow(int index, PaletteRow row) {
+        if (row != null) {
+            int target = Math.max(0, Math.min(rows.size(), index));
+            rows.add(target, row);
+        }
+    }
+
     public boolean removeRowById(String id) {
         if (id == null) return false;
         return rows.removeIf(row -> id.equals(row.getId()));

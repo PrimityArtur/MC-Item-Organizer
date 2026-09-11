@@ -83,6 +83,7 @@ public class OrganizerScreen extends Screen {
     @Override
     public void removed() {
         saveScrollPositions();
+        com.itemorganizer.gui.dragdrop.DragAndDropManager.getInstance().cancelDrag();
         super.removed();
         if (originalVanillaBlur != -1 && client != null && client.options != null) {
             setOptionValue(client.options.getMenuBackgroundBlurriness(), originalVanillaBlur);
@@ -615,21 +616,35 @@ public class OrganizerScreen extends Screen {
             return true;
         }
 
-        return super.mouseClicked(click, bl);
+        boolean handled = super.mouseClicked(click, bl);
+        if (!handled && dragManager.isDragging() && click.button() == 0) {
+            dragManager.startHolding(click.x(), click.y());
+        }
+        return handled;
     }
 
     @Override
     public boolean mouseReleased(net.minecraft.client.gui.Click click) {
         com.itemorganizer.gui.dragdrop.DragAndDropManager dragManager = com.itemorganizer.gui.dragdrop.DragAndDropManager.getInstance();
+        dragManager.onMouseRelease();
 
         if (dragManager.isDragging()) {
+            if (!dragManager.isDraggedBeyondThreshold()) {
+                return true;
+            }
+
             // drop onto bottom search filter palette
             if ((viewModel.getActiveRightTab() == RightTab.PALETAS || viewModel.getActiveRightTab() == RightTab.INF_PALETAS) && paletteSearchFilterWidget != null) {
                 int filterSlot = paletteSearchFilterWidget.getSlotAt(click.x(), click.y());
                 if (filterSlot >= 0) {
                     com.itemorganizer.gui.dragdrop.DragPayload payload = dragManager.consumePayload();
                     if (payload != null && payload.getItemId() != null) {
+                        java.util.List<String> before = new java.util.ArrayList<>(paletteSearchFilterWidget.getFilterPalette().getSlots());
                         paletteSearchFilterWidget.getFilterPalette().setSlot(filterSlot, payload.getItemId());
+                        java.util.List<String> after = new java.util.ArrayList<>(paletteSearchFilterWidget.getFilterPalette().getSlots());
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                new com.itemorganizer.gui.undo.PaletteSearchFilterUndoAction(before, after)
+                        );
                         SoundHelper.playClick();
                         return true;
                     }
@@ -726,6 +741,8 @@ public class OrganizerScreen extends Screen {
 
     @Override
     public boolean mouseDragged(net.minecraft.client.gui.Click click, double deltaX, double deltaY) {
+        com.itemorganizer.gui.dragdrop.DragAndDropManager.getInstance().onMouseDrag(click.x(), click.y());
+
         LeftTab leftTab = viewModel.getActiveLeftTab();
         if (leftTab == LeftTab.ORDENADO) {
             if (viewModel.getActiveOrdenadoSubTab() == OrdenadoSubTab.BLOQUEADO) {
@@ -857,12 +874,26 @@ public class OrganizerScreen extends Screen {
             }
         }
 
-        // undo action (Ctrl + configured key, default Ctrl + Z)
+        // undo / redo action (Ctrl + Z, Ctrl + Shift + Z, Ctrl + Y)
         if (com.itemorganizer.gui.util.HotbarActionHelper.hasControlDown()) {
             String undoKeyStr = viewModel.getConfig().getKeyUndo();
-            if (pressedKey != null && undoKeyStr != null && pressedKey.getTranslationKey().equalsIgnoreCase(undoKeyStr)) {
-                com.itemorganizer.gui.undo.UndoManager.getInstance().undo(this.client, viewModel);
-                return true;
+            String redoKeyStr = viewModel.getConfig().getKeyRedo();
+            if (pressedKey != null) {
+                if (com.itemorganizer.gui.util.HotbarActionHelper.hasShiftDown()) {
+                    if (undoKeyStr != null && pressedKey.getTranslationKey().equalsIgnoreCase(undoKeyStr)) {
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().redo(this.client, viewModel);
+                        return true;
+                    }
+                } else {
+                    if (undoKeyStr != null && pressedKey.getTranslationKey().equalsIgnoreCase(undoKeyStr)) {
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().undo(this.client, viewModel);
+                        return true;
+                    }
+                }
+                if (redoKeyStr != null && pressedKey.getTranslationKey().equalsIgnoreCase(redoKeyStr)) {
+                    com.itemorganizer.gui.undo.UndoManager.getInstance().redo(this.client, viewModel);
+                    return true;
+                }
             }
         }
 
@@ -902,6 +933,7 @@ public class OrganizerScreen extends Screen {
         com.itemorganizer.core.model.ProfileData profile = viewModel.getActiveProfile();
         if (profile == null) return;
 
+        com.itemorganizer.core.model.ProfileData before = profile.snapshot();
         // remove existing copy before re-appending to end
         profile.removeItem(itemId);
 
@@ -926,6 +958,9 @@ public class OrganizerScreen extends Screen {
         profile.setItemAt(itemId, targetX, targetY);
         com.itemorganizer.storage.StorageManager.getInstance().getProfileRepository().saveProfile(profile);
         viewModel.recomputeUnorganizedItems();
+        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+        );
 
         SoundHelper.playPickup();
     }
@@ -1061,6 +1096,7 @@ public class OrganizerScreen extends Screen {
         com.itemorganizer.core.model.ProfileData profile = viewModel.getActiveProfile();
         if (profile == null || profile.getItems().isEmpty()) return;
 
+        com.itemorganizer.core.model.ProfileData before = profile.snapshot();
         int cols = profile.getColumnCount() > 0 ? profile.getColumnCount() : (orderedGridWidget != null ? orderedGridWidget.getColumnCount() : 9);
         cols = Math.max(1, cols);
 
@@ -1071,6 +1107,9 @@ public class OrganizerScreen extends Screen {
             if (orderedGridWidget != null) {
                 orderedGridWidget.reflowIfNeeded();
             }
+            com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                    new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+            );
             playSuccessSound();
         } catch (Throwable t) {
             com.itemorganizer.ItemOrganizer.LOGGER.error("Error sorting items by color: ", t);
@@ -1086,6 +1125,7 @@ public class OrganizerScreen extends Screen {
         com.itemorganizer.core.model.ProfileData profile = viewModel.getActiveProfile();
         if (profile == null || profile.getItems().isEmpty()) return;
 
+        com.itemorganizer.core.model.ProfileData before = profile.snapshot();
         int cols = profile.getColumnCount() > 0 ? profile.getColumnCount() : (orderedGridWidget != null ? orderedGridWidget.getColumnCount() : 9);
         cols = Math.max(1, cols);
 
@@ -1096,6 +1136,9 @@ public class OrganizerScreen extends Screen {
             if (orderedGridWidget != null) {
                 orderedGridWidget.reflowIfNeeded();
             }
+            com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                    new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+            );
             playSuccessSound();
         } catch (Throwable t) {
             com.itemorganizer.ItemOrganizer.LOGGER.error("Error compacting items: ", t);

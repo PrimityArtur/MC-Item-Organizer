@@ -984,5 +984,53 @@ public class ProfileAndConfigTest {
         assertTrue(hotbarX + hotbarWidth + 8 <= filterX);
         assertEquals(301, hotbarX);
     }
-}
 
+    @Test
+    void testBlockerActiveConfigPersistence() {
+        com.itemorganizer.storage.ConfigRepository configRepo = new com.itemorganizer.storage.ConfigRepository(tempDir);
+        ModConfig config = configRepo.load();
+        assertFalse(config.isBlockerActive());
+
+        config.setBlockerActive(true);
+        assertTrue(configRepo.save(config));
+
+        com.itemorganizer.storage.ConfigRepository reloadedRepo = new com.itemorganizer.storage.ConfigRepository(tempDir);
+        ModConfig reloaded = reloadedRepo.load();
+        assertTrue(reloaded.isBlockerActive());
+
+        reloaded.setBlockerActive(false);
+        assertTrue(reloadedRepo.save(reloaded));
+
+        ModConfig secondReload = new com.itemorganizer.storage.ConfigRepository(tempDir).load();
+        assertFalse(secondReload.isBlockerActive());
+    }
+
+    @Test
+    void testProfileSnapshotAndCopyFrom() {
+        ProfileData profile = new ProfileData("test_profile");
+        profile.setColumnCount(12);
+        profile.setItemAt("minecraft:stone", 0, 0);
+        profile.setItemAt("minecraft:dirt", 1, 0);
+        profile.blockItem("minecraft:bedrock");
+
+        ProfileData snap = profile.snapshot();
+        assertEquals("test_profile", snap.getName());
+        assertEquals(12, snap.getColumnCount());
+        assertEquals(2, snap.getItems().size());
+        assertTrue(snap.isItemBlocked("minecraft:bedrock"));
+
+        // mutate original
+        profile.setItemAt("minecraft:gold_block", 2, 0);
+        profile.blockItem("minecraft:barrier");
+        assertEquals(3, profile.getItems().size());
+        assertEquals(2, snap.getItems().size());
+
+        // restore with copyFrom
+        profile.copyFrom(snap);
+        assertEquals(12, profile.getColumnCount());
+        assertEquals(2, profile.getItems().size());
+        assertFalse(profile.hasItem("minecraft:gold_block"));
+        assertFalse(profile.isItemBlocked("minecraft:barrier"));
+        assertTrue(profile.isItemBlocked("minecraft:bedrock"));
+    }
+}

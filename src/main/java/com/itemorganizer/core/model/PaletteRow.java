@@ -64,6 +64,10 @@ public class PaletteRow {
         return cloned;
     }
 
+    public PaletteRow snapshot() {
+        return new PaletteRow(this.id, this.name, new ArrayList<>(this.slots != null ? this.slots : Collections.emptyList()));
+    }
+
     public String getId() {
         return id;
     }

@@ -68,6 +68,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
     private boolean listeningForKey = false;
     private boolean listeningForQuickAppendKey = false;
     private boolean listeningForUndoKey = false;
+    private boolean listeningForRedoKey = false;
 
     // color presets
     private static final PresetColor[] PRESETS = new PresetColor[]{
@@ -430,7 +431,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         int keyBtnH = Math.max(15, Math.round(15 * Math.max(1.0f, textScale)));
         int itemH = 12 + labelGap + keyBtnH + 6;
         int resetBtnH = keyBtnH + 6;
-        return headerH + 6 + (3 * itemH) + resetBtnH + 4;
+        return headerH + 6 + (4 * itemH) + resetBtnH + 4;
     }
 
     private int calculateTotalHeight(float textScale) {
@@ -823,8 +824,44 @@ public class ConfigWidget implements Drawable, Element, Selectable {
                         undoBg, undoHoverBg, undoBorder, undoHoverBorder, undoTextColor, undoHoverTextColor, textScale);
             }
 
+            // redo key binding
+            int sec12Y = undoKeyBtnY + keyBtnH + secGap;
+            if (sec12Y + 12 >= listStartY && sec12Y <= listStartY + listHeight) {
+                TextScaleHelper.drawScaledText(context, tr, Text.translatable("config.itemorganizer.redo_key"), contentX, sec12Y, UITheme.PRIMARY, true, textScale);
+            }
+            int redoKeyBtnY = sec12Y + labelGap;
+            if (redoKeyBtnY + keyBtnH >= listStartY && redoKeyBtnY <= listStartY + listHeight) {
+                boolean hoverRedoKey = (activeModal == null && mouseX >= contentX && mouseX <= contentX + keyBtnW && mouseY >= redoKeyBtnY && mouseY <= redoKeyBtnY + keyBtnH);
+                Text redoLabel;
+                int redoBg, redoHoverBg, redoBorder, redoHoverBorder, redoTextColor, redoHoverTextColor;
+
+                if (listeningForRedoKey) {
+                    redoLabel = Text.translatable("config.itemorganizer.press_key");
+                    redoBg = UITheme.WARNING_BG;
+                    redoHoverBg = UITheme.WARNING_HOVER_BG;
+                    redoBorder = UITheme.WARNING_BORDER;
+                    redoHoverBorder = UITheme.WARNING_BORDER;
+                    redoTextColor = UITheme.WARNING;
+                    redoHoverTextColor = UITheme.TEXT_WHITE;
+                } else {
+                    String boundKey = cfg.getKeyRedo();
+                    InputUtil.Key k = InputUtil.fromTranslationKey(boundKey);
+                    String keyName = (k != null) ? k.getLocalizedText().getString().toUpperCase() : "Y";
+                    redoLabel = Text.translatable("config.itemorganizer.key_label_ctrl", keyName);
+                    redoBg = UITheme.BG_SURFACE_HOVER;
+                    redoHoverBg = UITheme.PRIMARY_BG;
+                    redoBorder = UITheme.BORDER_MUTED;
+                    redoHoverBorder = UITheme.PRIMARY;
+                    redoTextColor = UITheme.TEXT_SECONDARY;
+                    redoHoverTextColor = UITheme.TEXT_WHITE;
+                }
+
+                RenderHelper.drawButton(context, tr, contentX, redoKeyBtnY, keyBtnW, keyBtnH, redoLabel, hoverRedoKey,
+                        redoBg, redoHoverBg, redoBorder, redoHoverBorder, redoTextColor, redoHoverTextColor, textScale);
+            }
+
             // reset defaults button
-            int resetBtnY = undoKeyBtnY + keyBtnH + secGap + 2;
+            int resetBtnY = redoKeyBtnY + keyBtnH + secGap + 2;
             int resetBtnH = keyBtnH;
             if (resetBtnY + resetBtnH >= listStartY && resetBtnY <= listStartY + listHeight) {
                 boolean hoverReset = (activeModal == null && mouseX >= contentX && mouseX <= contentX + keyBtnW && mouseY >= resetBtnY && mouseY <= resetBtnY + resetBtnH);
@@ -874,6 +911,9 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             }
             if (listeningForUndoKey) {
                 listeningForUndoKey = false;
+            }
+            if (listeningForRedoKey) {
+                listeningForRedoKey = false;
             }
             return false;
         }
@@ -951,6 +991,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             listeningForKey = !listeningForKey;
             listeningForQuickAppendKey = false;
             listeningForUndoKey = false;
+            listeningForRedoKey = false;
             playClickSound();
             return true;
         }
@@ -960,6 +1001,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             listeningForQuickAppendKey = !listeningForQuickAppendKey;
             listeningForKey = false;
             listeningForUndoKey = false;
+            listeningForRedoKey = false;
             playClickSound();
             return true;
         }
@@ -969,11 +1011,22 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             listeningForUndoKey = !listeningForUndoKey;
             listeningForKey = false;
             listeningForQuickAppendKey = false;
+            listeningForRedoKey = false;
             playClickSound();
             return true;
         }
 
-        int resetBtnY = undoKeyBtnY + keyBtnH + secGap + 2;
+        int redoKeyBtnY = undoKeyBtnY + keyBtnH + secGap + labelGap;
+        if (mouseX >= contentX && mouseX <= contentX + keyBtnW && mouseY >= redoKeyBtnY && mouseY <= redoKeyBtnY + keyBtnH) {
+            listeningForRedoKey = !listeningForRedoKey;
+            listeningForKey = false;
+            listeningForQuickAppendKey = false;
+            listeningForUndoKey = false;
+            playClickSound();
+            return true;
+        }
+
+        int resetBtnY = redoKeyBtnY + keyBtnH + secGap + 2;
         int resetBtnH = keyBtnH;
         if (mouseX >= contentX && mouseX <= contentX + keyBtnW && mouseY >= resetBtnY && mouseY <= resetBtnY + resetBtnH) {
             activeModal = ModalDialogComponent.builder()
@@ -1003,6 +1056,9 @@ public class ConfigWidget implements Drawable, Element, Selectable {
         if (listeningForUndoKey) {
             listeningForUndoKey = false;
         }
+        if (listeningForRedoKey) {
+            listeningForRedoKey = false;
+        }
 
         return false;
     }
@@ -1026,6 +1082,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             c.setKeyOpenClose("key.keyboard.o");
             c.setKeyQuickAppend("key.keyboard.a");
             c.setKeyUndo("key.keyboard.z");
+            c.setKeyRedo("key.keyboard.y");
         });
         hexColorField.setText("#101010");
         hexErrorMessage = "";
@@ -1135,6 +1192,24 @@ public class ConfigWidget implements Drawable, Element, Selectable {
             return true;
         }
 
+        if (listeningForRedoKey) {
+            if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
+                listeningForRedoKey = false;
+                playClickSound();
+                return true;
+            }
+
+            InputUtil.Key newKey = InputUtil.fromKeyCode(input);
+            if (newKey != null) {
+                String translationKey = newKey.getTranslationKey();
+                viewModel.updateConfig(c -> c.setKeyRedo(translationKey));
+            }
+
+            listeningForRedoKey = false;
+            playClickSound();
+            return true;
+        }
+
         if (hexColorField.isFocused()) {
             return hexColorField.keyPressed(input);
         }
@@ -1172,7 +1247,7 @@ public class ConfigWidget implements Drawable, Element, Selectable {
     }
 
     public boolean isEditingOrSearching() {
-        return activeModal != null || (hexColorField != null && hexColorField.isFocused()) || listeningForKey || listeningForQuickAppendKey || listeningForUndoKey;
+        return activeModal != null || (hexColorField != null && hexColorField.isFocused()) || listeningForKey || listeningForQuickAppendKey || listeningForUndoKey || listeningForRedoKey;
     }
 
     public double getScrollOffset() {

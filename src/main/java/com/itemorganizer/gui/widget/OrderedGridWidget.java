@@ -224,7 +224,33 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
                 int col = relX / slotSize;
                 int row = relY / slotSize;
 
-                if (col >= 0 && col < getColumnCount()) {
+                if (col >= 0 && col < getColumnCount() && row >= 0) {
+                    DragAndDropManager dragManager = DragAndDropManager.getInstance();
+                    if (dragManager.isDragging() && click.button() == 0) {
+                        if (!viewModel.isBlockerActive()) {
+                            DragPayload payload = dragManager.consumePayload();
+                            ProfileData profile = viewModel.getActiveProfile();
+                            if (profile != null && payload != null) {
+                                ProfileData before = profile.snapshot();
+                                if (payload.getSource() == DragSource.ORDENADO && !payload.isCopy()) {
+                                    profile.removeAt(payload.getSourceCol(), payload.getSourceRow());
+                                } else if (payload.getSource() == DragSource.POR_VERSION) {
+                                    profile.removeItem(payload.getItemId());
+                                }
+
+                                insertWithRippleWrap(profile, payload.getItemId(), col, row);
+
+                                StorageManager.getInstance().getProfileRepository().saveProfile(profile);
+                                viewModel.recomputeUnorganizedItems();
+                                com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                        new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+                                );
+                                SoundHelper.playClick();
+                            }
+                            return true;
+                        }
+                    }
+
                     ProfileData profile = viewModel.getActiveProfile();
                     long now = System.currentTimeMillis();
 
@@ -232,13 +258,21 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
                     if (click.button() == 1) {
                         if (profile != null && profile.findItemAt(col, row).isPresent()) {
                             if (now - lastRightClickTime < 350 && col == lastRightClickCol && row == lastRightClickRow) {
+                                if (viewModel.isBlockerActive()) {
+                                    SoundHelper.playLock();
+                                    return true;
+                                }
                                 Optional<ItemSlotPosition> slotItem = profile.findItemAt(col, row);
                                 if (slotItem.isPresent()) {
+                                    ProfileData before = profile.snapshot();
                                     String itemId = slotItem.get().getItemId();
                                     profile.removeAt(col, row);
                                     profile.blockItem(itemId);
                                     StorageManager.getInstance().getProfileRepository().saveProfile(profile);
                                     viewModel.recomputeUnorganizedItems();
+                                    com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                            new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+                                    );
                                     selectedCol = -1;
                                     selectedRow = -1;
                                     SoundHelper.playTrapdoorClose();
@@ -278,10 +312,18 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
                             }
 
                             if (now - lastLeftClickTime < 350 && col == lastLeftClickCol && row == lastLeftClickRow) {
+                                if (viewModel.isBlockerActive()) {
+                                    SoundHelper.playLock();
+                                    return true;
+                                }
+                                ProfileData before = profile.snapshot();
                                 profile.removeAt(col, row);
                                 profile.blockItem(itemId);
                                 StorageManager.getInstance().getProfileRepository().saveProfile(profile);
                                 viewModel.recomputeUnorganizedItems();
+                                com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                        new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+                                );
                                 selectedCol = -1;
                                 selectedRow = -1;
                                 DragAndDropManager.getInstance().consumePayload();
@@ -297,7 +339,7 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
                             if (!stack.isEmpty()) {
                                 boolean isCopy = viewModel.isBlockerActive();
                                 DragPayload payload = DragPayload.ofGrid(itemId, stack, DragSource.ORDENADO, col, row, isCopy);
-                                DragAndDropManager.getInstance().startDrag(payload);
+                                DragAndDropManager.getInstance().startDrag(payload, click.x(), click.y());
                                 selectedCol = -1;
                                 selectedRow = -1;
                                 return true;
@@ -326,11 +368,15 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
 
         DragAndDropManager dragManager = DragAndDropManager.getInstance();
         if (dragManager.isDragging()) {
+            if (!dragManager.isDraggedBeyondThreshold()) {
+                return false;
+            }
             if (isMouseOver(click.x(), click.y())) {
                 if (!viewModel.isBlockerActive() && hoveredCol >= 0 && hoveredRow >= 0) {
                     DragPayload payload = dragManager.getActivePayload();
                     ProfileData profile = viewModel.getActiveProfile();
                     if (profile != null) {
+                        ProfileData before = profile.snapshot();
                         if (payload.getSource() == DragSource.ORDENADO && !payload.isCopy()) {
                             profile.removeAt(payload.getSourceCol(), payload.getSourceRow());
                         } else if (payload.getSource() == DragSource.POR_VERSION) {
@@ -341,6 +387,9 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
 
                         StorageManager.getInstance().getProfileRepository().saveProfile(profile);
                         viewModel.recomputeUnorganizedItems();
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+                        );
                         SoundHelper.playClick();
                     }
                 }
@@ -448,6 +497,7 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
         if (currentItem.isEmpty()) return false;
         String currentId = currentItem.get().getItemId();
 
+        ProfileData before = profile.snapshot();
         Optional<ItemSlotPosition> targetItem = profile.findItemAt(targetCol, targetRow);
 
         if (targetItem.isPresent()) {
@@ -469,6 +519,9 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
         ensureRowVisible(selectedRow);
 
         StorageManager.getInstance().getProfileRepository().saveProfile(profile);
+        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+        );
         SoundHelper.playClick();
         return true;
     }
@@ -477,11 +530,15 @@ public class OrderedGridWidget implements Drawable, Element, Selectable {
         if (selectedCol < 0 || selectedRow < 0) return false;
         ProfileData profile = viewModel.getActiveProfile();
         if (profile != null) {
+            ProfileData before = profile.snapshot();
             if (profile.removeAt(selectedCol, selectedRow)) {
                 selectedCol = -1;
                 selectedRow = -1;
                 StorageManager.getInstance().getProfileRepository().saveProfile(profile);
                 viewModel.recomputeUnorganizedItems();
+                com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                        new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+                );
                 SoundHelper.playBreak();
                 return true;
             }

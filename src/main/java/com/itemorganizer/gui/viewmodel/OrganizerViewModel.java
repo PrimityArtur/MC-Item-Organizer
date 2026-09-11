@@ -65,6 +65,7 @@ public class OrganizerViewModel {
 
     public void loadInitialData() {
         this.config = storageManager.getConfigRepository().getConfig();
+        this.blockerActive = (config != null) && config.isBlockerActive();
         String savedProfile = (config != null) ? config.getSelectedProfile() : ProfileRepository.DEFAULT_PROFILE_NAME;
         List<String> available = storageManager.getProfileRepository().listProfiles();
         String profileToLoad = (savedProfile != null && available.contains(savedProfile))
@@ -91,13 +92,36 @@ public class OrganizerViewModel {
             blockedSet.addAll(activeProfile.getBlockedItems());
         }
 
-        for (Item item : Registries.ITEM) {
-            if (item == Items.AIR) continue;
-            Identifier id = Registries.ITEM.getId(item);
-            String idStr = id.toString();
-            if (!organizedSet.contains(idStr) && !blockedSet.contains(idStr)) {
-                unorganizedItems.add(idStr);
+        try {
+            for (Item item : Registries.ITEM) {
+                if (item == Items.AIR) continue;
+                Identifier id = Registries.ITEM.getId(item);
+                String idStr = id.toString();
+                if (item == Items.TEST_BLOCK) {
+                    for (net.minecraft.block.enums.TestBlockMode mode : net.minecraft.block.enums.TestBlockMode.values()) {
+                        String varId = "minecraft:test_block[mode=" + mode.asString() + "]";
+                        if (!organizedSet.contains(varId) && !blockedSet.contains(varId)) {
+                            unorganizedItems.add(varId);
+                        }
+                    }
+                    continue;
+                }
+
+                if (item == Items.LIGHT) {
+                    for (int lvl = 15; lvl >= 0; lvl--) {
+                        String varId = "minecraft:light[level=" + lvl + "]";
+                        if (!organizedSet.contains(varId) && !blockedSet.contains(varId)) {
+                            unorganizedItems.add(varId);
+                        }
+                    }
+                    continue;
+                }
+
+                if (!organizedSet.contains(idStr) && !blockedSet.contains(idStr)) {
+                    unorganizedItems.add(idStr);
+                }
             }
+        } catch (Throwable ignored) {
         }
         notifyChanges();
     }
@@ -178,12 +202,15 @@ public class OrganizerViewModel {
 
     public void setBlockerActive(boolean blockerActive) {
         this.blockerActive = blockerActive;
+        if (config != null && storageManager != null && storageManager.getConfigRepository() != null) {
+            config.setBlockerActive(blockerActive);
+            storageManager.getConfigRepository().save(config);
+        }
         notifyChanges();
     }
 
     public void toggleBlocker() {
-        this.blockerActive = !this.blockerActive;
-        notifyChanges();
+        setBlockerActive(!this.blockerActive);
     }
 
     public List<String> getUnorganizedItems() {

@@ -907,8 +907,13 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
             PaletteData data = getPaletteData();
             if (data != null) {
                 PaletteRow newRow = new PaletteRow(9);
-                data.addRow(newRow);
+                int index = 0;
+                data.insertRow(0, newRow);
                 savePaletteData(data);
+                com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                        new com.itemorganizer.gui.undo.PaletteAddDeleteUndoAction(newRow, index, true, infiniteMode)
+                );
+                scrollbar.setScrollOffset(0);
                 searchField.setText("");
                 playClickSound();
             }
@@ -980,8 +985,13 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
             }
 
             if (click.button() == 0 && hoveredDupBtn) {
-                data.duplicateRow(hoveredOriginalRowIndex);
-                savePaletteData(data);
+                PaletteRow copy = data.duplicateRow(hoveredOriginalRowIndex);
+                if (copy != null) {
+                    savePaletteData(data);
+                    com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                            new com.itemorganizer.gui.undo.PaletteAddDeleteUndoAction(copy, hoveredOriginalRowIndex + 1, true, infiniteMode)
+                    );
+                }
                 playClickSound();
                 return true;
             }
@@ -1039,7 +1049,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                     String previous = row.getSlot(hoveredSlotIndex);
                     if (previous != null) {
                         com.itemorganizer.gui.undo.UndoManager.getInstance().record(
-                                new com.itemorganizer.gui.undo.PaletteSlotUndoAction(row.getId(), hoveredSlotIndex, previous)
+                                new com.itemorganizer.gui.undo.PaletteSlotUndoAction(row.getId(), hoveredSlotIndex, previous, null)
                         );
                     }
                     row.clearSlot(hoveredSlotIndex);
@@ -1051,8 +1061,26 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                     return true;
                 }
 
-                // left click: shift-click to hotbar or drag
+                // left click: shift-click to hotbar or drag / place
                 if (click.button() == 0) {
+                    DragAndDropManager dragManager = DragAndDropManager.getInstance();
+                    if (dragManager.isDragging()) {
+                        DragPayload payload = dragManager.consumePayload();
+                        if (payload != null && payload.getItemId() != null) {
+                            String previous = row.getSlot(hoveredSlotIndex);
+                            com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                    new com.itemorganizer.gui.undo.PaletteSlotUndoAction(row.getId(), hoveredSlotIndex, previous, payload.getItemId())
+                            );
+                            row.setSlot(hoveredSlotIndex, payload.getItemId());
+                            if (infiniteMode) {
+                                row.updateInfiniteSlots();
+                            }
+                            savePaletteData(data);
+                            SoundHelper.playClick();
+                            return true;
+                        }
+                    }
+
                     String itemId = row.getSlot(hoveredSlotIndex);
                     if (itemId != null) {
                         ItemStack stack = getItemStackFromId(itemId);
@@ -1064,7 +1092,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                                 return true;
                             }
                             DragPayload payload = DragPayload.ofIndexed(itemId, stack, DragSource.PALETAS, hoveredSlotIndex, true);
-                            DragAndDropManager.getInstance().startDrag(payload);
+                            DragAndDropManager.getInstance().startDrag(payload, click.x(), click.y());
                             return true;
                         }
                     }
@@ -1097,8 +1125,24 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         if (deletingPaletteId == null) return;
         PaletteData data = getPaletteData();
         if (data != null) {
-            data.removeRowById(deletingPaletteId);
-            savePaletteData(data);
+            int index = -1;
+            PaletteRow targetRow = null;
+            List<PaletteRow> rows = data.getRows();
+            for (int i = 0; i < rows.size(); i++) {
+                if (deletingPaletteId.equals(rows.get(i).getId())) {
+                    index = i;
+                    targetRow = rows.get(i);
+                    break;
+                }
+            }
+            if (targetRow != null) {
+                PaletteRow snapshot = targetRow.snapshot();
+                data.removeRowById(deletingPaletteId);
+                savePaletteData(data);
+                com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                        new com.itemorganizer.gui.undo.PaletteAddDeleteUndoAction(snapshot, index, false, infiniteMode)
+                );
+            }
         }
         deletingPaletteId = null;
         activeModal = null;
@@ -1111,9 +1155,8 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
         if (data != null) {
             PaletteRow row = data.findRowById(pastingHotbarPaletteId);
             if (row != null) {
-                com.itemorganizer.gui.undo.UndoManager.getInstance().record(
-                        new com.itemorganizer.gui.undo.PaletteFullUndoAction(row)
-                );
+                com.itemorganizer.gui.undo.PaletteFullUndoAction undoAction =
+                        new com.itemorganizer.gui.undo.PaletteFullUndoAction(row);
                 MinecraftClient client = MinecraftClient.getInstance();
                 if (client.player != null) {
                     if (infiniteMode) {
@@ -1139,6 +1182,8 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                             }
                         }
                     }
+                    undoAction.setNewSlots(row.getSlots());
+                    com.itemorganizer.gui.undo.UndoManager.getInstance().record(undoAction);
                     savePaletteData(data);
                 }
             }
@@ -1188,6 +1233,9 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
 
         DragAndDropManager dragManager = DragAndDropManager.getInstance();
         if (dragManager.isDragging()) {
+            if (!dragManager.isDraggedBeyondThreshold()) {
+                return false;
+            }
             PaletteData data = getPaletteData();
             if (data != null) {
                 updateHover(click.x(), click.y(), getFilteredPalettes(data.getRows()), data.getRows().size());
@@ -1196,7 +1244,7 @@ public class PaletteListWidget implements Drawable, Element, Selectable {
                     DragPayload payload = dragManager.getActivePayload();
                     String previous = row.getSlot(hoveredSlotIndex);
                     com.itemorganizer.gui.undo.UndoManager.getInstance().record(
-                            new com.itemorganizer.gui.undo.PaletteSlotUndoAction(row.getId(), hoveredSlotIndex, previous)
+                            new com.itemorganizer.gui.undo.PaletteSlotUndoAction(row.getId(), hoveredSlotIndex, previous, payload.getItemId())
                     );
                     row.setSlot(hoveredSlotIndex, payload.getItemId());
                     if (infiniteMode) {

@@ -24,17 +24,50 @@ public class BlockedGridWidget extends AbstractItemGridWidget {
 
     @Override
     protected void onItemDoubleRightClick(String itemId) {
+        if (viewModel.isBlockerActive()) {
+            SoundHelper.playLock();
+            return;
+        }
         ProfileData profile = viewModel.getActiveProfile();
         if (profile != null) {
+            ProfileData before = profile.snapshot();
             profile.unblockItem(itemId);
             StorageManager.getInstance().getProfileRepository().saveProfile(profile);
             viewModel.recomputeUnorganizedItems();
+            com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                    new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+            );
             SoundHelper.playBreak();
         }
     }
 
     @Override
+    protected boolean handlePayloadDrop(com.itemorganizer.gui.dragdrop.DragPayload payload) {
+        if (payload == null || payload.getItemId() == null) return false;
+        if (viewModel.isBlockerActive()) {
+            SoundHelper.playLock();
+            return false;
+        }
+        ProfileData profile = viewModel.getActiveProfile();
+        if (profile != null) {
+            ProfileData before = profile.snapshot();
+            if (payload.getSource() == DragSource.ORDENADO && !payload.isCopy()) {
+                profile.removeAt(payload.getSourceCol(), payload.getSourceRow());
+            }
+            profile.blockItem(payload.getItemId());
+            StorageManager.getInstance().getProfileRepository().saveProfile(profile);
+            viewModel.recomputeUnorganizedItems();
+            com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                    new com.itemorganizer.gui.undo.ProfileUndoAction(before, profile.snapshot())
+            );
+            SoundHelper.playLock();
+            return true;
+        }
+        return false;
+    }
+
+    @Override
     protected DragSource getDragSource() {
-        return DragSource.POR_ORGANIZAR;
+        return DragSource.BLOQUEADO;
     }
 }

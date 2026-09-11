@@ -16,8 +16,10 @@ public class ModConfig {
     private String keyOpenClose = "key.keyboard.o"; // toggle key
     private String keyQuickAppend = "key.keyboard.a"; // quick append key
     private String keyUndo = "key.keyboard.z"; // undo shortcut key
+    private String keyRedo = "key.keyboard.y"; // redo shortcut key
     private String selectedProfile = "default"; // active profile name
     private float blur = 0.50f; // background blur intensity (0.0 to 5.0)
+    private boolean blockerActive = false;
 
     public ModConfig() {
     }
@@ -158,6 +160,14 @@ public class ModConfig {
         this.keyUndo = keyUndo;
     }
 
+    public String getKeyRedo() {
+        return (keyRedo != null && !keyRedo.isEmpty()) ? keyRedo : "key.keyboard.y";
+    }
+
+    public void setKeyRedo(String keyRedo) {
+        this.keyRedo = keyRedo;
+    }
+
     public String getSelectedProfile() {
         return (selectedProfile != null && !selectedProfile.trim().isEmpty()) ? selectedProfile : "default";
     }
@@ -180,6 +190,14 @@ public class ModConfig {
 
     public void setBackgroundBlur(boolean backgroundBlur) {
         this.blur = backgroundBlur ? 0.50f : 0.0f;
+    }
+
+    public boolean isBlockerActive() {
+        return blockerActive;
+    }
+
+    public void setBlockerActive(boolean blockerActive) {
+        this.blockerActive = blockerActive;
     }
 
     // returns background color in argb format for drawcontext.fill

@@ -117,6 +117,7 @@
   "config.itemorganizer.open_key": "Abrir Interfaz",
   "config.itemorganizer.quick_append_key": "Inserción Rápida",
   "config.itemorganizer.undo_key": "Acceso Deshacer",
+  "config.itemorganizer.redo_key": "Acceso Rehacer",
   "config.itemorganizer.reset_defaults": "Restablecer Valores",
   "config.itemorganizer.reset_defaults.confirm_title": "¿Restablecer valores?",
   "config.itemorganizer.reset_defaults.confirm_desc": "¿Restaurar ajustes visuales, escalas y atajos?",

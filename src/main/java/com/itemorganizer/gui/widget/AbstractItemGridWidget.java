@@ -164,6 +164,17 @@ public abstract class AbstractItemGridWidget implements Drawable, Element, Selec
             return true;
         }
 
+        if (isMouseOver(click.x(), click.y())) {
+            DragAndDropManager dragManager = DragAndDropManager.getInstance();
+            if (dragManager.isDragging() && click.button() == 0) {
+                DragPayload payload = dragManager.getActivePayload();
+                if (handlePayloadDrop(payload)) {
+                    dragManager.consumePayload();
+                    return true;
+                }
+            }
+        }
+
         List<String> items = getItems();
         if (hoveredIndex >= 0 && hoveredIndex < items.size()) {
             String itemId = items.get(hoveredIndex);
@@ -192,7 +203,7 @@ public abstract class AbstractItemGridWidget implements Drawable, Element, Selec
                         return true;
                     }
                     DragPayload payload = DragPayload.ofIndexed(itemId, stack, getDragSource(), hoveredIndex, true);
-                    DragAndDropManager.getInstance().startDrag(payload);
+                    DragAndDropManager.getInstance().startDrag(payload, click.x(), click.y());
                     return true;
                 }
             }
@@ -204,7 +215,29 @@ public abstract class AbstractItemGridWidget implements Drawable, Element, Selec
     @Override
     public boolean mouseReleased(Click click) {
         lastShiftIndex = -1;
-        return scrollbar.mouseReleased(click);
+        if (scrollbar.mouseReleased(click)) {
+            return true;
+        }
+
+        DragAndDropManager dragManager = DragAndDropManager.getInstance();
+        if (dragManager.isDragging()) {
+            if (!dragManager.isDraggedBeyondThreshold()) {
+                return false;
+            }
+            if (isMouseOver(click.x(), click.y())) {
+                DragPayload payload = dragManager.getActivePayload();
+                if (handlePayloadDrop(payload)) {
+                    dragManager.consumePayload();
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    protected boolean handlePayloadDrop(DragPayload payload) {
+        return false;
     }
 
     @Override

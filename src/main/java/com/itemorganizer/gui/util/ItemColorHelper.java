@@ -61,19 +61,19 @@ public class ItemColorHelper {
     }
 
     private static void loadColorsFromReader(Reader reader) {
-        Type mapType = new TypeToken<Map<String, String>>() {}.getType();
-        Map<String, String> rawMap = JsonHelper.GSON.fromJson(reader, mapType);
-        if (rawMap != null) {
-            for (Map.Entry<String, String> entry : rawMap.entrySet()) {
+        try (com.google.gson.stream.JsonReader jsonReader = new com.google.gson.stream.JsonReader(reader)) {
+            jsonReader.setLenient(true);
+            jsonReader.beginObject();
+            while (jsonReader.hasNext()) {
+                String key = jsonReader.nextName().toLowerCase();
+                String hex = jsonReader.nextString();
                 try {
-                    String hex = entry.getValue();
                     if (hex.startsWith("0x") || hex.startsWith("0X")) {
                         hex = hex.substring(2);
                     } else if (hex.startsWith("#")) {
                         hex = hex.substring(1);
                     }
                     int color = (int) Long.parseLong(hex, 16);
-                    String key = entry.getKey().toLowerCase();
                     TEXTURE_COLORS.put(key, color);
                     if (key.startsWith("minecraft:")) {
                         TEXTURE_COLORS.put(key.substring("minecraft:".length()), color);
@@ -81,6 +81,8 @@ public class ItemColorHelper {
                 } catch (Exception ignored) {
                 }
             }
+            jsonReader.endObject();
+        } catch (Exception ignored) {
         }
     }
 
@@ -116,7 +118,24 @@ public class ItemColorHelper {
             return col;
         }
 
-        Identifier id = Identifier.tryParse(itemId);
+        if (key.contains("test_block")) {
+            if (key.contains("start")) return 0x29A5D6;
+            if (key.contains("log")) return 0xE8A825;
+            if (key.contains("fail")) return 0xDE3226;
+            if (key.contains("accept")) return 0x38BD4C;
+        }
+
+        String cleanId = key;
+        int bracketIndex = cleanId.indexOf('[');
+        if (bracketIndex != -1) {
+            cleanId = cleanId.substring(0, bracketIndex).trim();
+            Integer cleanCol = TEXTURE_COLORS.get(cleanId);
+            if (cleanCol != null) {
+                return cleanCol;
+            }
+        }
+
+        Identifier id = Identifier.tryParse(cleanId);
         if (id != null) {
             Integer colPath = TEXTURE_COLORS.get(id.getPath());
             if (colPath != null) {

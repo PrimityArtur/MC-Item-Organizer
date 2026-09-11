@@ -251,8 +251,13 @@ public enum ItemCategory {
     // identifies item category based on id, item, and block tags
     public static ItemCategory getCategory(String itemId) {
         if (itemId == null || itemId.isEmpty()) return MISC;
-        Identifier id = Identifier.tryParse(itemId);
-        String path = (id != null ? id.getPath() : itemId).toLowerCase(Locale.ROOT);
+        String cleanId = itemId;
+        int bracketIndex = cleanId.indexOf('[');
+        if (bracketIndex != -1) {
+            cleanId = cleanId.substring(0, bracketIndex).trim();
+        }
+        Identifier id = Identifier.tryParse(cleanId);
+        String path = (id != null ? id.getPath() : cleanId).toLowerCase(Locale.ROOT);
 
         Block block = null;
         Item item = null;
@@ -274,7 +279,7 @@ public enum ItemCategory {
         // command Blocks
         if (path.equals("test_instance_block") || path.equals("barrier") || path.equals("command_block")
             || path.equals("structure_block") || path.equals("structure_void") || path.equals("repeating_command_block") || path.equals("chain_command_block")
-            || path.equals("jigsaw") || path.equals("test_block")) {
+            || path.equals("jigsaw") || path.equals("test_block") || path.equals("light") || path.equals("debug_stick")) {
             return COMMAND_BLOCKS;
         }
 

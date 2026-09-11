@@ -284,7 +284,12 @@ public class PaletteSearchFilterWidget implements Drawable, Element, Selectable 
     public boolean mouseClicked(Click click, boolean bl) {
         if (click.button() == 0 && isHoveredClear(click.x(), click.y())) {
             if (filterPalette.hasAnyItem()) {
+                java.util.List<String> before = new java.util.ArrayList<>(filterPalette.getSlots());
                 clearFilter();
+                java.util.List<String> after = new java.util.ArrayList<>(filterPalette.getSlots());
+                com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                        new com.itemorganizer.gui.undo.PaletteSearchFilterUndoAction(before, after)
+                );
                 SoundHelper.playBreak();
             }
             return true;
@@ -295,7 +300,12 @@ public class PaletteSearchFilterWidget implements Drawable, Element, Selectable 
             // right-click: clear slot
             if (click.button() == 1) {
                 if (filterPalette.getSlot(slot) != null) {
+                    java.util.List<String> before = new java.util.ArrayList<>(filterPalette.getSlots());
                     filterPalette.clearSlot(slot);
+                    java.util.List<String> after = new java.util.ArrayList<>(filterPalette.getSlots());
+                    com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                            new com.itemorganizer.gui.undo.PaletteSearchFilterUndoAction(before, after)
+                    );
                     SoundHelper.playBreak();
                     return true;
                 }
@@ -307,7 +317,12 @@ public class PaletteSearchFilterWidget implements Drawable, Element, Selectable 
                 if (dragManager.isDragging()) {
                     DragPayload payload = dragManager.consumePayload();
                     if (payload != null && payload.getItemId() != null) {
+                        java.util.List<String> before = new java.util.ArrayList<>(filterPalette.getSlots());
                         filterPalette.setSlot(slot, payload.getItemId());
+                        java.util.List<String> after = new java.util.ArrayList<>(filterPalette.getSlots());
+                        com.itemorganizer.gui.undo.UndoManager.getInstance().record(
+                                new com.itemorganizer.gui.undo.PaletteSearchFilterUndoAction(before, after)
+                        );
                         SoundHelper.playClick();
                         return true;
                     }
@@ -317,7 +332,7 @@ public class PaletteSearchFilterWidget implements Drawable, Element, Selectable 
                         ItemStack stack = RenderHelper.getItemStack(itemId);
                         if (!stack.isEmpty()) {
                             DragPayload payload = DragPayload.ofIndexed(itemId, stack.copy(), DragSource.HOTBAR, slot, false);
-                            dragManager.startDrag(payload);
+                            dragManager.startDrag(payload, click.x(), click.y());
                             return true;
                         }
                     }

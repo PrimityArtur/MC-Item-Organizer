@@ -41,6 +41,20 @@ public class ProfileData {
         }
     }
 
+    public void copyFrom(ProfileData source) {
+        if (source == null) return;
+        this.columnCount = source.getColumnCount();
+        this.items = new ArrayList<>();
+        for (ItemSlotPosition pos : source.getItems()) {
+            this.items.add(new ItemSlotPosition(pos.getItemId(), pos.getX(), pos.getY()));
+        }
+        this.blockedItems = new ArrayList<>(source.getBlockedItems());
+    }
+
+    public ProfileData snapshot() {
+        return new ProfileData(this.name, this);
+    }
+
     public List<String> getBlockedItems() {
         if (blockedItems == null) {
             blockedItems = new ArrayList<>();

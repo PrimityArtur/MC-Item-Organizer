@@ -29,11 +29,23 @@ public final class RenderHelper {
             return cached;
         }
         try {
-            Identifier id = Identifier.tryParse(key);
+            String baseId = key;
+            String properties = null;
+            int bracketStart = key.indexOf('[');
+            int bracketEnd = key.lastIndexOf(']');
+            if (bracketStart != -1 && bracketEnd > bracketStart) {
+                baseId = key.substring(0, bracketStart).trim();
+                properties = key.substring(bracketStart + 1, bracketEnd).trim();
+            }
+
+            Identifier id = Identifier.tryParse(baseId);
             if (id != null) {
                 Item item = Registries.ITEM.get(id);
                 if (item != null && item != Items.AIR) {
                     ItemStack stack = new ItemStack(item);
+                    if (properties != null) {
+                        applyPropertiesToStack(stack, item, properties);
+                    }
                     ITEM_CACHE.put(key, stack);
                     return stack;
                 }
@@ -42,6 +54,28 @@ public final class RenderHelper {
         }
         ITEM_CACHE.put(key, ItemStack.EMPTY);
         return ItemStack.EMPTY;
+    }
+
+    private static void applyPropertiesToStack(ItemStack stack, Item item, String properties) {
+        try {
+            if (item == Items.TEST_BLOCK) {
+                for (net.minecraft.block.enums.TestBlockMode mode : net.minecraft.block.enums.TestBlockMode.values()) {
+                    if (properties.contains(mode.asString())) {
+                        net.minecraft.block.TestBlock.applyBlockStateToStack(stack, mode);
+                        return;
+                    }
+                }
+            }
+            if (item == Items.LIGHT) {
+                for (int level = 15; level >= 0; level--) {
+                    if (properties.contains(String.valueOf(level))) {
+                        net.minecraft.block.LightBlock.addNbtForLevel(stack, level);
+                        return;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
     }
 
     public static void clearItemCache() {
